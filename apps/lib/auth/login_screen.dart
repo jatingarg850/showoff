@@ -1,0 +1,354 @@
+import 'package:flutter/material.dart';
+import 'forgot_password_screen.dart';
+import '../reel_screen.dart';
+
+class LoginScreen
+    extends
+        StatefulWidget {
+  const LoginScreen({
+    super.key,
+  });
+
+  @override
+  State<
+    LoginScreen
+  >
+  createState() => _LoginScreenState();
+}
+
+class _LoginScreenState
+    extends
+        State<
+          LoginScreen
+        > {
+  final TextEditingController
+  _emailController = TextEditingController();
+  final TextEditingController
+  _passwordController = TextEditingController();
+
+  @override
+  Widget
+  build(
+    BuildContext context,
+  ) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Colors.black,
+          ),
+          onPressed: () => Navigator.pop(
+            context,
+          ),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 24,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title
+            const Text(
+              'Login',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+
+            // Underline
+            Container(
+              margin: const EdgeInsets.only(
+                top: 8,
+                bottom: 32,
+              ),
+              height: 3,
+              width: 40,
+              decoration: BoxDecoration(
+                color: const Color(
+                  0xFF6C5CE7,
+                ),
+                borderRadius: BorderRadius.circular(
+                  2,
+                ),
+              ),
+            ),
+
+            // Email Address label
+            const Text(
+              'Email Address',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
+            ),
+
+            const SizedBox(
+              height: 12,
+            ),
+
+            // Email input field
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(
+                  12,
+                ),
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(
+                      0xFF6C5CE7,
+                    ),
+                    Color(
+                      0xFF74B9FF,
+                    ),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Container(
+                margin: const EdgeInsets.all(
+                  2,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(
+                    10,
+                  ),
+                ),
+                child: TextField(
+                  controller: _emailController,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.black,
+                  ),
+                  decoration: const InputDecoration(
+                    hintText: 'Enter your Email Address',
+                    hintStyle: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey,
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.all(
+                      16,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(
+              height: 24,
+            ),
+
+            // Password label
+            const Text(
+              'Enter Password',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
+            ),
+
+            const SizedBox(
+              height: 12,
+            ),
+
+            // Password input field
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(
+                  12,
+                ),
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(
+                      0xFF6C5CE7,
+                    ),
+                    Color(
+                      0xFF74B9FF,
+                    ),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Container(
+                margin: const EdgeInsets.all(
+                  2,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(
+                    10,
+                  ),
+                ),
+                child: TextField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.black,
+                  ),
+                  decoration: const InputDecoration(
+                    hintText: 'Enter your password',
+                    hintStyle: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey,
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.all(
+                      16,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(
+              height: 16,
+            ),
+
+            // Forgot password link
+            Align(
+              alignment: Alignment.centerRight,
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (
+                            context,
+                          ) => const ForgotPasswordScreen(),
+                    ),
+                  );
+                },
+                child: const Text(
+                  'Forgot password?',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+            ),
+
+            const Spacer(),
+
+            // Continue button
+            Container(
+              width: double.infinity,
+              height: 56,
+              margin: const EdgeInsets.only(
+                bottom: 16,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(
+                  0xFF6C5CE7,
+                ),
+                borderRadius: BorderRadius.circular(
+                  28,
+                ),
+              ),
+              child: ElevatedButton(
+                onPressed: () {
+                  // Navigate to reel screen for testing
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (
+                            context,
+                          ) => const ReelScreen(),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      28,
+                    ),
+                  ),
+                ),
+                child: const Text(
+                  'Continue',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+
+            // Sign up link
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  "Don't have an account? ",
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.black,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    // Navigate to sign up screen
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Navigate to Sign Up screen',
+                        ),
+                        backgroundColor: Colors.blue,
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    'Sign Up',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(
+                        0xFF6C5CE7,
+                      ),
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(
+              height: 40,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void
+  dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+}
