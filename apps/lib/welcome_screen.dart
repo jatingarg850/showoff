@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'reel_screen.dart';
+import 'main_screen.dart';
 
 class WelcomeScreen
     extends
@@ -76,7 +76,7 @@ class WelcomeScreen
                       builder:
                           (
                             context,
-                          ) => const ReelScreenWithBottomNav(),
+                          ) => const MainScreen(),
                     ),
                   );
                 },

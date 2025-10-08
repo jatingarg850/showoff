@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'forgot_password_screen.dart';
-import '../reel_screen.dart';
+import '../main_screen.dart';
 
 class LoginScreen
     extends
@@ -270,7 +270,7 @@ class _LoginScreenState
                       builder:
                           (
                             context,
-                          ) => const ReelScreenWithBottomNav(),
+                          ) => const MainScreen(),
                     ),
                   );
                 },

@@ -717,16 +717,16 @@ class _ReelScreenState
                                 height: 12,
                               ),
 
-                              // Description with typewriter effect
+                              // Description with safe typewriter effect
                               TweenAnimationBuilder<
-                                int
+                                double
                               >(
                                 duration: const Duration(
                                   milliseconds: 1000,
                                 ),
-                                tween: IntTween(
-                                  begin: 0,
-                                  end: reel['description'].length,
+                                tween: Tween(
+                                  begin: 0.0,
+                                  end: 1.0,
                                 ),
                                 builder:
                                     (
@@ -734,11 +734,26 @@ class _ReelScreenState
                                       value,
                                       child,
                                     ) {
+                                      final description =
+                                          reel['description']
+                                              as String;
+                                      final runes = description.runes.toList();
+                                      final displayLength =
+                                          (runes.length *
+                                                  value)
+                                              .round();
+                                      final safeText =
+                                          displayLength >=
+                                              runes.length
+                                          ? description
+                                          : String.fromCharCodes(
+                                              runes.take(
+                                                displayLength,
+                                              ),
+                                            );
+
                                       return Text(
-                                        reel['description'].substring(
-                                          0,
-                                          value,
-                                        ),
+                                        safeText,
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 14,
@@ -873,120 +888,6 @@ class _ReelScreenState
               ),
             );
           },
-    );
-  }
-}
-
-// Bottom navigation bar widget (separate from scrollable content)
-class ReelScreenWithBottomNav
-    extends
-        StatelessWidget {
-  const ReelScreenWithBottomNav({
-    super.key,
-  });
-
-  @override
-  Widget
-  build(
-    BuildContext context,
-  ) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          const ReelScreen(),
-
-          // Floating bottom navigation bar
-          Positioned(
-            left: 20,
-            right: 20,
-            bottom: 30,
-            child: Container(
-              height: 70,
-              decoration: BoxDecoration(
-                color: const Color(
-                  0xFF6C5CE7,
-                ),
-                borderRadius: BorderRadius.circular(
-                  25,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(
-                      alpha: 0.15,
-                    ),
-                    blurRadius: 20,
-                    offset: const Offset(
-                      0,
-                      8,
-                    ),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  // Reels icon (active)
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(
-                          8,
-                        ),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.play_arrow,
-                          color: Color(
-                            0xFF6C5CE7,
-                          ),
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(
-                        height: 4,
-                      ),
-                      Container(
-                        width: 24,
-                        height: 3,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(
-                            2,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Icon(
-                    Icons.card_giftcard_outlined,
-                    color: Colors.white,
-                    size: 26,
-                  ),
-                  const Icon(
-                    Icons.add,
-                    color: Colors.white,
-                    size: 30,
-                  ),
-                  const Icon(
-                    Icons.folder_outlined,
-                    color: Colors.white,
-                    size: 26,
-                  ),
-                  const Icon(
-                    Icons.person_outline,
-                    color: Colors.white,
-                    size: 26,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
