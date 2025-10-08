@@ -65,7 +65,7 @@ class _GiftScreenState
           MediaQuery.of(
             context,
           ).size.height *
-          0.4,
+          0.28,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.only(
@@ -96,8 +96,9 @@ class _GiftScreenState
 
           // Header with Gift title and balance
           Padding(
-            padding: const EdgeInsets.all(
-              20,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -105,7 +106,7 @@ class _GiftScreenState
                 const Text(
                   'Gift',
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.black,
                   ),
@@ -116,9 +117,13 @@ class _GiftScreenState
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.orange[100],
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(
                       15,
+                    ),
+                    border: Border.all(
+                      color: Colors.grey[300]!,
+                      width: 1,
                     ),
                   ),
                   child: Row(
@@ -135,7 +140,7 @@ class _GiftScreenState
                       Text(
                         '500',
                         style: TextStyle(
-                          color: Colors.orange[600],
+                          color: Colors.grey[700],
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
@@ -148,91 +153,83 @@ class _GiftScreenState
           ),
 
           // Gift options horizontal scroll
-          Container(
-            height: 120,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
-            ),
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: gifts.length,
-              itemBuilder:
-                  (
-                    context,
-                    index,
-                  ) {
-                    final gift = gifts[index];
-                    final isSelected =
-                        selectedGiftIndex ==
-                        index;
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+              ),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: gifts.length,
+                itemBuilder:
+                    (
+                      context,
+                      index,
+                    ) {
+                      final gift = gifts[index];
+                      final isSelected =
+                          selectedGiftIndex ==
+                          index;
 
-                    return GestureDetector(
-                      onTap: () {
-                        setState(
-                          () {
-                            selectedGiftIndex = index;
-                          },
-                        );
-                      },
-                      child: Container(
-                        width: 90,
-                        margin: const EdgeInsets.only(
-                          right: 16,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? Colors.blue[50]
-                              : Colors.grey[50],
-                          borderRadius: BorderRadius.circular(
-                            16,
+                      return GestureDetector(
+                        onTap: () {
+                          setState(
+                            () {
+                              selectedGiftIndex = index;
+                            },
+                          );
+                        },
+                        child: Container(
+                          width: 90,
+                          margin: const EdgeInsets.only(
+                            right: 16,
                           ),
-                          border: Border.all(
+                          decoration: BoxDecoration(
                             color: isSelected
-                                ? Colors.blue
-                                : Colors.grey[300]!,
-                            width: isSelected
-                                ? 2
-                                : 1,
+                                ? Colors.blue[50]
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(
+                              16,
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Gift icon
+                              Image.asset(
+                                gift['icon'],
+                                width: 40,
+                                height: 40,
+                                fit: BoxFit.contain,
+                              ),
+                              const SizedBox(
+                                height: 6,
+                              ),
+                              // Gift value
+                              Text(
+                                '${gift['value']}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: isSelected
+                                      ? Colors.blue
+                                      : Colors.black87,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // Gift icon
-                            Image.asset(
-                              gift['icon'],
-                              width: 50,
-                              height: 50,
-                              fit: BoxFit.contain,
-                            ),
-                            const SizedBox(
-                              height: 8,
-                            ),
-                            // Gift value
-                            Text(
-                              '${gift['value']}',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: isSelected
-                                    ? Colors.blue
-                                    : Colors.black87,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+              ),
             ),
           ),
 
-          const Spacer(),
-
           // Send gift button
           Padding(
-            padding: const EdgeInsets.all(
-              20,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
             ),
             child: SizedBox(
               width: double.infinity,
@@ -272,7 +269,7 @@ class _GiftScreenState
                       ? Colors.white
                       : Colors.grey[600],
                   padding: const EdgeInsets.symmetric(
-                    vertical: 16,
+                    vertical: 12,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(
@@ -286,7 +283,7 @@ class _GiftScreenState
                       ? 'Send Gift (${gifts[selectedGiftIndex]['value']} coins)'
                       : 'Select a Gift',
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

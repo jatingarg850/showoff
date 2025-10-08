@@ -76,7 +76,7 @@ class WelcomeScreen
                       builder:
                           (
                             context,
-                          ) => const ReelScreen(),
+                          ) => const ReelScreenWithBottomNav(),
                     ),
                   );
                 },

@@ -270,7 +270,7 @@ class _LoginScreenState
                       builder:
                           (
                             context,
-                          ) => const ReelScreen(),
+                          ) => const ReelScreenWithBottomNav(),
                     ),
                   );
                 },
