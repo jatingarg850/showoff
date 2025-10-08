@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'leaderboard_screen.dart';
 
 class TalentScreen
     extends
@@ -193,13 +194,26 @@ class _TalentScreenState
                         25,
                       ),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.emoji_events,
-                          color: Colors.black54,
-                          size: 20,
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (
+                                      context,
+                                    ) => const LeaderboardScreen(),
+                              ),
+                            );
+                          },
+                          child: const Icon(
+                            Icons.emoji_events,
+                            color: Colors.black54,
+                            size: 20,
+                          ),
                         ),
                         SizedBox(
                           width: 8,
@@ -376,7 +390,25 @@ class _TalentScreenState
                           colors: [
                             Color(
                               0xFF5A9FFF,
-                            ),Color.fromARGB(255, 80, 62, 239),Color.fromARGB(255, 80, 62, 239),Color.fromARGB(255, 80, 62, 239),
+                            ),
+                            Color.fromARGB(
+                              255,
+                              80,
+                              62,
+                              239,
+                            ),
+                            Color.fromARGB(
+                              255,
+                              80,
+                              62,
+                              239,
+                            ),
+                            Color.fromARGB(
+                              255,
+                              80,
+                              62,
+                              239,
+                            ),
                             Color(
                               0xFF4A7FFF,
                             ),
@@ -422,7 +454,6 @@ class _TalentScreenState
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                           
                           ),
                         ),
                       ),
