@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'talent_screen.dart';
+import 'leaderboard_screen.dart';
 
 void
 main() {
@@ -28,7 +28,7 @@ class MyApp
         ),
         useMaterial3: true,
       ),
-      home: const TalentScreen(),
+      home: const LeaderboardScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

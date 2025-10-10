@@ -26,8 +26,6 @@ class _LeaderboardScreenState
   >
   periods = [
     'Weekly',
-    'Monthly',
-    'Mega',
   ];
 
   final List<
@@ -193,11 +191,18 @@ class _LeaderboardScreenState
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Image.asset(
-                          'assets/syttop/trophy.png',
-                          width: 24,
-                          height: 24,
-                          color: Colors.black,
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pop(
+                              context,
+                            );
+                          },
+                          child: Image.asset(
+                            'assets/navbar/2.png',
+                            width: 24,
+                            height: 24,
+                            color: Colors.black,
+                          ),
                         ),
                         const SizedBox(
                           width: 12,
@@ -247,20 +252,16 @@ class _LeaderboardScreenState
             ),
 
             // Top 3 Winners Podium with Stairs
-            Container(
-              margin: const EdgeInsets.symmetric(
-                horizontal: 20,
-              ),
-              height: 200,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(
-                  20,
-                ),
-              ),
+            SizedBox(
+              height: 240,
               child: Stack(
                 children: [
                   // Background stairs image
-                  Positioned.fill(
+                  Positioned(
+                    left: 20,
+                    right: 20,
+                    top: 40,
+                    bottom: 0,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(
                         20,
@@ -272,49 +273,22 @@ class _LeaderboardScreenState
                     ),
                   ),
 
-                  // Gradient overlay to maintain the purple theme
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            const Color(
-                              0xFF701CF5,
-                            ).withValues(
-                              alpha: 0.7,
-                            ),
-                            const Color(
-                              0xFF8B7ED8,
-                            ).withValues(
-                              alpha: 0.7,
-                            ),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(
-                          20,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Users positioned on the stairs at specific positions
-                  // 2nd place (left side, middle height)
+                  // Users positioned above/on the stairs
+                  // 2nd place (Jackson - left side, middle height)
                   Positioned(
-                    left: 40,
-                    top: 80,
+                    left: 35,
+                    top: 75,
                     child: _buildPodiumUser(
                       leaderboardData[1],
                       2,
                     ),
                   ),
 
-                  // 1st place (center, highest position)
+                  // 1st place (Eiden - center, highest position)
                   Positioned(
                     left: 0,
                     right: 0,
-                    top: 40,
+                    top: -3,
                     child: Center(
                       child: _buildPodiumUser(
                         leaderboardData[0],
@@ -323,10 +297,10 @@ class _LeaderboardScreenState
                     ),
                   ),
 
-                  // 3rd place (right side, lowest position)
+                  // 3rd place (Emma Aria - right side, lowest position)
                   Positioned(
-                    right: 40,
-                    top: 100,
+                    right: 35,
+                    top: 75,
                     child: _buildPodiumUser(
                       leaderboardData[2],
                       3,
@@ -343,11 +317,11 @@ class _LeaderboardScreenState
             // Leaderboard List
             Expanded(
               child: Container(
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                ),
-                padding: const EdgeInsets.all(
+                margin: const EdgeInsets.fromLTRB(
                   20,
+                  0,
+                  20,
+                  0,
                 ),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
@@ -356,7 +330,7 @@ class _LeaderboardScreenState
                         0xFF701CF5,
                       ),
                       Color(
-                        0xFF8B7ED8,
+                        0xFF701CF5,
                       ),
                     ],
                     begin: Alignment.topLeft,
@@ -367,6 +341,9 @@ class _LeaderboardScreenState
                   ),
                 ),
                 child: ListView.builder(
+                  padding: const EdgeInsets.all(
+                    20,
+                  ),
                   itemCount:
                       leaderboardData.length -
                       3, // Exclude top 3
@@ -387,10 +364,6 @@ class _LeaderboardScreenState
                 ),
               ),
             ),
-
-            const SizedBox(
-              height: 120,
-            ), // Space for bottom navigation
           ],
         ),
       ),
@@ -423,14 +396,10 @@ class _LeaderboardScreenState
           children: [
             Text(
               period,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: isSelected
-                    ? const Color(
-                        0xFF701CF5,
-                      )
-                    : Colors.black54,
+                color: Colors.black,
               ),
             ),
             if (isSelected)
@@ -478,90 +447,81 @@ class _LeaderboardScreenState
     final isWinner =
         position ==
         1;
+    // Make profile pictures bigger with smaller borders
+    final ringSize = isWinner
+        ? 85.0
+        : 70.0;
+    final profileSize = isWinner
+        ? 75.0
+        : 62.0;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Crown for winner
+        // Crown for winner positioned above everything
         if (isWinner)
-          const Icon(
-            Icons.emoji_events,
-            color: Colors.amber,
-            size: 32,
-          ),
-        if (isWinner)
-          const SizedBox(
-            height: 4,
+          Column(
+            children: [
+              Image.asset(
+                'assets/leaderboard2/crown.png',
+                width: 28,
+                height: 28,
+              ),
+              const SizedBox(
+                height: 4,
+              ),
+            ],
           ),
 
         // User avatar with position badge
         Stack(
           clipBehavior: Clip.none,
           children: [
-            Container(
-              width: isWinner
-                  ? 70
-                  : 55,
-              height: isWinner
-                  ? 70
-                  : 55,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color:
-                      position ==
-                          1
-                      ? Colors.amber
-                      : position ==
-                            2
-                      ? Colors.blue
-                      : Colors.green,
-                  width: 3,
-                ),
-                color: Colors.grey[300],
-              ),
-              child: ClipOval(
-                child: Icon(
-                  Icons.person,
-                  color: Colors.white,
-                  size: isWinner
-                      ? 35
-                      : 28,
-                ),
-              ),
-            ),
-
-            // Position badge
-            Positioned(
-              bottom: -3,
-              right: -3,
-              child: Container(
-                width: 22,
-                height: 22,
-                decoration: BoxDecoration(
-                  color:
-                      position ==
-                          1
-                      ? Colors.amber
-                      : position ==
-                            2
-                      ? Colors.blue
-                      : Colors.green,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white,
-                    width: 2,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    '$position',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 10,
+            // Profile picture with PNG ring border
+            SizedBox(
+              width: ringSize,
+              height: ringSize,
+              child: Stack(
+                children: [
+                  // Profile picture - positioned slightly above center to fit better in ring
+                  Positioned(
+                    left:
+                        (ringSize -
+                            profileSize) /
+                        2,
+                    top:
+                        (ringSize -
+                                profileSize) /
+                            2 -
+                        5, // Move up by 5px to fit better in ring
+                    child: Container(
+                      width: profileSize,
+                      height: profileSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.grey[300],
+                      ),
+                      child: ClipOval(
+                        child: Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size:
+                              profileSize *
+                              0.6,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  // PNG ring border overlay - sized to match container
+                  Positioned.fill(
+                    child: Image.asset(
+                      'assets/leaderboard2/$position.png',
+                      width: ringSize,
+                      height: ringSize,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -623,76 +583,87 @@ class _LeaderboardScreenState
         user['position'] <=
         5; // Top 5 get green arrows
 
-    return Container(
-      margin: EdgeInsets.only(
-        bottom: isFirst
-            ? 0
-            : 16,
-      ),
-      padding: const EdgeInsets.symmetric(
-        vertical: 8,
-      ),
-      child: Row(
-        children: [
-          // Avatar
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.grey[300],
-            ),
-            child: ClipOval(
-              child: Icon(
-                Icons.person,
-                color: Colors.white,
-                size: 25,
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(
+            vertical: 12,
+          ),
+          child: Row(
+            children: [
+              // Avatar
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.grey[300],
+                ),
+                child: ClipOval(
+                  child: Icon(
+                    Icons.person,
+                    color: Colors.white,
+                    size: 25,
+                  ),
+                ),
               ),
-            ),
-          ),
 
-          const SizedBox(
-            width: 16,
-          ),
-
-          // Name
-          Expanded(
-            child: Text(
-              user['name'],
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+              const SizedBox(
+                width: 16,
               ),
-            ),
-          ),
 
-          // Score
-          Text(
-            user['score'],
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+              // Name
+              Expanded(
+                child: Text(
+                  user['name'],
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
 
-          const SizedBox(
-            width: 8,
-          ),
+              // Score
+              Text(
+                user['score'],
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
 
-          // Triangular arrow indicator (green up or red down)
-          Icon(
-            isUpTrend
-                ? Icons.keyboard_arrow_up
-                : Icons.keyboard_arrow_down,
-            color: isUpTrend
-                ? Colors.green
-                : Colors.red,
-            size: 20,
+              const SizedBox(
+                width: 8,
+              ),
+
+              // Triangular arrow indicator (green up or red down)
+              Icon(
+                isUpTrend
+                    ? Icons.keyboard_arrow_up
+                    : Icons.keyboard_arrow_down,
+                color: isUpTrend
+                    ? Colors.green
+                    : Colors.red,
+                size: 20,
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+
+        // White separator line between items - full width and thicker
+        Container(
+          height: 2,
+          width: double.infinity,
+          color: Colors.white.withOpacity(
+            0.3,
+          ),
+          margin: const EdgeInsets.only(
+            top: 12,
+          ),
+        ),
+      ],
     );
   }
 }
