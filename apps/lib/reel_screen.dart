@@ -398,36 +398,42 @@ class _ReelScreenState
               vertical: 8,
             ),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(
-                alpha: 0.3,
-              ),
               borderRadius: BorderRadius.circular(
                 25,
               ),
+              image: const DecorationImage(
+                image: AssetImage(
+                  'assets/reel/up.png',
+                ),
+                fit: BoxFit.cover,
+              ),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.search,
+                Image.asset(
+                  'assets/upreel/search.png',
+                  width: 24,
+                  height: 24,
                   color: Colors.white,
-                  size: 24,
                 ),
-                SizedBox(
+                const SizedBox(
                   width: 16,
                 ),
-                Icon(
-                  Icons.menu,
+                Image.asset(
+                  'assets/upreel/coment.png',
+                  width: 24,
+                  height: 24,
                   color: Colors.white,
-                  size: 24,
                 ),
-                SizedBox(
+                const SizedBox(
                   width: 16,
                 ),
-                Icon(
-                  Icons.notifications_outlined,
+                Image.asset(
+                  'assets/upreel/notbell.png',
+                  width: 24,
+                  height: 24,
                   color: Colors.white,
-                  size: 24,
                 ),
               ],
             ),
@@ -508,17 +514,20 @@ class _ReelScreenState
                             horizontal: 16,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(
-                              alpha: 0.6,
-                            ),
                             borderRadius: BorderRadius.circular(
                               30,
+                            ),
+                            image: const DecorationImage(
+                              image: AssetImage(
+                                'assets/reel/side.png',
+                              ),
+                              fit: BoxFit.cover,
                             ),
                           ),
                           child: Column(
                             children: [
                               _buildActionButton(
-                                Icons.favorite,
+                                'assets/sidereel/like.png',
                                 reel['likes'],
                                 Colors.red,
                               ),
@@ -526,7 +535,7 @@ class _ReelScreenState
                                 height: 20,
                               ),
                               _buildActionButton(
-                                Icons.chat_bubble_outline,
+                                'assets/sidereel/comment.png',
                                 reel['comments'],
                                 Colors.white,
                                 onTap: () {
@@ -545,7 +554,7 @@ class _ReelScreenState
                                 height: 20,
                               ),
                               _buildActionButton(
-                                Icons.bookmark_outline,
+                                'assets/sidereel/saved.png',
                                 reel['bookmarks'],
                                 Colors.white,
                               ),
@@ -553,7 +562,7 @@ class _ReelScreenState
                                 height: 20,
                               ),
                               _buildActionButton(
-                                Icons.share,
+                                'assets/sidereel/share.png',
                                 reel['shares'],
                                 Colors.white,
                               ),
@@ -572,10 +581,11 @@ class _ReelScreenState
                                         ) => const GiftScreen(),
                                   );
                                 },
-                                child: const Icon(
-                                  Icons.card_giftcard,
+                                child: Image.asset(
+                                  'assets/sidereel/gift.png',
+                                  width: 28,
+                                  height: 28,
                                   color: Colors.white,
-                                  size: 28,
                                 ),
                               ),
                             ],
@@ -671,15 +681,15 @@ class _ReelScreenState
                                   // Follow/Ads button
                                   Container(
                                     padding: const EdgeInsets.symmetric(
-                                      horizontal: 24,
-                                      vertical: 10,
+                                      horizontal: 22,
+                                      vertical: 7,
                                     ),
                                     decoration: BoxDecoration(
                                       gradient: LinearGradient(
                                         colors: reel['isAd']
                                             ? [
                                                 const Color(
-                                                  0xFF6C5CE7,
+                                                  0xFF701CF5,
                                                 ),
                                                 const Color(
                                                   0xFF8B7ED8,
@@ -687,17 +697,20 @@ class _ReelScreenState
                                               ]
                                             : [
                                                 const Color(
-                                                  0xFF6C5CE7,
+                                                  0xFF701CF5,
                                                 ),
-                                                const Color(
-                                                  0xFF8B7ED8,
+                                                const Color.fromRGBO(
+                                                  68,
+                                                  138,
+                                                  255,
+                                                  1,
                                                 ),
                                               ],
                                         begin: Alignment.centerLeft,
                                         end: Alignment.centerRight,
                                       ),
                                       borderRadius: BorderRadius.circular(
-                                        20,
+                                        10,
                                       ),
                                     ),
                                     child: Text(
@@ -796,7 +809,7 @@ class _ReelScreenState
 
   Widget
   _buildActionButton(
-    IconData icon,
+    String imagePath,
     String count,
     Color iconColor, {
     VoidCallback? onTap,
@@ -860,10 +873,11 @@ class _ReelScreenState
                                     (1 -
                                         iconValue) *
                                     0.2,
-                                child: Icon(
-                                  icon,
+                                child: Image.asset(
+                                  imagePath,
+                                  width: 28,
+                                  height: 28,
                                   color: iconColor,
-                                  size: 28,
                                 ),
                               );
                             },

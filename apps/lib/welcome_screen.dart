@@ -62,7 +62,7 @@ class WelcomeScreen
               height: 56,
               decoration: BoxDecoration(
                 color: const Color(
-                  0xFF6C5CE7,
+                  0xFF701CF5,
                 ),
                 borderRadius: BorderRadius.circular(
                   28,

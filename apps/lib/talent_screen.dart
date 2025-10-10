@@ -30,8 +30,6 @@ class _TalentScreenState
   >
   periods = [
     'Weekly',
-    'Monthly',
-    'Mega',
   ];
   final List<
     String
@@ -163,10 +161,10 @@ class _TalentScreenState
                             const LinearGradient(
                               colors: [
                                 Color(
-                                  0xFF6C5CE7,
+                                  0xFF701CF5,
                                 ),
                                 Color(
-                                  0xFF74B9FF,
+                                  0xFF3E98E4,
                                 ),
                               ],
                               begin: Alignment.centerLeft,
@@ -260,7 +258,7 @@ class _TalentScreenState
                     ),
                     decoration: BoxDecoration(
                       color: const Color(
-                        0xFF6C5CE7,
+                        0xFF701CF5,
                       ),
                       borderRadius: BorderRadius.circular(
                         20,
@@ -320,7 +318,7 @@ class _TalentScreenState
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? const Color(
-                                    0xFF6C5CE7,
+                                    0xFF701CF5,
                                   )
                                 : Colors.grey[200],
                             borderRadius: BorderRadius.circular(
@@ -381,8 +379,8 @@ class _TalentScreenState
 
                   // Floating Join Arena Button
                   Positioned(
-                    left: 20,
-                    right: 20,
+                    left: 40,
+                    right: 40,
                     bottom: 140,
                     child: Container(
                       decoration: BoxDecoration(
@@ -391,23 +389,8 @@ class _TalentScreenState
                             Color(
                               0xFF5A9FFF,
                             ),
-                            Color.fromARGB(
-                              255,
-                              80,
-                              62,
-                              239,
-                            ),
-                            Color.fromARGB(
-                              255,
-                              80,
-                              62,
-                              239,
-                            ),
-                            Color.fromARGB(
-                              255,
-                              80,
-                              62,
-                              239,
+                            Color(
+                              0xFF701CF5,
                             ),
                             Color(
                               0xFF4A7FFF,
@@ -450,7 +433,7 @@ class _TalentScreenState
                           ),
                         ),
                         child: const Text(
-                          'Join this arena',
+                          'Show Your Talent (SYT)',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -509,7 +492,7 @@ class _TalentScreenState
                 fontWeight: FontWeight.w600,
                 color: isSelected
                     ? const Color(
-                        0xFF6C5CE7,
+                        0xFF701CF5,
                       )
                     : Colors.black54,
               ),
@@ -525,10 +508,10 @@ class _TalentScreenState
                   gradient: LinearGradient(
                     colors: [
                       Color(
-                        0xFF6C5CE7,
+                        0xFF701CF5,
                       ),
                       Color(
-                        0xFF74B9FF,
+                        0xFF3E98E4,
                       ),
                     ],
                     begin: Alignment.centerLeft,
@@ -606,7 +589,7 @@ class _TalentScreenState
                     'In competition',
                     style: TextStyle(
                       color: Color(
-                        0xFF6C5CE7,
+                        0xFF701CF5,
                       ),
                       fontSize: 10,
                       fontWeight: FontWeight.w600,

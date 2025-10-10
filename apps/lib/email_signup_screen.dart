@@ -91,7 +91,7 @@ class _EmailSignUpScreenState
                 width: 80,
                 decoration: BoxDecoration(
                   color: const Color(
-                    0xFF6C5CE7,
+                    0xFF701CF5,
                   ),
                   borderRadius: BorderRadius.circular(
                     2,
@@ -123,10 +123,10 @@ class _EmailSignUpScreenState
                   gradient: const LinearGradient(
                     colors: [
                       Color(
-                        0xFF6C5CE7,
+                        0xFF701CF5,
                       ), // Purple
                       Color(
-                        0xFF74B9FF,
+                        0xFF3E98E4,
                       ), // Blue
                     ],
                     begin: Alignment.topLeft,
@@ -180,7 +180,7 @@ class _EmailSignUpScreenState
                 height: 56,
                 decoration: BoxDecoration(
                   color: const Color(
-                    0xFF6C5CE7,
+                    0xFF701CF5,
                   ),
                   borderRadius: BorderRadius.circular(
                     28,

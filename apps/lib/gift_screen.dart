@@ -260,7 +260,7 @@ class _GiftScreenState
                       selectedGiftIndex !=
                           -1
                       ? const Color(
-                          0xFF6C5CE7,
+                          0xFF701CF5,
                         )
                       : Colors.grey[300],
                   foregroundColor:

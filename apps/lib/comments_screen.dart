@@ -275,7 +275,7 @@ class _CommentsScreenState
                   height: 40,
                   decoration: const BoxDecoration(
                     color: Color(
-                      0xFF6C5CE7,
+                      0xFF701CF5,
                     ),
                     shape: BoxShape.circle,
                   ),

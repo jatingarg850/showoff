@@ -62,7 +62,7 @@ class SignUpScreen
                 width: 80,
                 decoration: BoxDecoration(
                   color: const Color(
-                    0xFF6C5CE7,
+                    0xFF701CF5,
                   ),
                   borderRadius: BorderRadius.circular(
                     2,
@@ -76,7 +76,7 @@ class SignUpScreen
                 height: 56,
                 decoration: BoxDecoration(
                   color: const Color(
-                    0xFF6C5CE7,
+                    0xFF701CF5,
                   ), // Solid Purple
                   borderRadius: BorderRadius.circular(
                     28,
@@ -129,7 +129,7 @@ class SignUpScreen
                 height: 56,
                 decoration: BoxDecoration(
                   color: const Color(
-                    0xFF74B9FF,
+                    0xFF3E98E4,
                   ), // Solid Blue
                   borderRadius: BorderRadius.circular(
                     28,
@@ -280,12 +280,12 @@ class SignUpScreen
                       style: TextStyle(
                         fontSize: 16,
                         color: Color(
-                          0xFF6C5CE7,
+                          0xFF701CF5,
                         ),
                         fontWeight: FontWeight.w600,
                         decoration: TextDecoration.underline,
                         decorationColor: Color(
-                          0xFF6C5CE7,
+                          0xFF701CF5,
                         ),
                       ),
                     ),

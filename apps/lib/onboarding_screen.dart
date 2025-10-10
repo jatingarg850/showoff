@@ -128,7 +128,7 @@ class _OnboardingScreenState
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(
-                          0xFF6C5CE7,
+                          0xFF701CF5,
                         ),
                         foregroundColor: Colors.white,
                         elevation: 0,
@@ -170,7 +170,7 @@ class _OnboardingScreenState
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(
-                          0xFF74B9FF,
+                          0xFF3E98E4,
                         ),
                         foregroundColor: Colors.white,
                         elevation: 0,
@@ -290,7 +290,7 @@ class _OnboardingScreenState
               index ==
                   _currentPage
               ? const Color(
-                  0xFF6C5CE7,
+                  0xFF701CF5,
                 )
               : const Color(
                   0xFFDDDDDD,

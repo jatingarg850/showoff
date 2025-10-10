@@ -70,7 +70,7 @@ class _ForgotPasswordScreenState
               width: 120,
               decoration: BoxDecoration(
                 color: const Color(
-                  0xFF6C5CE7,
+                  0xFF701CF5,
                 ),
                 borderRadius: BorderRadius.circular(
                   2,
@@ -101,10 +101,10 @@ class _ForgotPasswordScreenState
                 gradient: const LinearGradient(
                   colors: [
                     Color(
-                      0xFF6C5CE7,
+                      0xFF701CF5,
                     ),
                     Color(
-                      0xFF74B9FF,
+                      0xFF3E98E4,
                     ),
                   ],
                   begin: Alignment.topLeft,
@@ -153,7 +153,7 @@ class _ForgotPasswordScreenState
               ),
               decoration: BoxDecoration(
                 color: const Color(
-                  0xFF6C5CE7,
+                  0xFF701CF5,
                 ),
                 borderRadius: BorderRadius.circular(
                   28,

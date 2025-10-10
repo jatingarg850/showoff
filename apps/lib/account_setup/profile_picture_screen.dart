@@ -65,7 +65,7 @@ class _ProfilePictureScreenState
                 child: Container(
                   decoration: BoxDecoration(
                     color: const Color(
-                      0xFF6C5CE7,
+                      0xFF701CF5,
                     ),
                     borderRadius: BorderRadius.circular(
                       4,
@@ -99,7 +99,7 @@ class _ProfilePictureScreenState
               width: 140,
               decoration: BoxDecoration(
                 color: const Color(
-                  0xFF6C5CE7,
+                  0xFF701CF5,
                 ),
                 borderRadius: BorderRadius.circular(
                   2,
@@ -130,10 +130,10 @@ class _ProfilePictureScreenState
                   gradient: const LinearGradient(
                     colors: [
                       Color(
-                        0xFF6C5CE7,
+                        0xFF701CF5,
                       ), // Purple
                       Color(
-                        0xFF74B9FF,
+                        0xFF3E98E4,
                       ), // Blue
                     ],
                     begin: Alignment.topLeft,
@@ -177,7 +177,7 @@ class _ProfilePictureScreenState
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: const Color(
-                    0xFF6C5CE7,
+                    0xFF701CF5,
                   ),
                   elevation: 0,
                   shadowColor: Colors.transparent,
@@ -190,7 +190,7 @@ class _ProfilePictureScreenState
                 icon: const Icon(
                   Icons.camera_alt,
                   color: Color(
-                    0xFF6C5CE7,
+                    0xFF701CF5,
                   ),
                 ),
                 label: const Text(
@@ -199,7 +199,7 @@ class _ProfilePictureScreenState
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: Color(
-                      0xFF6C5CE7,
+                      0xFF701CF5,
                     ),
                   ),
                 ),
@@ -229,7 +229,7 @@ class _ProfilePictureScreenState
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: const Color(
-                    0xFF74B9FF,
+                    0xFF3E98E4,
                   ),
                   elevation: 0,
                   shadowColor: Colors.transparent,
@@ -242,7 +242,7 @@ class _ProfilePictureScreenState
                 icon: const Icon(
                   Icons.photo_library,
                   color: Color(
-                    0xFF74B9FF,
+                    0xFF3E98E4,
                   ),
                 ),
                 label: const Text(
@@ -251,7 +251,7 @@ class _ProfilePictureScreenState
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: Color(
-                      0xFF74B9FF,
+                      0xFF3E98E4,
                     ),
                   ),
                 ),
@@ -269,7 +269,7 @@ class _ProfilePictureScreenState
               ),
               decoration: BoxDecoration(
                 color: const Color(
-                  0xFF6C5CE7,
+                  0xFF701CF5,
                 ),
                 borderRadius: BorderRadius.circular(
                   28,

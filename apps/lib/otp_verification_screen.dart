@@ -103,7 +103,7 @@ class _OTPVerificationScreenState
           'OTP code resent successfully',
         ),
         backgroundColor: Color(
-          0xFF6C5CE7,
+          0xFF701CF5,
         ),
       ),
     );
@@ -243,7 +243,7 @@ class _OTPVerificationScreenState
               width: 40,
               decoration: BoxDecoration(
                 color: const Color(
-                  0xFF6C5CE7,
+                  0xFF701CF5,
                 ),
                 borderRadius: BorderRadius.circular(
                   2,
@@ -275,7 +275,7 @@ class _OTPVerificationScreenState
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: Color(
-                  0xFF6C5CE7,
+                  0xFF701CF5,
                 ),
               ),
             ),
@@ -302,10 +302,10 @@ class _OTPVerificationScreenState
                       gradient: const LinearGradient(
                         colors: [
                           Color(
-                            0xFF6C5CE7,
+                            0xFF701CF5,
                           ), // Purple
                           Color(
-                            0xFF74B9FF,
+                            0xFF3E98E4,
                           ), // Blue
                         ],
                         begin: Alignment.topLeft,
@@ -400,7 +400,7 @@ class _OTPVerificationScreenState
                           _remainingTime ==
                               0
                           ? const Color(
-                              0xFF6C5CE7,
+                              0xFF701CF5,
                             )
                           : Colors.grey,
                       decoration: TextDecoration.underline,
@@ -408,7 +408,7 @@ class _OTPVerificationScreenState
                           _remainingTime ==
                               0
                           ? const Color(
-                              0xFF6C5CE7,
+                              0xFF701CF5,
                             )
                           : Colors.grey,
                     ),
@@ -433,11 +433,11 @@ class _OTPVerificationScreenState
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: Color(
-                    0xFF6C5CE7,
+                    0xFF701CF5,
                   ),
                   decoration: TextDecoration.underline,
                   decorationColor: Color(
-                    0xFF6C5CE7,
+                    0xFF701CF5,
                   ),
                 ),
               ),
@@ -453,7 +453,7 @@ class _OTPVerificationScreenState
                 onPressed: _verifyOTP,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(
-                    0xFF6C5CE7,
+                    0xFF701CF5,
                   ),
                   foregroundColor: Colors.white,
                   elevation: 0,

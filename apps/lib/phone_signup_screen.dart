@@ -231,7 +231,7 @@ class _PhoneSignUpScreenState
                 width: 80,
                 decoration: BoxDecoration(
                   color: const Color(
-                    0xFF6C5CE7,
+                    0xFF701CF5,
                   ),
                   borderRadius: BorderRadius.circular(
                     2,
@@ -268,10 +268,10 @@ class _PhoneSignUpScreenState
                         gradient: const LinearGradient(
                           colors: [
                             Color(
-                              0xFF6C5CE7,
+                              0xFF701CF5,
                             ), // Purple
                             Color(
-                              0xFF74B9FF,
+                              0xFF3E98E4,
                             ), // Blue
                           ],
                           begin: Alignment.topLeft,
@@ -318,7 +318,7 @@ class _PhoneSignUpScreenState
                             const Icon(
                               Icons.keyboard_arrow_down,
                               color: Color(
-                                0xFF6C5CE7,
+                                0xFF701CF5,
                               ),
                               size: 20,
                             ),
@@ -343,10 +343,10 @@ class _PhoneSignUpScreenState
                         gradient: const LinearGradient(
                           colors: [
                             Color(
-                              0xFF6C5CE7,
+                              0xFF701CF5,
                             ), // Purple
                             Color(
-                              0xFF74B9FF,
+                              0xFF3E98E4,
                             ), // Blue
                           ],
                           begin: Alignment.topLeft,
@@ -437,7 +437,7 @@ class _PhoneSignUpScreenState
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(
-                      0xFF6C5CE7,
+                      0xFF701CF5,
                     ),
                     foregroundColor: Colors.white,
                     elevation: 0,
@@ -563,7 +563,7 @@ class _PhoneSignUpScreenState
                                       : FontWeight.normal,
                                   color: isSelected
                                       ? const Color(
-                                          0xFF6C5CE7,
+                                          0xFF701CF5,
                                         )
                                       : Colors.black,
                                 ),
@@ -575,7 +575,7 @@ class _PhoneSignUpScreenState
                                   fontWeight: FontWeight.w500,
                                   color: isSelected
                                       ? const Color(
-                                          0xFF6C5CE7,
+                                          0xFF701CF5,
                                         )
                                       : Colors.grey[600],
                                 ),
@@ -583,7 +583,7 @@ class _PhoneSignUpScreenState
                               selected: isSelected,
                               selectedTileColor:
                                   const Color(
-                                    0xFF6C5CE7,
+                                    0xFF701CF5,
                                   ).withOpacity(
                                     0.1,
                                   ),

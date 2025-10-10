@@ -62,7 +62,7 @@ class _LeaderboardScreenState
       'isWinner': false,
     },
     {
-      'name': 'Sebastian',
+      'name': 'Jati',
       'score': '1124',
       'username': '',
       'position': 4,
@@ -149,10 +149,10 @@ class _LeaderboardScreenState
                             const LinearGradient(
                               colors: [
                                 Color(
-                                  0xFF6C5CE7,
+                                  0xFF701CF5,
                                 ),
                                 Color(
-                                  0xFF74B9FF,
+                                  0xFF3E98E4,
                                 ),
                               ],
                               begin: Alignment.centerLeft,
@@ -267,7 +267,7 @@ class _LeaderboardScreenState
                         gradient: LinearGradient(
                           colors: [
                             const Color(
-                              0xFF6C5CE7,
+                              0xFF701CF5,
                             ).withValues(
                               alpha: 0.7,
                             ),
@@ -341,7 +341,7 @@ class _LeaderboardScreenState
                   gradient: const LinearGradient(
                     colors: [
                       Color(
-                        0xFF6C5CE7,
+                        0xFF701CF5,
                       ),
                       Color(
                         0xFF8B7ED8,
@@ -416,7 +416,7 @@ class _LeaderboardScreenState
                 fontWeight: FontWeight.w600,
                 color: isSelected
                     ? const Color(
-                        0xFF6C5CE7,
+                        0xFF701CF5,
                       )
                     : Colors.black54,
               ),
@@ -432,10 +432,10 @@ class _LeaderboardScreenState
                   gradient: LinearGradient(
                     colors: [
                       Color(
-                        0xFF6C5CE7,
+                        0xFF701CF5,
                       ),
                       Color(
-                        0xFF74B9FF,
+                        0xFF3E98E4,
                       ),
                     ],
                     begin: Alignment.centerLeft,

@@ -91,7 +91,7 @@ class _InterestsScreenState
                 child: Container(
                   decoration: BoxDecoration(
                     color: const Color(
-                      0xFF6C5CE7,
+                      0xFF701CF5,
                     ),
                     borderRadius: BorderRadius.circular(
                       2,
@@ -125,7 +125,7 @@ class _InterestsScreenState
               width: 80,
               decoration: BoxDecoration(
                 color: const Color(
-                  0xFF6C5CE7,
+                  0xFF701CF5,
                 ),
                 borderRadius: BorderRadius.circular(
                   2,
@@ -187,13 +187,13 @@ class _InterestsScreenState
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? const Color(
-                                    0xFF6C5CE7,
+                                    0xFF701CF5,
                                   )
                                 : Colors.white,
                             border: Border.all(
                               color: isSelected
                                   ? const Color(
-                                      0xFF6C5CE7,
+                                      0xFF701CF5,
                                     )
                                   : Colors.grey[300]!,
                               width: 2,
@@ -230,7 +230,7 @@ class _InterestsScreenState
               decoration: BoxDecoration(
                 color: _selectedInterests.isNotEmpty
                     ? const Color(
-                        0xFF6C5CE7,
+                        0xFF701CF5,
                       )
                     : Colors.grey[300],
                 borderRadius: BorderRadius.circular(

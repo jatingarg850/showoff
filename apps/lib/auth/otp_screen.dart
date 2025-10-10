@@ -145,7 +145,7 @@ class _OTPScreenState
               width: 120,
               decoration: BoxDecoration(
                 color: const Color(
-                  0xFF6C5CE7,
+                  0xFF701CF5,
                 ),
                 borderRadius: BorderRadius.circular(
                   2,
@@ -180,10 +180,10 @@ class _OTPScreenState
                 gradient: const LinearGradient(
                   colors: [
                     Color(
-                      0xFF6C5CE7,
+                      0xFF701CF5,
                     ),
                     Color(
-                      0xFF74B9FF,
+                      0xFF3E98E4,
                     ),
                   ],
                   begin: Alignment.topLeft,
@@ -278,7 +278,7 @@ class _OTPScreenState
                             text: widget.email,
                             style: const TextStyle(
                               color: Color(
-                                0xFF6C5CE7,
+                                0xFF701CF5,
                               ),
                               fontWeight: FontWeight.w600,
                             ),
@@ -305,7 +305,7 @@ class _OTPScreenState
                             decoration: BoxDecoration(
                               border: Border.all(
                                 color: const Color(
-                                  0xFF6C5CE7,
+                                  0xFF701CF5,
                                 ),
                                 width: 2,
                               ),
@@ -395,7 +395,7 @@ class _OTPScreenState
                                   _seconds ==
                                       0
                                   ? const Color(
-                                      0xFF6C5CE7,
+                                      0xFF701CF5,
                                     )
                                   : Colors.grey,
                               decoration: TextDecoration.underline,
@@ -421,7 +421,7 @@ class _OTPScreenState
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: Color(
-                            0xFF6C5CE7,
+                            0xFF701CF5,
                           ),
                           decoration: TextDecoration.underline,
                         ),
@@ -438,7 +438,7 @@ class _OTPScreenState
                       height: 56,
                       decoration: BoxDecoration(
                         color: const Color(
-                          0xFF6C5CE7,
+                          0xFF701CF5,
                         ),
                         borderRadius: BorderRadius.circular(
                           28,
