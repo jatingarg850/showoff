@@ -279,7 +279,7 @@ class _BioScreenState
                     ),
 
                     // Coins image with +50 positioned below and to the right
-                    Container(
+                    SizedBox(
                       width: 140,
                       height: 120,
                       child: Stack(

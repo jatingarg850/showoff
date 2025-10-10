@@ -584,6 +584,7 @@ class _PhoneSignUpScreenState
                               selectedTileColor:
                                   const Color(
                                     0xFF701CF5,
+                                    // ignore: deprecated_member_use
                                   ).withOpacity(
                                     0.1,
                                   ),

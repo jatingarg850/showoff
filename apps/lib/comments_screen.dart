@@ -198,10 +198,33 @@ class _CommentsScreenState
             ),
           ),
 
+          // Gradient line separator
+          Container(
+            height: 2,
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(
+                    0xFF701CF5,
+                  ),
+                  Color(
+                    0xFF74B9FF,
+                  ),
+                ],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+            ),
+          ),
+
           // Comment input
           Container(
-            padding: const EdgeInsets.all(
+            padding: const EdgeInsets.fromLTRB(
               16,
+              16,
+              16,
+              32,
             ),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -236,10 +259,7 @@ class _CommentsScreenState
                 // Text input
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
+                    height: 40,
                     decoration: BoxDecoration(
                       color: Colors.grey[100],
                       borderRadius: BorderRadius.circular(
@@ -248,6 +268,7 @@ class _CommentsScreenState
                     ),
                     child: TextField(
                       controller: _commentController,
+                      textAlignVertical: TextAlignVertical.center,
                       decoration: const InputDecoration(
                         hintText: 'Write something here',
                         hintStyle: TextStyle(
@@ -255,7 +276,10 @@ class _CommentsScreenState
                           fontSize: 14,
                         ),
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.zero,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                       ),
                       style: const TextStyle(
                         fontSize: 14,
@@ -274,15 +298,27 @@ class _CommentsScreenState
                   width: 40,
                   height: 40,
                   decoration: const BoxDecoration(
-                    color: Color(
-                      0xFF701CF5,
+                    gradient: LinearGradient(
+                      colors: [
+                        Color(
+                          0xFF701CF5,
+                        ),
+                        Color(
+                          0xFF74B9FF,
+                        ),
+                      ],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
                     ),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.send,
-                    color: Colors.white,
-                    size: 20,
+                  child: Center(
+                    child: Image.asset(
+                      'assets/comment/sent.png',
+                      width: 20,
+                      height: 20,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
 
@@ -290,7 +326,7 @@ class _CommentsScreenState
                   width: 8,
                 ),
 
-                // Attachment button
+                // Image attachment button
                 Container(
                   width: 40,
                   height: 40,
@@ -298,10 +334,13 @@ class _CommentsScreenState
                     color: Colors.grey[200],
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.attach_file,
-                    color: Colors.grey,
-                    size: 20,
+                  child: Center(
+                    child: Image.asset(
+                      'assets/comment/image.png',
+                      width: 20,
+                      height: 20,
+                      color: Colors.grey[600],
+                    ),
                   ),
                 ),
               ],
