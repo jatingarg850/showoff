@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'onboarding_screen.dart';
+import 'talent_screen.dart';
 
 void
 main() {
@@ -28,7 +28,7 @@ class MyApp
         ),
         useMaterial3: true,
       ),
-      home: const OnboardingScreen(),
+      home: const TalentScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

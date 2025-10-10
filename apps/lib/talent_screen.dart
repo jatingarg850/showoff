@@ -22,24 +22,12 @@ class _TalentScreenState
         > {
   String
   selectedPeriod = 'Weekly';
-  String
-  selectedCategory = 'Dance';
 
   final List<
     String
   >
   periods = [
     'Weekly',
-  ];
-  final List<
-    String
-  >
-  categories = [
-    'Dance',
-    'Art',
-    'Music',
-    'Acting',
-    'Improv',
   ];
 
   final List<
@@ -53,13 +41,12 @@ class _TalentScreenState
       'username': '@james9898',
       'category': 'Dance',
       'likes': '23424',
-      'image': 'assets/reel/dance1.jpg',
       'gradient': [
         const Color(
-          0xFFD2691E,
+          0xFFE8A87C,
         ),
         const Color(
-          0xFFDC143C,
+          0xFFC27D38,
         ),
       ],
     },
@@ -67,27 +54,25 @@ class _TalentScreenState
       'username': '@yuyttt666',
       'category': 'Art',
       'likes': '23624',
-      'image': 'assets/reel/art1.jpg',
       'gradient': [
         const Color(
-          0xFF20B2AA,
+          0xFF8B4513,
         ),
         const Color(
-          0xFF4682B4,
+          0xFFD2691E,
         ),
       ],
     },
     {
-      'username': '@james9898',
+      'username': 'Fr',
       'category': 'Dance',
       'likes': '23424',
-      'image': 'assets/reel/dance2.jpg',
       'gradient': [
         const Color(
           0xFF1E90FF,
         ),
         const Color(
-          0xFF00CED1,
+          0xFF000080,
         ),
       ],
     },
@@ -95,41 +80,12 @@ class _TalentScreenState
       'username': '@yuyttt666',
       'category': 'Art',
       'likes': '23624',
-      'image': 'assets/reel/art2.jpg',
       'gradient': [
         const Color(
           0xFF228B22,
         ),
         const Color(
-          0xFFDC143C,
-        ),
-      ],
-    },
-    {
-      'username': '@alex_music',
-      'category': 'Music',
-      'likes': '18956',
-      'image': 'assets/reel/music1.jpg',
-      'gradient': [
-        const Color(
-          0xFF8A2BE2,
-        ),
-        const Color(
-          0xFF4B0082,
-        ),
-      ],
-    },
-    {
-      'username': '@sara_act',
-      'category': 'Acting',
-      'likes': '15632',
-      'image': 'assets/reel/acting1.jpg',
-      'gradient': [
-        const Color(
-          0xFFDAA520,
-        ),
-        const Color(
-          0xFFFF8C00,
+          0xFF006400,
         ),
       ],
     },
@@ -183,13 +139,18 @@ class _TalentScreenState
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+                      horizontal: 20,
+                      vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.grey[200],
                       borderRadius: BorderRadius.circular(
                         25,
+                      ),
+                      image: const DecorationImage(
+                        image: AssetImage(
+                          'assets/syttop/back.png',
+                        ),
+                        fit: BoxFit.cover,
                       ),
                     ),
                     child: Row(
@@ -207,27 +168,30 @@ class _TalentScreenState
                               ),
                             );
                           },
-                          child: const Icon(
-                            Icons.emoji_events,
-                            color: Colors.black54,
-                            size: 20,
+                          child: Image.asset(
+                            'assets/syttop/trophy.png',
+                            width: 24,
+                            height: 24,
+                            color: Colors.black,
                           ),
                         ),
-                        SizedBox(
-                          width: 8,
+                        const SizedBox(
+                          width: 12,
                         ),
-                        Icon(
-                          Icons.remove_red_eye,
-                          color: Colors.black54,
-                          size: 20,
+                        Image.asset(
+                          'assets/syttop/comment.png',
+                          width: 24,
+                          height: 24,
+                          color: Colors.black,
                         ),
-                        SizedBox(
-                          width: 8,
+                        const SizedBox(
+                          width: 12,
                         ),
-                        Icon(
-                          Icons.notifications_outlined,
-                          color: Colors.black54,
-                          size: 20,
+                        Image.asset(
+                          'assets/syttop/notification.png',
+                          width: 24,
+                          height: 24,
+                          color: Colors.black,
                         ),
                       ],
                     ),
@@ -281,62 +245,166 @@ class _TalentScreenState
               height: 20,
             ),
 
-            // Category Selection
+            // Message Box
             Container(
-              height: 50,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
+              width: double.infinity,
+              margin: const EdgeInsets.symmetric(
+                horizontal: 16,
               ),
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: categories.length,
-                itemBuilder:
-                    (
-                      context,
-                      index,
-                    ) {
-                      final category = categories[index];
-                      final isSelected =
-                          category ==
-                          selectedCategory;
-                      return GestureDetector(
-                        onTap: () {
-                          setState(
-                            () {
-                              selectedCategory = category;
-                            },
-                          );
-                        },
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(
+                  16,
+                ),
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(
+                      0xFF701CF5,
+                    ),
+                    Color(
+                      0xFF74B9FF,
+                    ),
+                  ],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+              ),
+              child: Container(
+                margin: const EdgeInsets.all(
+                  2,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(
+                    14,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(
+                    14,
+                  ),
+                  child: Stack(
+                    children: [
+                      // White background
+                      Positioned.fill(
                         child: Container(
-                          margin: const EdgeInsets.only(
-                            right: 16,
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? const Color(
-                                    0xFF701CF5,
-                                  )
-                                : Colors.grey[200],
-                            borderRadius: BorderRadius.circular(
-                              25,
-                            ),
-                          ),
-                          child: Text(
-                            category,
-                            style: TextStyle(
-                              color: isSelected
-                                  ? Colors.white
-                                  : Colors.black54,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          color: Colors.white,
+                        ),
+                      ),
+                      // Subtle background pattern
+                      Positioned.fill(
+                        child: Opacity(
+                          opacity: 1,
+                          child: Image.asset(
+                            'assets/syt/uploadbg.png',
+                            fit: BoxFit.cover,
                           ),
                         ),
-                      );
-                    },
+                      ),
+                      // Content
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 32,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            ShaderMask(
+                              shaderCallback:
+                                  (
+                                    bounds,
+                                  ) =>
+                                      const LinearGradient(
+                                        colors: [
+                                          Color(
+                                            0xFF701CF5,
+                                          ),
+                                          Color(
+                                            0xFF74B9FF,
+                                          ),
+                                        ],
+                                        begin: Alignment.centerLeft,
+                                        end: Alignment.centerRight,
+                                      ).createShader(
+                                        bounds,
+                                      ),
+                              child: const Text(
+                                'You have not shared your\ntalent to the world',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(
+                              height: 8,
+                            ),
+                            const Text(
+                              'Click the button below to showoff',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(
+                              height: 20,
+                            ),
+                            Container(
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(
+                                      0xFF701CF5,
+                                    ),
+                                    Color(
+                                      0xFF74B9FF,
+                                    ),
+                                  ],
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                  25,
+                                ),
+                              ),
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  // Handle show off
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  foregroundColor: Colors.white,
+                                  shadowColor: Colors.transparent,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 32,
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(
+                                      25,
+                                    ),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Show off',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
 
@@ -363,7 +431,7 @@ class _TalentScreenState
                         crossAxisSpacing: 16,
                         mainAxisSpacing: 16,
                       ),
-                      itemCount: competitions.length,
+                      itemCount: 4,
                       itemBuilder:
                           (
                             context,
@@ -433,7 +501,7 @@ class _TalentScreenState
                           ),
                         ),
                         child: const Text(
-                          'Show Your Talent (SYT)',
+                          'Show Your Talent : SYT',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -585,14 +653,32 @@ class _TalentScreenState
                       12,
                     ),
                   ),
-                  child: const Text(
-                    'In competition',
-                    style: TextStyle(
-                      color: Color(
-                        0xFF701CF5,
+                  child: ShaderMask(
+                    shaderCallback:
+                        (
+                          bounds,
+                        ) =>
+                            const LinearGradient(
+                              colors: [
+                                Color(
+                                  0xFF701CF5,
+                                ),
+                                Color(
+                                  0xFF74B9FF,
+                                ),
+                              ],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            ).createShader(
+                              bounds,
+                            ),
+                    child: const Text(
+                      'In competition',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
                       ),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),

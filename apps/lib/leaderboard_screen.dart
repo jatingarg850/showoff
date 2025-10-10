@@ -127,83 +127,95 @@ class _LeaderboardScreenState
                 20,
               ),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(
-                      context,
-                    ),
-                    child: const Icon(
-                      Icons.arrow_back,
-                      color: Colors.black,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(
-                    width: 16,
-                  ),
-                  ShaderMask(
-                    shaderCallback:
-                        (
-                          bounds,
-                        ) =>
-                            const LinearGradient(
-                              colors: [
-                                Color(
-                                  0xFF701CF5,
-                                ),
-                                Color(
-                                  0xFF3E98E4,
-                                ),
-                              ],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            ).createShader(
-                              bounds,
-                            ),
-                    child: const Text(
-                      'Leaderboard',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.pop(
+                          context,
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back,
+                          color: Colors.black,
+                          size: 24,
+                        ),
                       ),
-                    ),
+                      const SizedBox(
+                        width: 16,
+                      ),
+                      ShaderMask(
+                        shaderCallback:
+                            (
+                              bounds,
+                            ) =>
+                                const LinearGradient(
+                                  colors: [
+                                    Color(
+                                      0xFF701CF5,
+                                    ),
+                                    Color(
+                                      0xFF3E98E4,
+                                    ),
+                                  ],
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                ).createShader(
+                                  bounds,
+                                ),
+                        child: const Text(
+                          'Leaderboard',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const Spacer(),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+                      horizontal: 20,
+                      vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.grey[200],
                       borderRadius: BorderRadius.circular(
                         25,
                       ),
+                      image: const DecorationImage(
+                        image: AssetImage(
+                          'assets/syttop/back.png',
+                        ),
+                        fit: BoxFit.cover,
+                      ),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.emoji_events,
-                          color: Colors.black54,
-                          size: 20,
+                        Image.asset(
+                          'assets/syttop/trophy.png',
+                          width: 24,
+                          height: 24,
+                          color: Colors.black,
                         ),
-                        SizedBox(
-                          width: 8,
+                        const SizedBox(
+                          width: 12,
                         ),
-                        Icon(
-                          Icons.remove_red_eye,
-                          color: Colors.black54,
-                          size: 20,
+                        Image.asset(
+                          'assets/syttop/comment.png',
+                          width: 24,
+                          height: 24,
+                          color: Colors.black,
                         ),
-                        SizedBox(
-                          width: 8,
+                        const SizedBox(
+                          width: 12,
                         ),
-                        Icon(
-                          Icons.notifications_outlined,
-                          color: Colors.black54,
-                          size: 20,
+                        Image.asset(
+                          'assets/syttop/notification.png',
+                          width: 24,
+                          height: 24,
+                          color: Colors.black,
                         ),
                       ],
                     ),
