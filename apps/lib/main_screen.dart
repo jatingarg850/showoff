@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'reel_screen.dart';
 import 'talent_screen.dart';
+import 'path_selection_screen.dart';
 
 class MainScreen
     extends
@@ -30,15 +31,7 @@ class _MainScreenState
   _screens = [
     const ReelScreen(),
     const TalentScreen(),
-    const Center(
-      child: Text(
-        'Add Screen',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 24,
-        ),
-      ),
-    ),
+    const PathSelectionScreen(),
     const Center(
       child: Text(
         'Folder Screen',

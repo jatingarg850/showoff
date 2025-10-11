@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'leaderboard_screen.dart';
+import 'onboarding_screen.dart';
 
 void
 main() {
@@ -28,7 +28,7 @@ class MyApp
         ),
         useMaterial3: true,
       ),
-      home: const LeaderboardScreen(),
+      home: const OnboardingScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
