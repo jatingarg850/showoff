@@ -74,6 +74,7 @@ flutter:
     - assets/syttop/
     - assets/syt/
     - assets/leaderboard2/
+    - assets/wallet_screen/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

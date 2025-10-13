@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'reel_screen.dart';
 import 'talent_screen.dart';
 import 'path_selection_screen.dart';
+import 'wallet_screen.dart';
+import 'profile_screen.dart';
 
 class MainScreen
     extends
@@ -32,24 +34,8 @@ class _MainScreenState
     const ReelScreen(),
     const TalentScreen(),
     const PathSelectionScreen(),
-    const Center(
-      child: Text(
-        'Folder Screen',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 24,
-        ),
-      ),
-    ),
-    const Center(
-      child: Text(
-        'Profile Screen',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 24,
-        ),
-      ),
-    ),
+    const WalletScreen(),
+    const ProfileScreen(),
   ];
 
   @override
