@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'spin_wheel_screen.dart';
+import 'add_money_screen.dart';
+import 'withdrawal_screen.dart';
+import 'transaction_history_screen.dart';
 
 class WalletScreen
     extends
@@ -125,11 +128,37 @@ class WalletScreen
                             'assets/wallet_screen/spinthewheel.png',
                           ),
                         ),
-                        _buildActionButtonWithImage(
-                          'assets/wallet_screen/add.png',
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (
+                                      context,
+                                    ) => const AddMoneyScreen(),
+                              ),
+                            );
+                          },
+                          child: _buildActionButtonWithImage(
+                            'assets/wallet_screen/add.png',
+                          ),
                         ),
-                        _buildActionButtonWithImage(
-                          'assets/wallet_screen/monetization.png',
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (
+                                      context,
+                                    ) => const WithdrawalScreen(),
+                              ),
+                            );
+                          },
+                          child: _buildActionButtonWithImage(
+                            'assets/wallet_screen/monetization.png',
+                          ),
                         ),
                         _buildActionButtonWithImage(
                           'assets/wallet_screen/ads.png',
@@ -150,24 +179,37 @@ class WalletScreen
                 child: Column(
                   children: [
                     // Transaction history header
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Transaction history',
-                          style: TextStyle(
-                            color: Color(
-                              0xFF8B5CF6,
-                            ),
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (
+                                  context,
+                                ) => const TransactionHistoryScreen(),
                           ),
-                        ),
-                        Icon(
-                          Icons.chevron_right,
-                          color: Colors.grey[400],
-                        ),
-                      ],
+                        );
+                      },
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Transaction history',
+                            style: TextStyle(
+                              color: Color(
+                                0xFF8B5CF6,
+                              ),
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right,
+                            color: Colors.grey[400],
+                          ),
+                        ],
+                      ),
                     ),
 
                     const SizedBox(

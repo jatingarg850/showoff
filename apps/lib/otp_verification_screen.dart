@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'account_setup/profile_picture_screen.dart';
+import 'set_password_screen.dart';
 
 class OTPVerificationScreen
     extends
@@ -162,7 +162,7 @@ class _OTPVerificationScreenState
           backgroundColor: Colors.green,
         ),
       );
-      // Navigate to account setup
+      // Navigate to password setup
       Navigator.of(
         context,
       ).pop(); // Close OTP modal
@@ -173,7 +173,7 @@ class _OTPVerificationScreenState
           builder:
               (
                 context,
-              ) => const ProfilePictureScreen(),
+              ) => const SetPasswordScreen(),
         ),
       );
     }

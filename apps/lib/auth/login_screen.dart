@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'forgot_password_screen.dart';
 import '../main_screen.dart';
+import '../signup_screen.dart';
 
 class LoginScreen
     extends
@@ -309,14 +310,13 @@ class _LoginScreenState
                 GestureDetector(
                   onTap: () {
                     // Navigate to sign up screen
-                    ScaffoldMessenger.of(
+                    Navigator.push(
                       context,
-                    ).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Navigate to Sign Up screen',
-                        ),
-                        backgroundColor: Colors.blue,
+                      MaterialPageRoute(
+                        builder:
+                            (
+                              context,
+                            ) => const SignUpScreen(),
                       ),
                     );
                   },

@@ -8,8 +8,12 @@ import 'profile_screen.dart';
 class MainScreen
     extends
         StatefulWidget {
+  final int
+  initialIndex;
+
   const MainScreen({
     super.key,
+    this.initialIndex = 0,
   });
 
   @override
@@ -24,8 +28,15 @@ class _MainScreenState
         State<
           MainScreen
         > {
-  int
-  _currentIndex = 0;
+  late int
+  _currentIndex;
+
+  @override
+  void
+  initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+  }
 
   final List<
     Widget
