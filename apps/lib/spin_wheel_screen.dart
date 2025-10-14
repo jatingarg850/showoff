@@ -32,7 +32,7 @@ class _SpinWheelScreenState
   _isSpinning = false;
   int
   _spinsLeft = 5;
-  int
+  final int
   _totalSpins = 5;
 
   final List<
@@ -47,35 +47,6 @@ class _SpinWheelScreenState
     5,
     20,
     10,
-  ];
-  final List<
-    Color
-  >
-  _wheelColors = [
-    const Color(
-      0xFF4F46E5,
-    ), // Blue
-    const Color(
-      0xFF7C3AED,
-    ), // Purple
-    const Color(
-      0xFF4F46E5,
-    ), // Blue
-    const Color(
-      0xFF7C3AED,
-    ), // Purple
-    const Color(
-      0xFF4F46E5,
-    ), // Blue
-    const Color(
-      0xFF7C3AED,
-    ), // Purple
-    const Color(
-      0xFF4F46E5,
-    ), // Blue
-    const Color(
-      0xFF7C3AED,
-    ), // Purple
   ];
 
   @override
@@ -111,8 +82,13 @@ class _SpinWheelScreenState
   _spinWheel() {
     if (_isSpinning ||
         _spinsLeft <=
-            0)
+            0) {
+      if (_spinsLeft <=
+          0) {
+        _showOutOfSpinsModal();
+      }
       return;
+    }
 
     setState(
       () {
@@ -157,8 +133,387 @@ class _SpinWheelScreenState
             _isSpinning = false;
           },
         );
+
+        // Calculate which number was selected
+        final double normalizedAngle =
+            (finalAngle %
+            (2 *
+                pi));
+        final double sectionAngle =
+            2 *
+            pi /
+            _wheelValues.length;
+        final int selectedIndex =
+            ((normalizedAngle +
+                        sectionAngle /
+                            2) /
+                    sectionAngle)
+                .floor() %
+            _wheelValues.length;
+        final int selectedValue = _wheelValues[selectedIndex];
+
         _controller.reset();
+
+        // Show result modal after a short delay
+        Future.delayed(
+          const Duration(
+            milliseconds: 500,
+          ),
+          () {
+            _showResultModal(
+              selectedValue,
+            );
+          },
+        );
       },
+    );
+  }
+
+  void
+  _showResultModal(
+    int wonAmount,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (
+            BuildContext context,
+          ) {
+            return Container(
+              height:
+                  MediaQuery.of(
+                    context,
+                  ).size.height *
+                  0.6,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(
+                    30,
+                  ),
+                  topRight: Radius.circular(
+                    30,
+                  ),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(
+                  32,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Happy emoji with coin background
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: const BoxDecoration(
+                        color: Color(
+                          0xFFFFB800,
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 10,
+                            offset: Offset(
+                              0,
+                              5,
+                            ),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Text(
+                          '😊',
+                          style: TextStyle(
+                            fontSize: 50,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 32,
+                    ),
+
+                    // Congratulations message
+                    Text(
+                      'Congratulations! You won $wonAmount coins',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+
+                    const SizedBox(
+                      height: 40,
+                    ),
+
+                    // Claim button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(
+                            context,
+                          ).pop();
+                          // Handle claim reward
+                          if (_spinsLeft <=
+                              0) {
+                            // Show out of spins modal if no spins left
+                            Future.delayed(
+                              const Duration(
+                                milliseconds: 300,
+                              ),
+                              () {
+                                _showOutOfSpinsModal();
+                              },
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(
+                            0xFF8B5CF6,
+                          ),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 18,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              30,
+                            ),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          'Claim',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+    );
+  }
+
+  void
+  _showOutOfSpinsModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (
+            BuildContext context,
+          ) {
+            return Container(
+              height:
+                  MediaQuery.of(
+                    context,
+                  ).size.height *
+                  0.6,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(
+                    30,
+                  ),
+                  topRight: Radius.circular(
+                    30,
+                  ),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(
+                  32,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Sad emoji with coin background
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: const BoxDecoration(
+                        color: Color(
+                          0xFFFFB800,
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 10,
+                            offset: Offset(
+                              0,
+                              5,
+                            ),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Text(
+                          '😢',
+                          style: TextStyle(
+                            fontSize: 50,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 32,
+                    ),
+
+                    // Message
+                    const Text(
+                      'You have ran out of spins',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+
+                    const SizedBox(
+                      height: 40,
+                    ),
+
+                    // 900 coins button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(
+                            context,
+                          ).pop();
+                          // Handle coin purchase
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(
+                            0xFF8B5CF6,
+                          ),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 18,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              30,
+                            ),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 24,
+                              height: 24,
+                              decoration: const BoxDecoration(
+                                color: Color(
+                                  0xFFFFB800,
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  '50',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(
+                              width: 8,
+                            ),
+                            const Text(
+                              '900',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 16,
+                    ),
+
+                    // Watch ads button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(
+                            context,
+                          ).pop();
+                          // Handle watch ads
+                          setState(
+                            () {
+                              _spinsLeft = 5; // Reset spins after watching ads
+                            },
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(
+                            0xFF8B5CF6,
+                          ),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 18,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              30,
+                            ),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.play_circle_outline,
+                              size: 24,
+                            ),
+                            SizedBox(
+                              width: 8,
+                            ),
+                            Text(
+                              'Watch ads',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
     );
   }
 
@@ -240,7 +595,6 @@ class _SpinWheelScreenState
                               child: CustomPaint(
                                 painter: WheelPainter(
                                   _wheelValues,
-                                  _wheelColors,
                                 ),
                               ),
                             ),
@@ -377,14 +731,9 @@ class WheelPainter
     int
   >
   values;
-  final List<
-    Color
-  >
-  colors;
 
   WheelPainter(
     this.values,
-    this.colors,
   );
 
   @override
