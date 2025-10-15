@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'settings_screen.dart';
 import 'community_screen.dart';
+import 'store_screen.dart';
 
 class ProfileScreen
     extends
@@ -253,8 +254,21 @@ class ProfileScreen
                         _buildActionButtonWithImage(
                           'assets/profile/achievement.png',
                         ),
-                        _buildActionButtonWithImage(
-                          'assets/profile/store.png',
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (
+                                      context,
+                                    ) => const StoreScreen(),
+                              ),
+                            );
+                          },
+                          child: _buildActionButtonWithImage(
+                            'assets/profile/store.png',
+                          ),
                         ),
                         GestureDetector(
                           onTap: () {

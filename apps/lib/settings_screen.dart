@@ -1,4 +1,13 @@
 import 'package:flutter/material.dart';
+import 'subscription_screen.dart';
+import 'referrals_screen.dart';
+import 'notification_settings_screen.dart';
+import 'privacy_safety_screen.dart';
+import 'terms_conditions_screen.dart';
+import 'about_app_screen.dart';
+import 'help_support_screen.dart';
+import 'payment_settings_screen.dart';
+import 'my_account_screen.dart';
 
 class SettingsScreen
     extends
@@ -45,47 +54,137 @@ class SettingsScreen
           _buildSettingsItem(
             icon: Icons.person_outline,
             title: 'My Account',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (
+                        context,
+                      ) => const MyAccountScreen(),
+                ),
+              );
+            },
           ),
           _buildSettingsItem(
             icon: Icons.credit_card_outlined,
             title: 'Payment Settings',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (
+                        context,
+                      ) => const PaymentSettingsScreen(),
+                ),
+              );
+            },
           ),
           _buildSettingsItem(
             icon: Icons.notifications_outlined,
             title: 'Notification',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (
+                        context,
+                      ) => const NotificationSettingsScreen(),
+                ),
+              );
+            },
           ),
           _buildSettingsItem(
             icon: Icons.wb_sunny_outlined,
             title: 'Subscriptions',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (
+                        context,
+                      ) => const SubscriptionScreen(),
+                ),
+              );
+            },
           ),
           _buildSettingsItem(
             icon: Icons.shield_outlined,
             title: 'Privacy and Safety',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (
+                        context,
+                      ) => const PrivacySafetyScreen(),
+                ),
+              );
+            },
           ),
           _buildSettingsItem(
             icon: Icons.card_giftcard_outlined,
             title: 'Referrals & Invites',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (
+                        context,
+                      ) => const ReferralsScreen(),
+                ),
+              );
+            },
           ),
           _buildSettingsItem(
             icon: Icons.text_snippet_outlined,
             title: 'Terms & Condition',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (
+                        context,
+                      ) => const TermsConditionsScreen(),
+                ),
+              );
+            },
           ),
           _buildSettingsItem(
             icon: Icons.info_outline,
             title: 'About App',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (
+                        context,
+                      ) => const AboutAppScreen(),
+                ),
+              );
+            },
           ),
           _buildSettingsItem(
             icon: Icons.help_outline,
             title: 'Help and support',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (
+                        context,
+                      ) => const HelpSupportScreen(),
+                ),
+              );
+            },
           ),
           const SizedBox(
             height: 20,
