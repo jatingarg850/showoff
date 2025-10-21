@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 import 'dart:io';
+import 'main_screen.dart';
 
 class PreviewScreen
     extends
-        StatelessWidget {
+        StatefulWidget {
   final String
   selectedPath;
   final String?
@@ -12,6 +14,8 @@ class PreviewScreen
   category;
   final String
   caption;
+  final bool
+  isVideo;
 
   const PreviewScreen({
     super.key,
@@ -19,7 +23,72 @@ class PreviewScreen
     this.mediaPath,
     this.category,
     required this.caption,
+    this.isVideo = false,
   });
+
+  @override
+  State<
+    PreviewScreen
+  >
+  createState() => _PreviewScreenState();
+}
+
+class _PreviewScreenState
+    extends
+        State<
+          PreviewScreen
+        > {
+  VideoPlayerController?
+  _videoController;
+  bool
+  _isVideoInitialized = false;
+
+  @override
+  void
+  initState() {
+    super.initState();
+    if (widget.isVideo &&
+        widget.mediaPath !=
+            null) {
+      _initializeVideo();
+    }
+  }
+
+  Future<
+    void
+  >
+  _initializeVideo() async {
+    try {
+      _videoController = VideoPlayerController.file(
+        File(
+          widget.mediaPath!,
+        ),
+      );
+      await _videoController!.initialize();
+      setState(
+        () {
+          _isVideoInitialized = true;
+        },
+      );
+      _videoController!.setLooping(
+        true,
+      );
+      _videoController!.play();
+    } catch (
+      e
+    ) {
+      debugPrint(
+        'Error initializing video: $e',
+      );
+    }
+  }
+
+  @override
+  void
+  dispose() {
+    _videoController?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget
@@ -73,15 +142,33 @@ class PreviewScreen
       body: Stack(
         children: [
           // Background media
-          if (mediaPath !=
+          if (widget.mediaPath !=
               null)
             Positioned.fill(
-              child: Image.file(
-                File(
-                  mediaPath!,
-                ),
-                fit: BoxFit.cover,
-              ),
+              child: widget.isVideo
+                  ? (_isVideoInitialized &&
+                            _videoController !=
+                                null
+                        ? AspectRatio(
+                            aspectRatio: _videoController!.value.aspectRatio,
+                            child: VideoPlayer(
+                              _videoController!,
+                            ),
+                          )
+                        : Container(
+                            color: Colors.grey[800],
+                            child: const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
+                            ),
+                          ))
+                  : Image.file(
+                      File(
+                        widget.mediaPath!,
+                      ),
+                      fit: BoxFit.cover,
+                    ),
             )
           else
             // Placeholder if no media
@@ -129,8 +216,8 @@ class PreviewScreen
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Competition badge
-                if (selectedPath ==
-                    'arena')
+                if (widget.selectedPath ==
+                    'SYT')
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -159,7 +246,7 @@ class PreviewScreen
                 ),
 
                 // Category badge
-                if (category !=
+                if (widget.category !=
                     null)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -175,7 +262,7 @@ class PreviewScreen
                       ),
                     ),
                     child: Text(
-                      category!,
+                      widget.category!,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -235,9 +322,9 @@ class PreviewScreen
                 ),
 
                 // Caption
-                if (caption.isNotEmpty)
+                if (widget.caption.isNotEmpty)
                   Text(
-                    caption,
+                    widget.caption,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
@@ -283,7 +370,7 @@ class PreviewScreen
                   ).showSnackBar(
                     SnackBar(
                       content: Text(
-                        'Content uploaded to ${selectedPath == 'arena' ? 'Arena' : 'Reels'}!',
+                        'Content uploaded to ${widget.selectedPath == 'SYT' ? 'SYT' : 'Reels'}!',
                         style: const TextStyle(
                           color: Colors.black,
                         ),
@@ -295,12 +382,25 @@ class PreviewScreen
                     ),
                   );
 
-                  // Navigate back to main screen or home
+                  // Navigate to main screen with reel tab selected
                   Navigator.popUntil(
                     context,
                     (
                       route,
                     ) => route.isFirst,
+                  );
+
+                  // Navigate to main screen with reels tab (index 0) selected
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (
+                            context,
+                          ) => const MainScreen(
+                            initialIndex: 0,
+                          ),
+                    ),
                   );
                 },
                 style: ElevatedButton.styleFrom(

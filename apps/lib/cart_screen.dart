@@ -102,7 +102,7 @@ class _CartScreenState
                         index,
                       );
                     },
-                  ).toList(),
+                  ),
 
                   const SizedBox(
                     height: 32,

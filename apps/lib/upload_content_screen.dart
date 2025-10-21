@@ -5,14 +5,17 @@ class UploadContentScreen
     extends
         StatefulWidget {
   final String
-  selectedPath; // 'reels' or 'arena'
+  selectedPath; // 'reels' or 'SYT'
   final String?
   mediaPath; // Path to captured photo/video
+  final bool
+  isVideo; // Whether the media is a video
 
   const UploadContentScreen({
     super.key,
     required this.selectedPath,
     this.mediaPath,
+    this.isVideo = false,
   });
 
   @override
@@ -29,24 +32,6 @@ class _UploadContentScreenState
         > {
   final TextEditingController
   _captionController = TextEditingController();
-  String?
-  selectedCategory;
-
-  final List<
-    String
-  >
-  categories = [
-    'Dance',
-    'Music',
-    'Art',
-    'Comedy',
-    'Sports',
-    'Education',
-    'Lifestyle',
-    'Food',
-    'Travel',
-    'Fashion',
-  ];
 
   @override
   void
@@ -112,95 +97,7 @@ class _UploadContentScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(
-              height: 20,
-            ),
-
-            // Category Section
-            const Text(
-              'Category',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
-              ),
-            ),
-
-            const SizedBox(
-              height: 12,
-            ),
-
-            // Category Dropdown
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: const Color(
-                    0xFF701CF5,
-                  ),
-                  width: 2,
-                ),
-                borderRadius: BorderRadius.circular(
-                  12,
-                ),
-              ),
-              child: DropdownButtonHideUnderline(
-                child:
-                    DropdownButton<
-                      String
-                    >(
-                      value: selectedCategory,
-                      hint: const Text(
-                        'Select a category',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 16,
-                        ),
-                      ),
-                      isExpanded: true,
-                      icon: const Icon(
-                        Icons.keyboard_arrow_down,
-                        color: Color(
-                          0xFF701CF5,
-                        ),
-                      ),
-                      items: categories.map(
-                        (
-                          String category,
-                        ) {
-                          return DropdownMenuItem<
-                            String
-                          >(
-                            value: category,
-                            child: Text(
-                              category,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: Colors.black,
-                              ),
-                            ),
-                          );
-                        },
-                      ).toList(),
-                      onChanged:
-                          (
-                            String? newValue,
-                          ) {
-                            setState(
-                              () {
-                                selectedCategory = newValue;
-                              },
-                            );
-                          },
-                    ),
-              ),
-            ),
-
-            const SizedBox(
-              height: 30,
+              height: 40,
             ),
 
             // Caption Section
@@ -291,8 +188,9 @@ class _UploadContentScreenState
                             ) => PreviewScreen(
                               selectedPath: widget.selectedPath,
                               mediaPath: widget.mediaPath,
-                              category: selectedCategory,
+                              category: null,
                               caption: _captionController.text,
+                              isVideo: widget.isVideo,
                             ),
                       ),
                     );

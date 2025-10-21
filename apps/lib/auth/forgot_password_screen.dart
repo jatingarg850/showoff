@@ -169,7 +169,8 @@ class _ForgotPasswordScreenState
                             (
                               context,
                             ) => OTPScreen(
-                              email: _emailController.text.trim(),
+                              phoneNumber: _emailController.text.trim(),
+                              isSignIn: false,
                             ),
                       ),
                     );

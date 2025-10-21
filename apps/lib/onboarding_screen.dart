@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'signup_screen.dart';
-import 'auth/login_screen.dart';
+import 'auth/signin_choice_screen.dart';
 
 class OnboardingScreen
     extends
@@ -37,7 +37,7 @@ class _OnboardingScreenState
     ),
     OnboardingData(
       image: 'assets/onboarding/2.png',
-      title: 'Join Arena Competitions',
+      title: 'Join SYT Competitions',
       description: 'Battle weekly, monthly, and mega challenges. Get votes, climb leaderboards, and win badges',
     ),
     OnboardingData(
@@ -122,7 +122,7 @@ class _OnboardingScreenState
                             builder:
                                 (
                                   context,
-                                ) => const LoginScreen(),
+                                ) => const SignInChoiceScreen(),
                           ),
                         );
                       },

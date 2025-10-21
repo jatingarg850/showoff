@@ -21,11 +21,21 @@ class _LeaderboardScreenState
         > {
   String
   selectedPeriod = 'Weekly';
+  String
+  selectedCategory = 'General';
+
   final List<
     String
   >
   periods = [
     'Weekly',
+  ];
+  final List<
+    String
+  >
+  categories = [
+    'General',
+    'Selfie Streaks',
   ];
 
   final List<
@@ -108,6 +118,88 @@ class _LeaderboardScreenState
       'isWinner': false,
     },
   ];
+
+  final List<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  selfieStreakData = [
+    {
+      'name': 'Sarah',
+      'score': '45',
+      'username': '@sarah_daily',
+      'position': 1,
+      'avatar': 'assets/avatars/sarah.jpg',
+      'isWinner': true,
+      'streak': 45,
+      'lastSelfie': '2 hours ago',
+    },
+    {
+      'name': 'Mike',
+      'score': '38',
+      'username': '@mike_selfie',
+      'position': 2,
+      'avatar': 'assets/avatars/mike.jpg',
+      'isWinner': false,
+      'streak': 38,
+      'lastSelfie': '5 hours ago',
+    },
+    {
+      'name': 'Emma',
+      'score': '32',
+      'username': '@emma_streak',
+      'position': 3,
+      'avatar': 'assets/avatars/emma.jpg',
+      'isWinner': false,
+      'streak': 32,
+      'lastSelfie': '1 hour ago',
+    },
+    {
+      'name': 'Alex',
+      'score': '28',
+      'username': '@alex_daily',
+      'position': 4,
+      'avatar': 'assets/avatars/alex.jpg',
+      'isWinner': false,
+      'streak': 28,
+      'lastSelfie': '3 hours ago',
+    },
+    {
+      'name': 'You',
+      'score': '15',
+      'username': '@your_username',
+      'position': 5,
+      'avatar': 'assets/avatars/you.jpg',
+      'isWinner': false,
+      'streak': 15,
+      'lastSelfie': '6 hours ago',
+    },
+    {
+      'name': 'Lisa',
+      'score': '12',
+      'username': '@lisa_selfie',
+      'position': 6,
+      'avatar': 'assets/avatars/lisa.jpg',
+      'isWinner': false,
+      'streak': 12,
+      'lastSelfie': '4 hours ago',
+    },
+  ];
+
+  List<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  get currentLeaderboardData {
+    return selectedCategory ==
+            'Selfie Streaks'
+        ? selfieStreakData
+        : leaderboardData;
+  }
 
   @override
   Widget
@@ -229,6 +321,28 @@ class _LeaderboardScreenState
               ),
             ),
 
+            // Category Selection
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+              ),
+              child: Row(
+                children: categories
+                    .map(
+                      (
+                        category,
+                      ) => _buildCategoryTab(
+                        category,
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+
+            const SizedBox(
+              height: 20,
+            ),
+
             // Period Selection
             Padding(
               padding: const EdgeInsets.symmetric(
@@ -279,7 +393,7 @@ class _LeaderboardScreenState
                     left: 35,
                     top: 75,
                     child: _buildPodiumUser(
-                      leaderboardData[1],
+                      currentLeaderboardData[1],
                       2,
                     ),
                   ),
@@ -291,7 +405,7 @@ class _LeaderboardScreenState
                     top: -3,
                     child: Center(
                       child: _buildPodiumUser(
-                        leaderboardData[0],
+                        currentLeaderboardData[0],
                         1,
                       ),
                     ),
@@ -302,7 +416,7 @@ class _LeaderboardScreenState
                     right: 35,
                     top: 75,
                     child: _buildPodiumUser(
-                      leaderboardData[2],
+                      currentLeaderboardData[2],
                       3,
                     ),
                   ),
@@ -345,7 +459,7 @@ class _LeaderboardScreenState
                     20,
                   ),
                   itemCount:
-                      leaderboardData.length -
+                      currentLeaderboardData.length -
                       3, // Exclude top 3
                   itemBuilder:
                       (
@@ -353,7 +467,7 @@ class _LeaderboardScreenState
                         index,
                       ) {
                         final user =
-                            leaderboardData[index +
+                            currentLeaderboardData[index +
                                 3]; // Start from 4th position
                         return _buildLeaderboardItem(
                           user,
@@ -364,6 +478,85 @@ class _LeaderboardScreenState
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget
+  _buildCategoryTab(
+    String category,
+  ) {
+    final isSelected =
+        category ==
+        selectedCategory;
+    return GestureDetector(
+      onTap: () {
+        setState(
+          () {
+            selectedCategory = category;
+          },
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(
+          right: 24,
+        ),
+        padding: const EdgeInsets.only(
+          bottom: 8,
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (category ==
+                    'Selfie Streaks')
+                  const Icon(
+                    Icons.local_fire_department,
+                    size: 16,
+                    color: Color(
+                      0xFFFF6B35,
+                    ),
+                  ),
+                if (category ==
+                    'Selfie Streaks')
+                  const SizedBox(
+                    width: 4,
+                  ),
+                Text(
+                  category,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+              ],
+            ),
+            if (isSelected)
+              Container(
+                margin: const EdgeInsets.only(
+                  top: 8,
+                ),
+                height: 2,
+                width: 40,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(
+                        0xFF701CF5,
+                      ),
+                      Color(
+                        0xFF3E98E4,
+                      ),
+                    ],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -612,26 +805,65 @@ class _LeaderboardScreenState
                 width: 16,
               ),
 
-              // Name
+              // Name and details
               Expanded(
-                child: Text(
-                  user['name'],
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user['name'],
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (selectedCategory ==
+                            'Selfie Streaks' &&
+                        user['lastSelfie'] !=
+                            null)
+                      Text(
+                        'Last selfie: ${user['lastSelfie']}',
+                        style: TextStyle(
+                          color: Colors.white.withValues(
+                            alpha: 0.7,
+                          ),
+                          fontSize: 12,
+                        ),
+                      ),
+                  ],
                 ),
               ),
 
-              // Score
-              Text(
-                user['score'],
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+              // Score with streak indicator
+              Row(
+                children: [
+                  if (selectedCategory ==
+                      'Selfie Streaks')
+                    const Icon(
+                      Icons.local_fire_department,
+                      color: Color(
+                        0xFFFF6B35,
+                      ),
+                      size: 16,
+                    ),
+                  if (selectedCategory ==
+                      'Selfie Streaks')
+                    const SizedBox(
+                      width: 4,
+                    ),
+                  Text(
+                    selectedCategory ==
+                            'Selfie Streaks'
+                        ? '${user['score']} days'
+                        : user['score'],
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(
@@ -656,8 +888,8 @@ class _LeaderboardScreenState
         Container(
           height: 2,
           width: double.infinity,
-          color: Colors.white.withOpacity(
-            0.3,
+          color: Colors.white.withValues(
+            alpha: 0.3,
           ),
           margin: const EdgeInsets.only(
             top: 12,

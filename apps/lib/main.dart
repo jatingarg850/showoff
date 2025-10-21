@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'splash_screen.dart';
 import 'onboarding_screen.dart';
 
 void
@@ -21,14 +22,20 @@ class MyApp
     BuildContext context,
   ) {
     return MaterialApp(
-      title: 'Flutter App',
+      title: 'ShowOff.life',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.deepPurple,
         ),
         useMaterial3: true,
       ),
-      home: const OnboardingScreen(),
+      home: const SplashScreen(),
+      routes: {
+        '/onboarding':
+            (
+              context,
+            ) => const OnboardingScreen(),
+      },
       debugShowCheckedModeBanner: false,
     );
   }

@@ -142,8 +142,9 @@ class _MainScreenState
   _buildNavItem(
     int index,
     String imagePath,
-    double size,
-  ) {
+    double size, {
+    IconData? icon,
+  }) {
     final isActive =
         _currentIndex ==
         index;
@@ -168,22 +169,32 @@ class _MainScreenState
                     color: Colors.white,
                     shape: BoxShape.circle,
                   ),
-                  child: Image.asset(
-                    imagePath,
-                    width:
-                        size ==
-                            30
-                        ? 20
-                        : 20,
-                    height:
-                        size ==
-                            30
-                        ? 20
-                        : 20,
-                    color: const Color(
-                      0xFF701CF5,
-                    ),
-                  ),
+                  child:
+                      icon !=
+                          null
+                      ? Icon(
+                          icon,
+                          size: 20,
+                          color: const Color(
+                            0xFF701CF5,
+                          ),
+                        )
+                      : Image.asset(
+                          imagePath,
+                          width:
+                              size ==
+                                  30
+                              ? 20
+                              : 20,
+                          height:
+                              size ==
+                                  30
+                              ? 20
+                              : 20,
+                          color: const Color(
+                            0xFF701CF5,
+                          ),
+                        ),
                 ),
                 const SizedBox(
                   height: 4,
@@ -199,6 +210,13 @@ class _MainScreenState
                   ),
                 ),
               ],
+            )
+          : icon !=
+                null
+          ? Icon(
+              icon,
+              size: size,
+              color: Colors.white,
             )
           : Image.asset(
               imagePath,

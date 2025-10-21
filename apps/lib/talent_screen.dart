@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'leaderboard_screen.dart';
+import 'chat_screen.dart';
+import 'notification_screen.dart';
+import 'syt_reel_screen.dart';
+import 'main_screen.dart';
 
 class TalentScreen
     extends
@@ -178,20 +182,50 @@ class _TalentScreenState
                         const SizedBox(
                           width: 12,
                         ),
-                        Image.asset(
-                          'assets/syttop/comment.png',
-                          width: 24,
-                          height: 24,
-                          color: Colors.black,
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (
+                                      context,
+                                    ) => const ChatScreen(
+                                      username: 'talent_user',
+                                      displayName: 'Talent User',
+                                      isVerified: false,
+                                    ),
+                              ),
+                            );
+                          },
+                          child: Image.asset(
+                            'assets/syttop/comment.png',
+                            width: 24,
+                            height: 24,
+                            color: Colors.black,
+                          ),
                         ),
                         const SizedBox(
                           width: 12,
                         ),
-                        Image.asset(
-                          'assets/syttop/notification.png',
-                          width: 24,
-                          height: 24,
-                          color: Colors.black,
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (
+                                      context,
+                                    ) => const NotificationScreen(),
+                              ),
+                            );
+                          },
+                          child: Image.asset(
+                            'assets/syttop/notification.png',
+                            width: 24,
+                            height: 24,
+                            color: Colors.black,
+                          ),
                         ),
                       ],
                     ),
@@ -374,7 +408,17 @@ class _TalentScreenState
                               ),
                               child: ElevatedButton(
                                 onPressed: () {
-                                  // Handle show off
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder:
+                                          (
+                                            context,
+                                          ) => const MainScreen(
+                                            initialIndex: 2,
+                                          ),
+                                    ),
+                                  );
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.transparent,
@@ -438,14 +482,31 @@ class _TalentScreenState
                             index,
                           ) {
                             final competition = competitions[index];
-                            return _buildCompetitionCard(
-                              competition,
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (
+                                          context,
+                                        ) => SYTReelScreen(
+                                          competitions: competitions,
+                                          initialIndex: index,
+                                        ),
+                                  ),
+                                );
+                              },
+                              child: _buildCompetitionCard(
+                                competition,
+                                index,
+                              ),
                             );
                           },
                     ),
                   ),
 
-                  // Floating Join Arena Button
+                  // Floating Join SYT Button
                   Positioned(
                     left: 40,
                     right: 40,
@@ -485,7 +546,17 @@ class _TalentScreenState
                       ),
                       child: ElevatedButton(
                         onPressed: () {
-                          // Handle join arena
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (
+                                    context,
+                                  ) => const MainScreen(
+                                    initialIndex: 2,
+                                  ),
+                            ),
+                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
@@ -605,132 +676,149 @@ class _TalentScreenState
       dynamic
     >
     competition,
+    int index,
   ) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(
-          16,
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (
+                  context,
+                ) => SYTReelScreen(
+                  competitions: competitions,
+                  initialIndex: index,
+                ),
+          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(
+            16,
+          ),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: competition['gradient'],
+          ),
         ),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: competition['gradient'],
-        ),
-      ),
-      child: Stack(
-        children: [
-          // Background pattern/texture
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(
+        child: Stack(
+          children: [
+            // Background pattern/texture
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(
+                  16,
+                ),
+                color: Colors.black.withValues(
+                  alpha: 0.3,
+                ),
+              ),
+            ),
+
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(
                 16,
               ),
-              color: Colors.black.withValues(
-                alpha: 0.3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // In competition badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(
+                        alpha: 0.9,
+                      ),
+                      borderRadius: BorderRadius.circular(
+                        12,
+                      ),
+                    ),
+                    child: ShaderMask(
+                      shaderCallback:
+                          (
+                            bounds,
+                          ) =>
+                              const LinearGradient(
+                                colors: [
+                                  Color(
+                                    0xFF701CF5,
+                                  ),
+                                  Color(
+                                    0xFF74B9FF,
+                                  ),
+                                ],
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                              ).createShader(
+                                bounds,
+                              ),
+                      child: const Text(
+                        'In competition',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const Spacer(),
+
+                  // User info
+                  Text(
+                    competition['username'],
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    competition['category'],
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 8,
+                  ),
+
+                  // Likes
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.thumb_up,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                      const SizedBox(
+                        width: 4,
+                      ),
+                      Text(
+                        competition['likes'],
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-          ),
-
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(
-              16,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // In competition badge
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(
-                      alpha: 0.9,
-                    ),
-                    borderRadius: BorderRadius.circular(
-                      12,
-                    ),
-                  ),
-                  child: ShaderMask(
-                    shaderCallback:
-                        (
-                          bounds,
-                        ) =>
-                            const LinearGradient(
-                              colors: [
-                                Color(
-                                  0xFF701CF5,
-                                ),
-                                Color(
-                                  0xFF74B9FF,
-                                ),
-                              ],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            ).createShader(
-                              bounds,
-                            ),
-                    child: const Text(
-                      'In competition',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-
-                const Spacer(),
-
-                // User info
-                Text(
-                  competition['username'],
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  competition['category'],
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 8,
-                ),
-
-                // Likes
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.thumb_up,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                    const SizedBox(
-                      width: 4,
-                    ),
-                    Text(
-                      competition['likes'],
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

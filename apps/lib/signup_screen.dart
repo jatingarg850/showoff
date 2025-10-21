@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'phone_signup_screen.dart';
 import 'email_signup_screen.dart';
-import 'auth/login_screen.dart';
+import 'auth/signin_choice_screen.dart';
 
 class SignUpScreen
     extends
@@ -271,7 +271,7 @@ class SignUpScreen
                           builder:
                               (
                                 context,
-                              ) => const LoginScreen(),
+                              ) => const SignInChoiceScreen(),
                         ),
                       );
                     },

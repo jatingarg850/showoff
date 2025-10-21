@@ -589,7 +589,7 @@ class _SpinWheelScreenState
                         ) {
                           return Transform.rotate(
                             angle: _animation.value,
-                            child: Container(
+                            child: SizedBox(
                               width: 280,
                               height: 280,
                               child: CustomPaint(
@@ -634,7 +634,7 @@ class _SpinWheelScreenState
                   // Orange triangular pointer at top
                   Positioned(
                     top: 0,
-                    child: Container(
+                    child: SizedBox(
                       width: 40,
                       height: 40,
                       child: CustomPaint(
@@ -668,8 +668,8 @@ class _SpinWheelScreenState
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(
-                            0.1,
+                          color: Colors.black.withValues(
+                            alpha: 0.1,
                           ),
                           blurRadius: 10,
                           offset: const Offset(

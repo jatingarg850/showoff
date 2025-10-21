@@ -9,7 +9,7 @@ class CameraScreen
     extends
         StatefulWidget {
   final String
-  selectedPath; // 'reels' or 'arena'
+  selectedPath; // 'reels' or 'SYT'
 
   const CameraScreen({
     super.key,
@@ -44,6 +44,8 @@ class _CameraScreenState
   _isCameraInitialized = false;
   String?
   _lastImagePath;
+  bool
+  _isVideoMode = false;
 
   @override
   void
@@ -94,7 +96,7 @@ class _CameraScreenState
     } catch (
       e
     ) {
-      print(
+      debugPrint(
         'Error initializing camera: $e',
       );
     }
@@ -107,8 +109,9 @@ class _CameraScreenState
     if (_cameras ==
             null ||
         _cameras!.length <
-            2)
+            2) {
       return;
+    }
 
     setState(
       () {
@@ -137,7 +140,7 @@ class _CameraScreenState
     } catch (
       e
     ) {
-      print(
+      debugPrint(
         'Error switching camera: $e',
       );
     }
@@ -148,8 +151,9 @@ class _CameraScreenState
   >
   _toggleFlash() async {
     if (_cameraController ==
-        null)
+        null) {
       return;
+    }
 
     setState(
       () {
@@ -188,25 +192,117 @@ class _CameraScreenState
       HapticFeedback.mediumImpact();
 
       // Navigate to upload screen with the captured image
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder:
-              (
-                context,
-              ) => UploadContentScreen(
-                selectedPath: widget.selectedPath,
-                mediaPath: image.path,
-              ),
-        ),
-      );
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (
+                  context,
+                ) => UploadContentScreen(
+                  selectedPath: widget.selectedPath,
+                  mediaPath: image.path,
+                  isVideo: false,
+                ),
+          ),
+        );
+      }
     } catch (
       e
     ) {
-      print(
+      debugPrint(
         'Error taking picture: $e',
       );
     }
+  }
+
+  Future<
+    void
+  >
+  _startVideoRecording() async {
+    if (_cameraController ==
+            null ||
+        !_cameraController!.value.isInitialized) {
+      return;
+    }
+
+    try {
+      await _cameraController!.startVideoRecording();
+      setState(
+        () {
+          isRecording = true;
+        },
+      );
+
+      // Haptic feedback
+      HapticFeedback.mediumImpact();
+    } catch (
+      e
+    ) {
+      debugPrint(
+        'Error starting video recording: $e',
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _stopVideoRecording() async {
+    if (_cameraController ==
+            null ||
+        !isRecording) {
+      return;
+    }
+
+    try {
+      final XFile video = await _cameraController!.stopVideoRecording();
+      setState(
+        () {
+          isRecording = false;
+        },
+      );
+
+      // Haptic feedback
+      HapticFeedback.mediumImpact();
+
+      // Navigate to upload screen with the recorded video
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (
+                  context,
+                ) => UploadContentScreen(
+                  selectedPath: widget.selectedPath,
+                  mediaPath: video.path,
+                  isVideo: true,
+                ),
+          ),
+        );
+      }
+    } catch (
+      e
+    ) {
+      debugPrint(
+        'Error stopping video recording: $e',
+      );
+      setState(
+        () {
+          isRecording = false;
+        },
+      );
+    }
+  }
+
+  void
+  _toggleRecordingMode() {
+    setState(
+      () {
+        _isVideoMode = !_isVideoMode;
+      },
+    );
   }
 
   @override
@@ -261,8 +357,8 @@ class _CameraScreenState
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(
-                        0.5,
+                      color: Colors.black.withValues(
+                        alpha: 0.5,
                       ),
                       shape: BoxShape.circle,
                     ),
@@ -281,8 +377,8 @@ class _CameraScreenState
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(
-                      0.5,
+                    color: Colors.black.withValues(
+                      alpha: 0.5,
                     ),
                     borderRadius: BorderRadius.circular(
                       20,
@@ -292,7 +388,10 @@ class _CameraScreenState
                     widget.selectedPath ==
                             'reels'
                         ? 'Reels'
-                        : 'Arena',
+                        : widget.selectedPath ==
+                              'selfie_challenge'
+                        ? 'Daily Selfie'
+                        : 'SYT',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
@@ -308,8 +407,8 @@ class _CameraScreenState
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(
-                        0.5,
+                      color: Colors.black.withValues(
+                        alpha: 0.5,
                       ),
                       shape: BoxShape.circle,
                     ),
@@ -348,8 +447,8 @@ class _CameraScreenState
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(
-                        0.5,
+                      color: Colors.black.withValues(
+                        alpha: 0.5,
                       ),
                       shape: BoxShape.circle,
                     ),
@@ -358,6 +457,140 @@ class _CameraScreenState
                       color: Colors.white,
                       size: 24,
                     ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Recording indicator
+          if (isRecording)
+            Positioned(
+              top:
+                  MediaQuery.of(
+                    context,
+                  ).padding.top +
+                  60,
+              left: 20,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(
+                    15,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(
+                      width: 6,
+                    ),
+                    const Text(
+                      'REC',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Mode toggle (Photo/Video)
+          Positioned(
+            bottom:
+                MediaQuery.of(
+                  context,
+                ).padding.bottom +
+                120,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(
+                      alpha: 0.5,
+                    ),
+                    borderRadius: BorderRadius.circular(
+                      25,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          if (_isVideoMode) _toggleRecordingMode();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: !_isVideoMode
+                                ? Colors.white
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(
+                              20,
+                            ),
+                          ),
+                          child: Text(
+                            'Photo',
+                            style: TextStyle(
+                              color: !_isVideoMode
+                                  ? Colors.black
+                                  : Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          if (!_isVideoMode) _toggleRecordingMode();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _isVideoMode
+                                ? Colors.white
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(
+                              20,
+                            ),
+                          ),
+                          child: Text(
+                            'Video',
+                            style: TextStyle(
+                              color: _isVideoMode
+                                  ? Colors.black
+                                  : Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -385,15 +618,15 @@ class _CameraScreenState
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(
-                        0.2,
+                      color: Colors.white.withValues(
+                        alpha: 0.2,
                       ),
                       borderRadius: BorderRadius.circular(
                         12,
                       ),
                       border: Border.all(
-                        color: Colors.white.withOpacity(
-                          0.3,
+                        color: Colors.white.withValues(
+                          alpha: 0.3,
                         ),
                         width: 1,
                       ),
@@ -422,14 +655,20 @@ class _CameraScreenState
 
                 // Capture button
                 GestureDetector(
-                  onTap: _takePicture,
+                  onTap: _isVideoMode
+                      ? (isRecording
+                            ? _stopVideoRecording
+                            : _startVideoRecording)
+                      : _takePicture,
                   child: Container(
                     width: 80,
                     height: 80,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: Colors.white,
+                        color: isRecording
+                            ? Colors.red
+                            : Colors.white,
                         width: 4,
                       ),
                     ),
@@ -437,9 +676,24 @@ class _CameraScreenState
                       margin: const EdgeInsets.all(
                         8,
                       ),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
+                      decoration: BoxDecoration(
+                        color: _isVideoMode
+                            ? (isRecording
+                                  ? Colors.red
+                                  : Colors.white)
+                            : Colors.white,
+                        shape:
+                            _isVideoMode &&
+                                isRecording
+                            ? BoxShape.rectangle
+                            : BoxShape.circle,
+                        borderRadius:
+                            _isVideoMode &&
+                                isRecording
+                            ? BorderRadius.circular(
+                                8,
+                              )
+                            : null,
                       ),
                     ),
                   ),
@@ -452,8 +706,8 @@ class _CameraScreenState
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(
-                        0.2,
+                      color: Colors.white.withValues(
+                        alpha: 0.2,
                       ),
                       shape: BoxShape.circle,
                     ),

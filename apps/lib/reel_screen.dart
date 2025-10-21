@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'comments_screen.dart';
 import 'gift_screen.dart';
+import 'search_screen.dart';
+import 'chat_screen.dart';
+import 'notification_screen.dart';
 
 class ReelScreen
     extends
@@ -41,6 +44,18 @@ class _ReelScreenState
 
   int
   _currentIndex = 0;
+
+  // Track liked and saved states for each reel
+  final Map<
+    int,
+    bool
+  >
+  _likedReels = {};
+  final Map<
+    int,
+    bool
+  >
+  _savedReels = {};
 
   @override
   void
@@ -411,29 +426,73 @@ class _ReelScreenState
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Image.asset(
-                  'assets/upreel/search.png',
-                  width: 24,
-                  height: 24,
-                  color: Colors.white,
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (
+                              context,
+                            ) => const SearchScreen(),
+                      ),
+                    );
+                  },
+                  child: Image.asset(
+                    'assets/upreel/search.png',
+                    width: 24,
+                    height: 24,
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(
                   width: 16,
                 ),
-                Image.asset(
-                  'assets/upreel/coment.png',
-                  width: 24,
-                  height: 24,
-                  color: Colors.white,
+                GestureDetector(
+                  onTap: () {
+                    final currentReel = _reels[_currentIndex];
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (
+                              context,
+                            ) => ChatScreen(
+                              username: currentReel['username'],
+                              displayName: currentReel['username'],
+                              isVerified: false,
+                            ),
+                      ),
+                    );
+                  },
+                  child: Image.asset(
+                    'assets/upreel/coment.png',
+                    width: 24,
+                    height: 24,
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(
                   width: 16,
                 ),
-                Image.asset(
-                  'assets/upreel/notbell.png',
-                  width: 24,
-                  height: 24,
-                  color: Colors.white,
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (
+                              context,
+                            ) => const NotificationScreen(),
+                      ),
+                    );
+                  },
+                  child: Image.asset(
+                    'assets/upreel/notbell.png',
+                    width: 24,
+                    height: 24,
+                    color: Colors.white,
+                  ),
                 ),
               ],
             ),
@@ -529,7 +588,19 @@ class _ReelScreenState
                               _buildActionButton(
                                 'assets/sidereel/like.png',
                                 reel['likes'],
-                                Colors.red,
+                                _likedReels[index] ==
+                                        true
+                                    ? Colors.red
+                                    : Colors.white,
+                                onTap: () {
+                                  setState(
+                                    () {
+                                      _likedReels[index] =
+                                          !(_likedReels[index] ??
+                                              false);
+                                    },
+                                  );
+                                },
                               ),
                               const SizedBox(
                                 height: 20,
@@ -556,7 +627,19 @@ class _ReelScreenState
                               _buildActionButton(
                                 'assets/sidereel/saved.png',
                                 reel['bookmarks'],
-                                Colors.white,
+                                _savedReels[index] ==
+                                        true
+                                    ? Colors.yellow
+                                    : Colors.white,
+                                onTap: () {
+                                  setState(
+                                    () {
+                                      _savedReels[index] =
+                                          !(_savedReels[index] ??
+                                              false);
+                                    },
+                                  );
+                                },
                               ),
                               const SizedBox(
                                 height: 20,

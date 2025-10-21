@@ -88,8 +88,11 @@ class _PaymentSettingsScreenState
               'Mastercard',
               '**** **** **** 8765',
               'Expires 08/27',
-              const Color(
-                0xFFEB001B,
+              const Color.fromRGBO(
+                235,
+                0,
+                27,
+                1,
               ),
               Colors.white,
             ),
@@ -258,7 +261,7 @@ class _PaymentSettingsScreenState
               height: 16,
             ),
 
-            Container(
+            SizedBox(
               width: double.infinity,
               height: 48,
               child: OutlinedButton(

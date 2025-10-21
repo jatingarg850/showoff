@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'new_password_screen.dart';
+import '../main_screen.dart';
 
 class OTPScreen
     extends
         StatefulWidget {
   final String
-  email;
+  phoneNumber;
+  final bool
+  isSignIn;
 
   const OTPScreen({
     super.key,
-    required this.email,
+    required this.phoneNumber,
+    this.isSignIn = false,
   });
 
   @override
@@ -126,9 +130,11 @@ class _OTPScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Title
-            const Text(
-              'Forgot password',
-              style: TextStyle(
+            Text(
+              widget.isSignIn
+                  ? 'Verify Phone'
+                  : 'Forgot password',
+              style: const TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
@@ -142,7 +148,9 @@ class _OTPScreenState
                 bottom: 32,
               ),
               height: 3,
-              width: 120,
+              width: widget.isSignIn
+                  ? 100
+                  : 120,
               decoration: BoxDecoration(
                 color: const Color(
                   0xFF701CF5,
@@ -153,10 +161,12 @@ class _OTPScreenState
               ),
             ),
 
-            // Email Address label
-            const Text(
-              'Email Address',
-              style: TextStyle(
+            // Phone Number label
+            Text(
+              widget.isSignIn
+                  ? 'Phone Number'
+                  : 'Email Address',
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: Colors.black,
@@ -167,50 +177,34 @@ class _OTPScreenState
               height: 12,
             ),
 
-            // Email display field
+            // Phone/Email display field
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(
                 16,
               ),
               decoration: BoxDecoration(
+                color: const Color(
+                  0xFFF8F9FA,
+                ),
                 borderRadius: BorderRadius.circular(
                   12,
                 ),
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(
-                      0xFF701CF5,
-                    ),
-                    Color(
-                      0xFF3E98E4,
-                    ),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                border: Border.all(
+                  color: const Color(
+                    0xFFE9ECEF,
+                  ),
+                  width: 1,
                 ),
               ),
-              child: Container(
-                padding: const EdgeInsets.all(
-                  2,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(
-                    10,
+              child: Text(
+                widget.phoneNumber,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Color(
+                    0xFF6C757D,
                   ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(
-                    14,
-                  ),
-                  child: Text(
-                    widget.email,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey,
-                    ),
-                  ),
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
@@ -271,11 +265,13 @@ class _OTPScreenState
                           color: Colors.black,
                         ),
                         children: [
-                          const TextSpan(
-                            text: 'Enter the OTP code sent to your email\n',
+                          TextSpan(
+                            text: widget.isSignIn
+                                ? 'Enter the OTP code sent to your phone\n'
+                                : 'Enter the OTP code sent to your email\n',
                           ),
                           TextSpan(
-                            text: widget.email,
+                            text: widget.phoneNumber,
                             style: const TextStyle(
                               color: Color(
                                 0xFF701CF5,
@@ -455,15 +451,32 @@ class _OTPScreenState
                               .join();
                           if (otp.length ==
                               6) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (
-                                      context,
-                                    ) => const NewPasswordScreen(),
-                              ),
-                            );
+                            if (widget.isSignIn) {
+                              // Navigate to main screen for sign-in
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (
+                                        context,
+                                      ) => const MainScreen(),
+                                ),
+                                (
+                                  route,
+                                ) => false,
+                              );
+                            } else {
+                              // Navigate to new password screen for forgot password
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (
+                                        context,
+                                      ) => const NewPasswordScreen(),
+                                ),
+                              );
+                            }
                           } else {
                             ScaffoldMessenger.of(
                               context,

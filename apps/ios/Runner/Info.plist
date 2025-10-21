@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Apps</string>
+	<string>ShowOff.life</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>apps</string>
+	<string>ShowOff.life</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -45,5 +45,13 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	
+	<!-- Camera and Photo Library Permissions -->
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs access to camera to take profile pictures and capture content for sharing.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to photo library to select images for profile pictures and content sharing.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app needs access to microphone to record videos with audio.</string>
 </dict>
 </plist>

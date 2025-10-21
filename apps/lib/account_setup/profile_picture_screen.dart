@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'dart:io';
 import 'display_name_screen.dart';
 
 class ProfilePictureScreen
@@ -20,6 +23,241 @@ class _ProfilePictureScreenState
         State<
           ProfilePictureScreen
         > {
+  File?
+  _selectedImage;
+  final ImagePicker
+  _picker = ImagePicker();
+
+  Future<
+    bool
+  >
+  _requestPermissions(
+    Permission permission,
+  ) async {
+    final status = await permission.status;
+    if (status.isGranted) {
+      return true;
+    }
+
+    final result = await permission.request();
+    return result.isGranted;
+  }
+
+  Future<
+    void
+  >
+  _pickImageFromGallery() async {
+    try {
+      // Request storage permission
+      bool hasPermission;
+      if (Platform.isAndroid) {
+        if (await Permission.photos.status.isGranted) {
+          hasPermission = true;
+        } else {
+          hasPermission = await _requestPermissions(
+            Permission.photos,
+          );
+        }
+      } else {
+        hasPermission = await _requestPermissions(
+          Permission.photos,
+        );
+      }
+
+      if (!hasPermission) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Photo library permission is required',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (image !=
+          null) {
+        setState(
+          () {
+            _selectedImage = File(
+              image.path,
+            );
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      debugPrint(
+        'Error picking image from gallery: $e',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to pick image: ${e.toString()}',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<
+    void
+  >
+  _takePhoto() async {
+    try {
+      // Request camera permission
+      final hasPermission = await _requestPermissions(
+        Permission.camera,
+      );
+
+      if (!hasPermission) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Camera permission is required',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (image !=
+          null) {
+        setState(
+          () {
+            _selectedImage = File(
+              image.path,
+            );
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      debugPrint(
+        'Error taking photo: $e',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to take photo: ${e.toString()}',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void
+  _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(
+            20,
+          ),
+        ),
+      ),
+      builder:
+          (
+            BuildContext context,
+          ) {
+            return Container(
+              padding: const EdgeInsets.all(
+                20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Select Image Source',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(
+                    height: 20,
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.camera_alt,
+                      color: Color(
+                        0xFF701CF5,
+                      ),
+                    ),
+                    title: const Text(
+                      'Camera',
+                    ),
+                    onTap: () {
+                      Navigator.pop(
+                        context,
+                      );
+                      _takePhoto();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.photo_library,
+                      color: Color(
+                        0xFF3E98E4,
+                      ),
+                    ),
+                    title: const Text(
+                      'Gallery',
+                    ),
+                    onTap: () {
+                      Navigator.pop(
+                        context,
+                      );
+                      _pickImageFromGallery();
+                    },
+                  ),
+                  const SizedBox(
+                    height: 10,
+                  ),
+                ],
+              ),
+            );
+          },
+    );
+  }
+
   @override
   Widget
   build(
@@ -120,32 +358,60 @@ class _ProfilePictureScreenState
               height: 60,
             ),
 
-            // Profile picture placeholder
+            // Profile picture placeholder/preview
             Center(
-              child: Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [
-                      Color(
-                        0xFF701CF5,
-                      ), // Purple
-                      Color(
-                        0xFF3E98E4,
-                      ), // Blue
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+              child: GestureDetector(
+                onTap: _showImageSourceDialog,
+                child: Container(
+                  width: 200,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient:
+                        _selectedImage ==
+                            null
+                        ? const LinearGradient(
+                            colors: [
+                              Color(
+                                0xFF701CF5,
+                              ), // Purple
+                              Color(
+                                0xFF3E98E4,
+                              ), // Blue
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                        : null,
+                    border:
+                        _selectedImage !=
+                            null
+                        ? Border.all(
+                            color: const Color(
+                              0xFF701CF5,
+                            ),
+                            width: 4,
+                          )
+                        : null,
                   ),
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.camera_alt,
-                    size: 40,
-                    color: Colors.white,
-                  ),
+                  child:
+                      _selectedImage ==
+                          null
+                      ? const Center(
+                          child: Icon(
+                            Icons.camera_alt,
+                            size: 40,
+                            color: Colors.white,
+                          ),
+                        )
+                      : ClipOval(
+                          child: Image.file(
+                            _selectedImage!,
+                            width: 200,
+                            height: 200,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
                 ),
               ),
             ),
@@ -171,9 +437,7 @@ class _ProfilePictureScreenState
                 ),
               ),
               child: ElevatedButton.icon(
-                onPressed: () {
-                  // Handle take photo
-                },
+                onPressed: _takePhoto,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: const Color(
@@ -223,9 +487,7 @@ class _ProfilePictureScreenState
                 ),
               ),
               child: ElevatedButton.icon(
-                onPressed: () {
-                  // Handle choose from gallery
-                },
+                onPressed: _pickImageFromGallery,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: const Color(
@@ -265,7 +527,7 @@ class _ProfilePictureScreenState
               width: double.infinity,
               height: 56,
               margin: const EdgeInsets.only(
-                bottom: 16,
+                bottom: 40,
               ),
               decoration: BoxDecoration(
                 color: const Color(
@@ -306,38 +568,6 @@ class _ProfilePictureScreenState
                   ),
                 ),
               ),
-            ),
-
-            // Skip button
-            Center(
-              child: TextButton(
-                onPressed: () {
-                  // Navigate to main app
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Account setup completed!',
-                      ),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                },
-                child: const Text(
-                  'Skip',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(
-              height: 20,
             ),
           ],
         ),

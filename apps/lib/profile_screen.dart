@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'settings_screen.dart';
 import 'community_screen.dart';
 import 'store_screen.dart';
+import 'achievements_screen.dart';
 
 class ProfileScreen
     extends
@@ -118,32 +119,6 @@ class ProfileScreen
 
                       const Spacer(),
 
-                      // Follow button
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 30,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          borderRadius: BorderRadius.circular(
-                            20,
-                          ),
-                        ),
-                        child: const Text(
-                          'Follow',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(
-                        width: 12,
-                      ),
-
                       // Edit button
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -251,8 +226,21 @@ class ProfileScreen
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        _buildActionButtonWithImage(
-                          'assets/profile/achievement.png',
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (
+                                      context,
+                                    ) => const AchievementsScreen(),
+                              ),
+                            );
+                          },
+                          child: _buildActionButtonWithImage(
+                            'assets/profile/achievement.png',
+                          ),
                         ),
                         GestureDetector(
                           onTap: () {
@@ -306,7 +294,7 @@ class ProfileScreen
                         width: 30,
                       ),
                       _buildTab(
-                        'Arena',
+                        'SYT',
                         false,
                       ),
                       const SizedBox(
@@ -405,27 +393,15 @@ class ProfileScreen
   _buildActionButtonWithImage(
     String imagePath,
   ) {
-    return Container(
+    return SizedBox(
       width: 90,
       height: 90,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(
-          alpha: 0.2,
-        ),
-        borderRadius: BorderRadius.circular(
-          15,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(
-          12,
-        ),
-        child: Image.asset(
-          imagePath,
-          width: 36,
-          height: 36,
-          color: Colors.white,
-        ),
+      child: Image.asset(
+        imagePath,
+        width: 90,
+        height: 90,
+        color: Colors.white,
+        fit: BoxFit.contain,
       ),
     );
   }
