@@ -45,6 +45,7 @@ app.use('/api/posts', require('./routes/postRoutes'));
 app.use('/api/profile', require('./routes/profileRoutes'));
 app.use('/api/follow', require('./routes/followRoutes'));
 app.use('/api/chat', require('./routes/chatRoutes'));
+app.use('/api/groups', require('./routes/groupRoutes'));
 app.use('/api/syt', require('./routes/sytRoutes'));
 app.use('/api/dailyselfie', require('./routes/dailySelfieRoutes'));
 app.use('/api/coins', require('./routes/coinRoutes'));

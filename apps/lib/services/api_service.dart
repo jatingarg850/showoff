@@ -1786,4 +1786,193 @@ class ApiService {
       response.body,
     );
   }
+
+  // Group/Community APIs
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  getGroups({
+    String? category,
+    String? search,
+  }) async {
+    String url = '$baseUrl/groups?';
+    if (category !=
+        null)
+      url += 'category=$category&';
+    if (search !=
+        null)
+      url += 'search=$search&';
+
+    final response = await http.get(
+      Uri.parse(
+        url,
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  getGroup(
+    String groupId,
+  ) async {
+    final response = await http.get(
+      Uri.parse(
+        '$baseUrl/groups/$groupId',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  createGroup({
+    required String name,
+    required String description,
+    required String category,
+    String? coverImage,
+  }) async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/groups',
+      ),
+      headers: await _getHeaders(),
+      body: jsonEncode(
+        {
+          'name': name,
+          'description': description,
+          'category': category,
+          if (coverImage !=
+              null)
+            'coverImage': coverImage,
+        },
+      ),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  joinGroup(
+    String groupId,
+  ) async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/groups/$groupId/join',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  leaveGroup(
+    String groupId,
+  ) async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/groups/$groupId/leave',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  sendGroupMessage(
+    String groupId,
+    String text,
+  ) async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/groups/$groupId/messages',
+      ),
+      headers: await _getHeaders(),
+      body: jsonEncode(
+        {
+          'text': text,
+        },
+      ),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  getGroupMessages(
+    String groupId, {
+    int page = 1,
+    int limit = 50,
+  }) async {
+    final response = await http.get(
+      Uri.parse(
+        '$baseUrl/groups/$groupId/messages?page=$page&limit=$limit',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  getMyGroups() async {
+    final response = await http.get(
+      Uri.parse(
+        '$baseUrl/groups/my/groups',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
 }

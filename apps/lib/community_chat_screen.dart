@@ -1,21 +1,223 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'services/api_service.dart';
+import 'package:provider/provider.dart';
+import 'providers/auth_provider.dart';
 
 class CommunityChatScreen
     extends
-        StatelessWidget {
+        StatefulWidget {
   final String
   communityName;
+  final String
+  groupId;
 
   const CommunityChatScreen({
     super.key,
     required this.communityName,
+    required this.groupId,
   });
+
+  @override
+  State<
+    CommunityChatScreen
+  >
+  createState() => _CommunityChatScreenState();
+}
+
+class _CommunityChatScreenState
+    extends
+        State<
+          CommunityChatScreen
+        > {
+  final TextEditingController
+  _messageController = TextEditingController();
+  final ScrollController
+  _scrollController = ScrollController();
+  List<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  _messages = [];
+  bool
+  _isLoading = true;
+  Timer?
+  _pollTimer;
+
+  @override
+  void
+  initState() {
+    super.initState();
+    _loadMessages();
+    // Poll for new messages every 3 seconds
+    _pollTimer = Timer.periodic(
+      const Duration(
+        seconds: 3,
+      ),
+      (
+        timer,
+      ) {
+        _loadMessages(
+          silent: true,
+        );
+      },
+    );
+  }
+
+  @override
+  void
+  dispose() {
+    _pollTimer?.cancel();
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<
+    void
+  >
+  _loadMessages({
+    bool silent = false,
+  }) async {
+    try {
+      if (!silent)
+        setState(
+          () => _isLoading = true,
+        );
+
+      final response = await ApiService.getGroupMessages(
+        widget.groupId,
+      );
+      if (response['success'] &&
+          mounted) {
+        setState(
+          () {
+            _messages =
+                List<
+                  Map<
+                    String,
+                    dynamic
+                  >
+                >.from(
+                  response['data'],
+                );
+            _isLoading = false;
+          },
+        );
+
+        // Scroll to bottom after loading
+        WidgetsBinding.instance.addPostFrameCallback(
+          (
+            _,
+          ) {
+            if (_scrollController.hasClients) {
+              _scrollController.jumpTo(
+                _scrollController.position.maxScrollExtent,
+              );
+            }
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading messages: $e',
+      );
+      if (!silent &&
+          mounted)
+        setState(
+          () => _isLoading = false,
+        );
+    }
+  }
+
+  Future<
+    void
+  >
+  _sendMessage() async {
+    if (_messageController.text.trim().isEmpty) return;
+
+    final text = _messageController.text.trim();
+    _messageController.clear();
+
+    try {
+      final response = await ApiService.sendGroupMessage(
+        widget.groupId,
+        text,
+      );
+      if (response['success']) {
+        _loadMessages(
+          silent: true,
+        );
+      }
+    } catch (
+      e
+    ) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error sending message: $e',
+          ),
+        ),
+      );
+    }
+  }
+
+  String
+  _formatTime(
+    String? timestamp,
+  ) {
+    if (timestamp ==
+        null)
+      return '';
+    try {
+      final date = DateTime.parse(
+        timestamp,
+      );
+      final hour =
+          date.hour >
+              12
+          ? date.hour -
+                12
+          : date.hour;
+      final minute = date.minute.toString().padLeft(
+        2,
+        '0',
+      );
+      final period =
+          date.hour >=
+              12
+          ? 'PM'
+          : 'AM';
+      return '$hour:$minute $period';
+    } catch (
+      e
+    ) {
+      return '';
+    }
+  }
 
   @override
   Widget
   build(
     BuildContext context,
   ) {
+    final authProvider =
+        Provider.of<
+          AuthProvider
+        >(
+          context,
+          listen: false,
+        );
+    final currentUserId =
+        authProvider.user?['_id'] ??
+        '';
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -57,7 +259,7 @@ class CommunityChatScreen
               width: 12,
             ),
             Text(
-              communityName,
+              widget.communityName,
               style: const TextStyle(
                 color: Colors.black,
                 fontSize: 18,
@@ -102,9 +304,11 @@ class CommunityChatScreen
                     16,
                   ),
                 ),
-                child: const Text(
-                  '2 January 2023',
-                  style: TextStyle(
+                child: Text(
+                  DateTime.now().toString().split(
+                    ' ',
+                  )[0],
+                  style: const TextStyle(
                     color: Colors.grey,
                     fontSize: 12,
                   ),
@@ -115,59 +319,55 @@ class CommunityChatScreen
 
           // Messages
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-              ),
-              children: [
-                _buildMessage(
-                  name: 'Donam Turner',
-                  message: '👋 Hi, Everyone, Let\'s Catch a Movie this Weekend.',
-                  time: '09:34 PM',
-                  isCurrentUser: false,
-                  avatarColor: Colors.brown,
-                ),
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(),
+                  )
+                : _messages.isEmpty
+                ? const Center(
+                    child: Text(
+                      'No messages yet. Start the conversation!',
+                      style: TextStyle(
+                        color: Colors.grey,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                    ),
+                    itemCount: _messages.length,
+                    itemBuilder:
+                        (
+                          context,
+                          index,
+                        ) {
+                          final message = _messages[index];
+                          final sender =
+                              message['sender'] ??
+                              {};
+                          final isMe =
+                              sender['_id'] ==
+                              currentUserId;
 
-                _buildMessage(
-                  name: 'Diman',
-                  message: 'Saturday or Sunday?',
-                  time: '09:35 PM',
-                  isCurrentUser: false,
-                  avatarColor: Colors.brown,
-                ),
-
-                _buildMessage(
-                  name: '',
-                  message: 'How about having dinner at 8 pm and catching a movie at 10?',
-                  time: '09:36 PM',
-                  isCurrentUser: true,
-                ),
-
-                _buildMessage(
-                  name: 'Kinms',
-                  message: 'Sounds Good!',
-                  time: '09:37 PM',
-                  isCurrentUser: false,
-                  avatarColor: Colors.blue,
-                ),
-
-                _buildMessage(
-                  name: '',
-                  message: 'Then I will find a Movie and Book the Tickets.',
-                  time: '09:38 PM',
-                  isCurrentUser: true,
-                ),
-
-                _buildMessage(
-                  name: 'Mikana',
-                  message: '👍',
-                  time: '09:38 PM',
-                  isCurrentUser: false,
-                  avatarColor: Colors.brown,
-                  isEmoji: true,
-                ),
-              ],
-            ),
+                          return _buildMessage(
+                            name: isMe
+                                ? ''
+                                : (sender['displayName'] ??
+                                      sender['username'] ??
+                                      'User'),
+                            message:
+                                message['text'] ??
+                                '',
+                            time: _formatTime(
+                              message['createdAt'],
+                            ),
+                            isCurrentUser: isMe,
+                            avatarColor: Colors.brown,
+                          );
+                        },
+                  ),
           ),
 
           // Message input
@@ -179,8 +379,8 @@ class CommunityChatScreen
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withValues(
-                    alpha: 0.1,
+                  color: Colors.grey.withOpacity(
+                    0.1,
                   ),
                   blurRadius: 10,
                   offset: const Offset(
@@ -205,86 +405,55 @@ class CommunityChatScreen
                     size: 20,
                   ),
                 ),
-
                 const SizedBox(
                   width: 12,
                 ),
-
                 Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(
-                        24,
-                      ),
-                    ),
-                    child: const Text(
-                      'Type something...',
-                      style: TextStyle(
+                  child: TextField(
+                    controller: _messageController,
+                    decoration: InputDecoration(
+                      hintText: 'Type something...',
+                      hintStyle: const TextStyle(
                         color: Colors.grey,
-                        fontSize: 16,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          24,
+                        ),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
                       ),
                     ),
+                    onSubmitted:
+                        (
+                          _,
+                        ) => _sendMessage(),
                   ),
                 ),
-
                 const SizedBox(
                   width: 12,
                 ),
-
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.attach_file,
-                    color: Colors.grey,
-                    size: 20,
-                  ),
-                ),
-
-                const SizedBox(
-                  width: 8,
-                ),
-
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.camera_alt_outlined,
-                    color: Colors.grey,
-                    size: 20,
-                  ),
-                ),
-
-                const SizedBox(
-                  width: 8,
-                ),
-
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: const BoxDecoration(
-                    color: Color(
-                      0xFF8B5CF6,
+                GestureDetector(
+                  onTap: _sendMessage,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: const BoxDecoration(
+                      color: Color(
+                        0xFF8B5CF6,
+                      ),
+                      shape: BoxShape.circle,
                     ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.mic,
-                    color: Colors.white,
-                    size: 24,
+                    child: const Icon(
+                      Icons.send,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                   ),
                 ),
               ],
@@ -308,63 +477,56 @@ class CommunityChatScreen
       padding: const EdgeInsets.only(
         bottom: 16,
       ),
-      child: Column(
-        crossAxisAlignment: isCurrentUser
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: isCurrentUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         children: [
-          if (!isCurrentUser &&
-              name.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(
-                bottom: 4,
+          if (!isCurrentUser) ...[
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color:
+                    avatarColor ??
+                    Colors.grey[300],
+                shape: BoxShape.circle,
               ),
-              child: Text(
-                name,
-                style: const TextStyle(
-                  color: Colors.grey,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
+              child: const Icon(
+                Icons.person,
+                color: Colors.white,
+                size: 20,
               ),
             ),
-
-          Row(
-            mainAxisAlignment: isCurrentUser
-                ? MainAxisAlignment.end
-                : MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (!isCurrentUser) ...[
+            const SizedBox(
+              width: 12,
+            ),
+          ],
+          Flexible(
+            child: Column(
+              crossAxisAlignment: isCurrentUser
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+              children: [
+                if (name.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      bottom: 4,
+                    ),
+                    child: Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
                 Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color:
-                        avatarColor ??
-                        Colors.grey,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(
-                  width: 8,
-                ),
-              ],
-
-              Flexible(
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isEmoji
-                        ? 12
-                        : 16,
-                    vertical: isEmoji
-                        ? 8
-                        : 12,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
                   ),
                   decoration: BoxDecoration(
                     color: isCurrentUser
@@ -373,7 +535,7 @@ class CommunityChatScreen
                           )
                         : Colors.grey[200],
                     borderRadius: BorderRadius.circular(
-                      20,
+                      16,
                     ),
                   ),
                   child: Text(
@@ -384,36 +546,23 @@ class CommunityChatScreen
                           : Colors.black,
                       fontSize: isEmoji
                           ? 24
-                          : 16,
+                          : 14,
                     ),
                   ),
                 ),
-              ),
-
-              if (isCurrentUser) ...[
-                const SizedBox(
-                  width: 8,
-                ),
-                const Icon(
-                  Icons.done_all,
-                  color: Color(
-                    0xFF8B5CF6,
+                Padding(
+                  padding: const EdgeInsets.only(
+                    top: 4,
                   ),
-                  size: 16,
+                  child: Text(
+                    time,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey,
+                    ),
+                  ),
                 ),
               ],
-            ],
-          ),
-
-          const SizedBox(
-            height: 4,
-          ),
-
-          Text(
-            time,
-            style: const TextStyle(
-              color: Colors.grey,
-              fontSize: 10,
             ),
           ),
         ],
