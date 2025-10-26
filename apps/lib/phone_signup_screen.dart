@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'otp_verification_screen.dart';
+import 'services/api_service.dart';
 
 class PhoneSignUpScreen
     extends
@@ -402,26 +403,91 @@ class _PhoneSignUpScreenState
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     // Handle phone number verification
                     if (_phoneController.text.isNotEmpty) {
-                      // Show OTP verification bottom sheet
-                      showModalBottomSheet(
+                      // Show loading
+                      showDialog(
                         context: context,
-                        isScrollControlled: true,
-                        isDismissible: false,
-                        enableDrag: false,
-                        backgroundColor: Colors.transparent,
+                        barrierDismissible: false,
                         builder:
                             (
-                              BuildContext context,
-                            ) {
-                              return OTPVerificationScreen(
-                                phoneNumber: _phoneController.text,
-                                countryCode: _selectedCountryCode,
-                              );
-                            },
+                              context,
+                            ) => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
                       );
+
+                      try {
+                        // Send OTP
+                        final response = await ApiService.sendOTP(
+                          phone: _phoneController.text.trim(),
+                          countryCode: _selectedCountryCode,
+                        );
+
+                        // Close loading
+                        if (context.mounted)
+                          Navigator.pop(
+                            context,
+                          );
+
+                        if (response['success']) {
+                          // Show OTP verification modal
+                          if (context.mounted) {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              isDismissible: false,
+                              enableDrag: false,
+                              builder:
+                                  (
+                                    context,
+                                  ) => OTPVerificationScreen(
+                                    phoneNumber: _phoneController.text.trim(),
+                                    countryCode: _selectedCountryCode,
+                                  ),
+                            );
+                          }
+                        } else {
+                          // Show error
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(
+                              context,
+                            ).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  response['message'] ??
+                                      'Failed to send OTP',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      } catch (
+                        e
+                      ) {
+                        // Close loading
+                        if (context.mounted)
+                          Navigator.pop(
+                            context,
+                          );
+
+                        // Show error
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Error: ${e.toString()}',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
                     } else {
                       ScaffoldMessenger.of(
                         context,

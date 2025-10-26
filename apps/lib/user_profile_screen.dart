@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'chat_screen.dart';
+import 'services/api_service.dart';
 
 class UserProfileScreen
     extends
@@ -32,66 +33,238 @@ class _UserProfileScreenState
   String
   selectedTab = 'Reels';
 
-  // Sample user posts/reels data
+  Map<
+    String,
+    dynamic
+  >?
+  _userData;
   List<
     Map<
       String,
       dynamic
     >
   >
-  get userPosts => [
-    {
-      'type': 'reel',
-      'color': Colors.purple,
-      'views': '12.5K',
-    },
-    {
-      'type': 'reel',
-      'color': Colors.blue,
-      'views': '8.9K',
-    },
-    {
-      'type': 'reel',
-      'color': Colors.green,
-      'views': '15.2K',
-    },
-    {
-      'type': 'reel',
-      'color': Colors.orange,
-      'views': '6.7K',
-    },
-    {
-      'type': 'reel',
-      'color': Colors.red,
-      'views': '22.1K',
-    },
-    {
-      'type': 'reel',
-      'color': Colors.teal,
-      'views': '9.8K',
-    },
-    {
-      'type': 'reel',
-      'color': Colors.indigo,
-      'views': '18.3K',
-    },
-    {
-      'type': 'reel',
-      'color': Colors.amber,
-      'views': '11.4K',
-    },
-    {
-      'type': 'reel',
-      'color': Colors.pink,
-      'views': '7.6K',
-    },
-  ];
+  _userPosts = [];
+  bool
+  _isLoading = true;
+
+  @override
+  void
+  initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  Future<
+    void
+  >
+  _loadUserProfile() async {
+    try {
+      // Load user profile
+      final profileResponse = await ApiService.getUserProfile(
+        widget.userInfo['username'],
+      );
+      if (profileResponse['success']) {
+        setState(
+          () {
+            _userData = profileResponse['data'];
+          },
+        );
+
+        // Load user posts
+        final postsResponse = await ApiService.getUserPosts(
+          _userData!['id'],
+        );
+        if (postsResponse['success']) {
+          setState(
+            () {
+              _userPosts =
+                  List<
+                    Map<
+                      String,
+                      dynamic
+                    >
+                  >.from(
+                    postsResponse['data'],
+                  );
+            },
+          );
+        }
+
+        // Check if following
+        final followResponse = await ApiService.checkFollowing(
+          _userData!['id'],
+        );
+        if (followResponse['success']) {
+          setState(
+            () {
+              isFollowing = followResponse['isFollowing'];
+              _isLoading = false;
+            },
+          );
+        }
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading profile: $e',
+      );
+      setState(
+        () {
+          _isLoading = false;
+          _userData = widget.userInfo;
+        },
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _toggleFollow() async {
+    if (_userData ==
+        null)
+      return;
+
+    try {
+      final response = isFollowing
+          ? await ApiService.unfollowUser(
+              _userData!['id'],
+            )
+          : await ApiService.followUser(
+              _userData!['id'],
+            );
+
+      if (response['success']) {
+        setState(
+          () {
+            isFollowing = !isFollowing;
+            if (isFollowing) {
+              _userData!['followersCount'] =
+                  (_userData!['followersCount'] ??
+                      0) +
+                  1;
+            } else {
+              _userData!['followersCount'] =
+                  (_userData!['followersCount'] ??
+                      0) -
+                  1;
+            }
+          },
+        );
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              isFollowing
+                  ? 'Now following ${_userData!['displayName']}'
+                  : 'Unfollowed ${_userData!['displayName']}',
+            ),
+            duration: const Duration(
+              seconds: 2,
+            ),
+          ),
+        );
+      }
+    } catch (
+      e
+    ) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error: $e',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Sample user posts/reels data (fallback)
+  List<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  get userPosts => _userPosts.isNotEmpty
+      ? _userPosts
+      : [
+          {
+            'type': 'reel',
+            'color': Colors.purple,
+            'views': '12.5K',
+          },
+          {
+            'type': 'reel',
+            'color': Colors.blue,
+            'views': '8.9K',
+          },
+          {
+            'type': 'reel',
+            'color': Colors.green,
+            'views': '15.2K',
+          },
+          {
+            'type': 'reel',
+            'color': Colors.orange,
+            'views': '6.7K',
+          },
+          {
+            'type': 'reel',
+            'color': Colors.red,
+            'views': '22.1K',
+          },
+          {
+            'type': 'reel',
+            'color': Colors.teal,
+            'views': '9.8K',
+          },
+          {
+            'type': 'reel',
+            'color': Colors.indigo,
+            'views': '18.3K',
+          },
+          {
+            'type': 'reel',
+            'color': Colors.amber,
+            'views': '11.4K',
+          },
+          {
+            'type': 'reel',
+            'color': Colors.pink,
+            'views': '7.6K',
+          },
+        ];
 
   @override
   Widget
   build(
     BuildContext context,
   ) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(
+            valueColor:
+                AlwaysStoppedAnimation<
+                  Color
+                >(
+                  Color(
+                    0xFF701CF5,
+                  ),
+                ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -176,15 +349,19 @@ class _UserProfileScreenState
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
                           _buildStatColumn(
-                            _getPostCount(),
+                            _userData?['postsCount']?.toString() ??
+                                _getPostCount(),
                             'Posts',
                           ),
                           _buildStatColumn(
-                            widget.userInfo['followers'],
+                            _userData?['followersCount']?.toString() ??
+                                widget.userInfo['followers']?.toString() ??
+                                '0',
                             'Followers',
                           ),
                           _buildStatColumn(
-                            _getFollowingCount(),
+                            _userData?['followingCount']?.toString() ??
+                                _getFollowingCount(),
                             'Following',
                           ),
                         ],
@@ -200,14 +377,17 @@ class _UserProfileScreenState
                 Row(
                   children: [
                     Text(
-                      widget.userInfo['displayName'],
+                      _userData?['displayName'] ??
+                          widget.userInfo['displayName'],
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),
                     ),
-                    if (widget.userInfo['isVerified'])
+                    if ((_userData?['isVerified'] ??
+                            widget.userInfo['isVerified']) ==
+                        true)
                       const Padding(
                         padding: EdgeInsets.only(
                           left: 8,
@@ -230,7 +410,9 @@ class _UserProfileScreenState
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    widget.userInfo['bio'],
+                    _userData?['bio'] ??
+                        widget.userInfo['bio'] ??
+                        'No bio yet',
                     style: const TextStyle(
                       fontSize: 14,
                       color: Colors.black87,
@@ -248,27 +430,7 @@ class _UserProfileScreenState
                     // Follow/Following button
                     Expanded(
                       child: GestureDetector(
-                        onTap: () {
-                          setState(
-                            () {
-                              isFollowing = !isFollowing;
-                            },
-                          );
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                isFollowing
-                                    ? 'Now following ${widget.userInfo['displayName']}'
-                                    : 'Unfollowed ${widget.userInfo['displayName']}',
-                              ),
-                              duration: const Duration(
-                                seconds: 2,
-                              ),
-                            ),
-                          );
-                        },
+                        onTap: _toggleFollow,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             vertical: 12,
@@ -326,9 +488,19 @@ class _UserProfileScreenState
                                   (
                                     context,
                                   ) => ChatScreen(
-                                    username: widget.userInfo['username'],
-                                    displayName: widget.userInfo['displayName'],
-                                    isVerified: widget.userInfo['isVerified'],
+                                    userId:
+                                        widget.userInfo['_id'] ??
+                                        widget.userInfo['id'] ??
+                                        '',
+                                    username:
+                                        widget.userInfo['username'] ??
+                                        '',
+                                    displayName:
+                                        widget.userInfo['displayName'] ??
+                                        'User',
+                                    isVerified:
+                                        widget.userInfo['isVerified'] ??
+                                        false,
                                   ),
                             ),
                           );

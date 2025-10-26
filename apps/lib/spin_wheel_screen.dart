@@ -31,9 +31,9 @@ class _SpinWheelScreenState
   bool
   _isSpinning = false;
   int
-  _spinsLeft = 5;
+  _spinsLeft = 1; // Changed to 1 since API allows once per day
   final int
-  _totalSpins = 5;
+  _totalSpins = 1;
 
   final List<
     int
@@ -79,7 +79,7 @@ class _SpinWheelScreenState
   }
 
   void
-  _spinWheel() {
+  _spinWheel() async {
     if (_isSpinning ||
         _spinsLeft <=
             0) {

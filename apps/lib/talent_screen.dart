@@ -4,6 +4,7 @@ import 'chat_screen.dart';
 import 'notification_screen.dart';
 import 'syt_reel_screen.dart';
 import 'main_screen.dart';
+import 'services/api_service.dart';
 
 class TalentScreen
     extends
@@ -33,6 +34,60 @@ class _TalentScreenState
   periods = [
     'Weekly',
   ];
+
+  List<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  _entries = [];
+  bool
+  _isLoading = true;
+
+  @override
+  void
+  initState() {
+    super.initState();
+    _loadEntries();
+  }
+
+  Future<
+    void
+  >
+  _loadEntries() async {
+    try {
+      final filter = selectedPeriod.toLowerCase();
+      final response = await ApiService.getSYTEntries(
+        filter: filter,
+      );
+      if (response['success']) {
+        setState(
+          () {
+            _entries =
+                List<
+                  Map<
+                    String,
+                    dynamic
+                  >
+                >.from(
+                  response['data'],
+                );
+            _isLoading = false;
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading SYT entries: $e',
+      );
+      setState(
+        () => _isLoading = false,
+      );
+    }
+  }
 
   final List<
     Map<
@@ -190,7 +245,8 @@ class _TalentScreenState
                                 builder:
                                     (
                                       context,
-                                    ) => const ChatScreen(
+                                    ) => ChatScreen(
+                                      userId: 'talent_user_id',
                                       username: 'talent_user',
                                       displayName: 'Talent User',
                                       isVerified: false,
@@ -468,42 +524,104 @@ class _TalentScreenState
                       20,
                       120,
                     ),
-                    child: GridView.builder(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.8,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                      ),
-                      itemCount: 4,
-                      itemBuilder:
-                          (
-                            context,
-                            index,
-                          ) {
-                            final competition = competitions[index];
-                            return GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder:
-                                        (
-                                          context,
-                                        ) => SYTReelScreen(
-                                          competitions: competitions,
-                                          initialIndex: index,
-                                        ),
+                    child: _isLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              valueColor:
+                                  AlwaysStoppedAnimation<
+                                    Color
+                                  >(
+                                    Color(
+                                      0xFF701CF5,
+                                    ),
                                   ),
-                                );
-                              },
-                              child: _buildCompetitionCard(
-                                competition,
-                                index,
-                              ),
-                            );
-                          },
-                    ),
+                            ),
+                          )
+                        : GridView.builder(
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 0.8,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                            ),
+                            itemCount: _entries.isEmpty
+                                ? 4
+                                : _entries.length,
+                            itemBuilder:
+                                (
+                                  context,
+                                  index,
+                                ) {
+                                  // Use loaded entries if available, otherwise use dummy data
+                                  final competition =
+                                      _entries.isNotEmpty &&
+                                          index <
+                                              _entries.length
+                                      ? {
+                                          'username': '@${_entries[index]['user']?['username'] ?? 'user'}',
+                                          'category':
+                                              _entries[index]['category'] ??
+                                              'Other',
+                                          'likes':
+                                              _entries[index]['votesCount']?.toString() ??
+                                              '0',
+                                          'gradient':
+                                              competitions[index %
+                                                  competitions.length]['gradient'],
+                                          'entryId': _entries[index]['_id'],
+                                        }
+                                      : competitions[index];
+
+                                  return GestureDetector(
+                                    onTap: () {
+                                      // Create real competition data for reel screen
+                                      final realCompetitions = _entries.isNotEmpty
+                                          ? _entries
+                                                .map(
+                                                  (
+                                                    entry,
+                                                  ) => {
+                                                    'username': '@${entry['user']?['username'] ?? 'user'}',
+                                                    'category':
+                                                        entry['category'] ??
+                                                        'Other',
+                                                    'likes':
+                                                        entry['votesCount']?.toString() ??
+                                                        '0',
+                                                    'gradient':
+                                                        competitions[_entries.indexOf(
+                                                              entry,
+                                                            ) %
+                                                            competitions.length]['gradient'],
+                                                    'entryId': entry['_id'],
+                                                    'user': entry['user'],
+                                                    'title': entry['title'],
+                                                    'description': entry['description'],
+                                                  },
+                                                )
+                                                .toList()
+                                          : competitions;
+
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (
+                                                context,
+                                              ) => SYTReelScreen(
+                                                competitions: realCompetitions,
+                                                initialIndex: index,
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                    child: _buildCompetitionCard(
+                                      competition,
+                                      index,
+                                    ),
+                                  );
+                                },
+                          ),
                   ),
 
                   // Floating Join SYT Button
@@ -602,8 +720,10 @@ class _TalentScreenState
         setState(
           () {
             selectedPeriod = period;
+            _isLoading = true;
           },
         );
+        _loadEntries();
       },
       child: Container(
         margin: const EdgeInsets.only(

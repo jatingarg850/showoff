@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'subscription_screen.dart';
 import 'referrals_screen.dart';
 import 'notification_settings_screen.dart';
@@ -8,6 +9,8 @@ import 'about_app_screen.dart';
 import 'help_support_screen.dart';
 import 'payment_settings_screen.dart';
 import 'my_account_screen.dart';
+import 'providers/auth_provider.dart';
+import 'onboarding_screen.dart';
 
 class SettingsScreen
     extends
@@ -15,6 +18,72 @@ class SettingsScreen
   const SettingsScreen({
     super.key,
   });
+
+  void
+  _showLogoutDialog(
+    BuildContext context,
+  ) {
+    showDialog(
+      context: context,
+      builder:
+          (
+            BuildContext context,
+          ) {
+            return AlertDialog(
+              title: const Text(
+                'Logout',
+              ),
+              content: const Text(
+                'Are you sure you want to logout?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(
+                    context,
+                  ),
+                  child: const Text(
+                    'Cancel',
+                  ),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    final authProvider =
+                        Provider.of<
+                          AuthProvider
+                        >(
+                          context,
+                          listen: false,
+                        );
+                    await authProvider.logout();
+
+                    if (!context.mounted) return;
+
+                    Navigator.of(
+                      context,
+                    ).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder:
+                            (
+                              _,
+                            ) => const OnboardingScreen(),
+                      ),
+                      (
+                        route,
+                      ) => false,
+                    );
+                  },
+                  child: const Text(
+                    'Logout',
+                    style: TextStyle(
+                      color: Colors.red,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+    );
+  }
 
   @override
   Widget
@@ -193,7 +262,9 @@ class SettingsScreen
             icon: Icons.logout,
             title: 'Sign Out',
             isSignOut: true,
-            onTap: () {},
+            onTap: () => _showLogoutDialog(
+              context,
+            ),
           ),
         ],
       ),

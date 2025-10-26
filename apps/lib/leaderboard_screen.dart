@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'services/api_service.dart';
 
 class LeaderboardScreen
     extends
@@ -23,6 +24,120 @@ class _LeaderboardScreenState
   selectedPeriod = 'Weekly';
   String
   selectedCategory = 'General';
+
+  List<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  _leaderboardData = [];
+  bool
+  _isLoading = true;
+
+  @override
+  void
+  initState() {
+    super.initState();
+    _loadLeaderboard();
+  }
+
+  Future<
+    void
+  >
+  _loadLeaderboard() async {
+    try {
+      setState(
+        () => _isLoading = true,
+      );
+
+      Map<
+        String,
+        dynamic
+      >
+      response;
+
+      if (selectedCategory ==
+          'Selfie Streaks') {
+        response = await ApiService.getDailySelfieLeaderboard(
+          type: selectedPeriod.toLowerCase(),
+        );
+      } else {
+        response = await ApiService.getSYTLeaderboard(
+          type: selectedPeriod.toLowerCase(),
+        );
+      }
+
+      if (response['success']) {
+        print(
+          'Leaderboard API Success: ${response['data']?.length ?? 0} entries',
+        );
+        setState(
+          () {
+            _leaderboardData =
+                List<
+                  Map<
+                    String,
+                    dynamic
+                  >
+                >.from(
+                  response['data'] ??
+                      [],
+                );
+            _isLoading = false;
+          },
+        );
+        print(
+          'Leaderboard data loaded: ${_leaderboardData.length} entries',
+        );
+      } else {
+        // API call succeeded but returned error
+        setState(
+          () {
+            _leaderboardData = [];
+            _isLoading = false;
+          },
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(
+            SnackBar(
+              content: Text(
+                response['message'] ??
+                    'Failed to load leaderboard',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading leaderboard: $e',
+      );
+      setState(
+        () {
+          _leaderboardData = [];
+          _isLoading = false;
+        },
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Network error. Please check your connection.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   final List<
     String
@@ -195,10 +310,88 @@ class _LeaderboardScreenState
     >
   >
   get currentLeaderboardData {
-    return selectedCategory ==
-            'Selfie Streaks'
-        ? selfieStreakData
-        : leaderboardData;
+    print(
+      'currentLeaderboardData called: _isLoading=$_isLoading, _leaderboardData.length=${_leaderboardData.length}',
+    );
+
+    // Only return dummy data if we're still loading
+    if (_isLoading) {
+      print(
+        'Returning dummy data because still loading',
+      );
+      return selectedCategory ==
+              'Selfie Streaks'
+          ? selfieStreakData
+          : leaderboardData;
+    }
+
+    // If not loading and no data, return empty list
+    if (_leaderboardData.isEmpty) {
+      print(
+        'Returning empty list because no data',
+      );
+      return [];
+    }
+
+    // Transform real data to match UI expectations
+    final transformedData = _leaderboardData.asMap().entries.map(
+      (
+        entry,
+      ) {
+        final index = entry.key;
+        final item = entry.value;
+
+        if (selectedCategory ==
+            'Selfie Streaks') {
+          return {
+            'name':
+                item['user']?['displayName'] ??
+                item['user']?['username'] ??
+                'User',
+            'score':
+                item['streak']?.toString() ??
+                item['votesCount']?.toString() ??
+                '0',
+            'username': '@${item['user']?['username'] ?? 'user'}',
+            'position':
+                index +
+                1,
+            'avatar':
+                item['user']?['profilePicture'] ??
+                '',
+            'isWinner':
+                index ==
+                0,
+            'streak':
+                item['streak'] ??
+                0,
+            'lastSelfie': '${DateTime.now().difference(DateTime.parse(item['createdAt'] ?? DateTime.now().toIso8601String())).inHours} hours ago',
+          };
+        } else {
+          return {
+            'name':
+                item['user']?['displayName'] ??
+                item['user']?['username'] ??
+                'User',
+            'score':
+                item['votesCount']?.toString() ??
+                '0',
+            'username': '@${item['user']?['username'] ?? 'user'}',
+            'position':
+                index +
+                1,
+            'avatar':
+                item['user']?['profilePicture'] ??
+                '',
+            'isWinner':
+                index ==
+                0,
+          };
+        }
+      },
+    ).toList();
+
+    return transformedData;
   }
 
   @override
@@ -368,60 +561,88 @@ class _LeaderboardScreenState
             // Top 3 Winners Podium with Stairs
             SizedBox(
               height: 240,
-              child: Stack(
-                children: [
-                  // Background stairs image
-                  Positioned(
-                    left: 20,
-                    right: 20,
-                    top: 40,
-                    bottom: 0,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(
-                        20,
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        valueColor:
+                            AlwaysStoppedAnimation<
+                              Color
+                            >(
+                              Color(
+                                0xFF701CF5,
+                              ),
+                            ),
                       ),
-                      child: Image.asset(
-                        'assets/leaderboard/image.png',
-                        fit: BoxFit.cover,
+                    )
+                  : currentLeaderboardData.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No entries yet',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey,
+                        ),
                       ),
-                    ),
-                  ),
+                    )
+                  : Stack(
+                      children: [
+                        // Background stairs image
+                        Positioned(
+                          left: 20,
+                          right: 20,
+                          top: 40,
+                          bottom: 0,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(
+                              20,
+                            ),
+                            child: Image.asset(
+                              'assets/leaderboard/image.png',
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
 
-                  // Users positioned above/on the stairs
-                  // 2nd place (Jackson - left side, middle height)
-                  Positioned(
-                    left: 35,
-                    top: 75,
-                    child: _buildPodiumUser(
-                      currentLeaderboardData[1],
-                      2,
-                    ),
-                  ),
+                        // Users positioned above/on the stairs
+                        if (currentLeaderboardData.length >
+                            1)
+                          // 2nd place (left side, middle height)
+                          Positioned(
+                            left: 35,
+                            top: 75,
+                            child: _buildPodiumUser(
+                              currentLeaderboardData[1],
+                              2,
+                            ),
+                          ),
 
-                  // 1st place (Eiden - center, highest position)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: -3,
-                    child: Center(
-                      child: _buildPodiumUser(
-                        currentLeaderboardData[0],
-                        1,
-                      ),
-                    ),
-                  ),
+                        if (currentLeaderboardData.isNotEmpty)
+                          // 1st place (center, highest position)
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            top: -3,
+                            child: Center(
+                              child: _buildPodiumUser(
+                                currentLeaderboardData[0],
+                                1,
+                              ),
+                            ),
+                          ),
 
-                  // 3rd place (Emma Aria - right side, lowest position)
-                  Positioned(
-                    right: 35,
-                    top: 75,
-                    child: _buildPodiumUser(
-                      currentLeaderboardData[2],
-                      3,
+                        if (currentLeaderboardData.length >
+                            2)
+                          // 3rd place (right side, lowest position)
+                          Positioned(
+                            right: 35,
+                            top: 75,
+                            child: _buildPodiumUser(
+                              currentLeaderboardData[2],
+                              3,
+                            ),
+                          ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             ),
 
             const SizedBox(
@@ -454,28 +675,50 @@ class _LeaderboardScreenState
                     20,
                   ),
                 ),
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(
-                    20,
-                  ),
-                  itemCount:
-                      currentLeaderboardData.length -
-                      3, // Exclude top 3
-                  itemBuilder:
-                      (
-                        context,
-                        index,
-                      ) {
-                        final user =
-                            currentLeaderboardData[index +
-                                3]; // Start from 4th position
-                        return _buildLeaderboardItem(
-                          user,
-                          index ==
-                              0,
-                        );
-                      },
-                ),
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          valueColor:
+                              AlwaysStoppedAnimation<
+                                Color
+                              >(
+                                Colors.white,
+                              ),
+                        ),
+                      )
+                    : currentLeaderboardData.length <=
+                          3
+                    ? const Center(
+                        child: Text(
+                          'No additional entries',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(
+                          20,
+                        ),
+                        itemCount:
+                            currentLeaderboardData.length -
+                            3, // Exclude top 3
+                        itemBuilder:
+                            (
+                              context,
+                              index,
+                            ) {
+                              final user =
+                                  currentLeaderboardData[index +
+                                      3]; // Start from 4th position
+                              return _buildLeaderboardItem(
+                                user,
+                                index ==
+                                    0,
+                              );
+                            },
+                      ),
               ),
             ),
           ],
@@ -498,6 +741,7 @@ class _LeaderboardScreenState
             selectedCategory = category;
           },
         );
+        _loadLeaderboard();
       },
       child: Container(
         margin: const EdgeInsets.only(
@@ -577,6 +821,7 @@ class _LeaderboardScreenState
             selectedPeriod = period;
           },
         );
+        _loadLeaderboard();
       },
       child: Container(
         margin: const EdgeInsets.only(
@@ -695,13 +940,37 @@ class _LeaderboardScreenState
                         color: Colors.grey[300],
                       ),
                       child: ClipOval(
-                        child: Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size:
-                              profileSize *
-                              0.6,
-                        ),
+                        child:
+                            user['avatar'] !=
+                                    null &&
+                                user['avatar'].isNotEmpty
+                            ? Image.network(
+                                ApiService.getImageUrl(
+                                  user['avatar'],
+                                ),
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (
+                                      context,
+                                      error,
+                                      stackTrace,
+                                    ) {
+                                      return Icon(
+                                        Icons.person,
+                                        color: Colors.white,
+                                        size:
+                                            profileSize *
+                                            0.6,
+                                      );
+                                    },
+                              )
+                            : Icon(
+                                Icons.person,
+                                color: Colors.white,
+                                size:
+                                    profileSize *
+                                    0.6,
+                              ),
                       ),
                     ),
                   ),
@@ -793,11 +1062,33 @@ class _LeaderboardScreenState
                   color: Colors.grey[300],
                 ),
                 child: ClipOval(
-                  child: Icon(
-                    Icons.person,
-                    color: Colors.white,
-                    size: 25,
-                  ),
+                  child:
+                      user['avatar'] !=
+                              null &&
+                          user['avatar'].isNotEmpty
+                      ? Image.network(
+                          ApiService.getImageUrl(
+                            user['avatar'],
+                          ),
+                          fit: BoxFit.cover,
+                          errorBuilder:
+                              (
+                                context,
+                                error,
+                                stackTrace,
+                              ) {
+                                return const Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: 25,
+                                );
+                              },
+                        )
+                      : const Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 25,
+                        ),
                 ),
               ),
 

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'forgot_password_screen.dart';
 import '../main_screen.dart';
 import '../signup_screen.dart';
+import '../providers/auth_provider.dart';
 
 class LoginScreen
     extends
@@ -263,17 +265,59 @@ class _LoginScreenState
                 ),
               ),
               child: ElevatedButton(
-                onPressed: () {
-                  // Navigate to reel screen for testing
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (
-                            context,
-                          ) => const MainScreen(),
-                    ),
+                onPressed: () async {
+                  if (_emailController.text.isEmpty ||
+                      _passwordController.text.isEmpty) {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Please enter email and password',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  final authProvider =
+                      Provider.of<
+                        AuthProvider
+                      >(
+                        context,
+                        listen: false,
+                      );
+                  final success = await authProvider.login(
+                    emailOrPhone: _emailController.text.trim(),
+                    password: _passwordController.text,
                   );
+
+                  if (!mounted) return;
+
+                  if (success) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (
+                              context,
+                            ) => const MainScreen(),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          authProvider.error ??
+                              'Login failed',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
@@ -286,13 +330,40 @@ class _LoginScreenState
                     ),
                   ),
                 ),
-                child: const Text(
-                  'Continue',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                child:
+                    Consumer<
+                      AuthProvider
+                    >(
+                      builder:
+                          (
+                            context,
+                            auth,
+                            _,
+                          ) {
+                            if (auth.isLoading) {
+                              return const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor:
+                                      AlwaysStoppedAnimation<
+                                        Color
+                                      >(
+                                        Colors.white,
+                                      ),
+                                ),
+                              );
+                            }
+                            return const Text(
+                              'Continue',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            );
+                          },
+                    ),
               ),
             ),
 

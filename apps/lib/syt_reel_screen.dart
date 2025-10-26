@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'comments_screen.dart';
 import 'gift_screen.dart';
+import 'services/api_service.dart';
 
 class SYTReelScreen
     extends
@@ -137,6 +138,107 @@ class _SYTReelScreenState
     super.dispose();
   }
 
+  Future<
+    void
+  >
+  _voteForEntry(
+    Map<
+      String,
+      dynamic
+    >
+    reel,
+    int index,
+  ) async {
+    // Check if already voted
+    if (_votedReels[index] ==
+        true) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'You have already voted for this entry!',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Get the entry ID from the competition data
+      final competition = widget.competitions[index];
+      final entryId = competition['entryId'];
+
+      if (entryId ==
+          null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Unable to vote: Entry ID not found',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final response = await ApiService.voteSYTEntry(
+        entryId,
+      );
+
+      if (response['success']) {
+        setState(
+          () {
+            _votedReels[index] = true;
+          },
+        );
+
+        HapticFeedback.mediumImpact();
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Voted for ${reel['username']}! +1 coin to creator',
+            ),
+            backgroundColor: Colors.amber,
+            duration: const Duration(
+              seconds: 2,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              response['message'] ??
+                  'Failed to vote',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (
+      e
+    ) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error voting: $e',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   // Convert competition data to reel format
   Map<
     String,
@@ -148,18 +250,35 @@ class _SYTReelScreenState
       dynamic
     >
     competition,
-  ) => {
-    'username': competition['username'],
-    'description': 'Competing in ${competition['category']} - Show Your Talent! 🎭',
-    'likes': competition['likes'],
-    'comments': '${(int.tryParse(competition['likes'].replaceAll('K', '000')) ?? 1000) ~/ 4}',
-    'shares': '${(int.tryParse(competition['likes'].replaceAll('K', '000')) ?? 1000) ~/ 10}',
-    'bookmarks': '${(int.tryParse(competition['likes'].replaceAll('K', '000')) ?? 1000) ~/ 20}',
-    'isAd': false,
-    'duration': '00:30',
-    'category': competition['category'],
-    'gradient': competition['gradient'],
-  };
+  ) {
+    final likes =
+        competition['likes'] ??
+        '0';
+    final likesInt =
+        int.tryParse(
+          likes,
+        ) ??
+        0;
+
+    return {
+      'username': competition['username'],
+      'description':
+          competition['description'] ??
+          (competition['title'] !=
+                  null
+              ? '${competition['title']} - ${competition['category']} 🎭'
+              : 'Competing in ${competition['category']} - Show Your Talent! 🎭'),
+      'likes': likes,
+      'comments': '${likesInt ~/ 4}',
+      'shares': '${likesInt ~/ 10}',
+      'bookmarks': '${likesInt ~/ 20}',
+      'isAd': false,
+      'duration': '00:30',
+      'category': competition['category'],
+      'gradient': competition['gradient'],
+      'entryId': competition['entryId'],
+    };
+  }
 
   @override
   Widget
@@ -545,7 +664,9 @@ class _SYTReelScreenState
                                     builder:
                                         (
                                           context,
-                                        ) => const CommentsScreen(),
+                                        ) => CommentsScreen(
+                                          postId: 'syt_entry_id',
+                                        ),
                                   );
                                 },
                               ),
@@ -592,7 +713,10 @@ class _SYTReelScreenState
                                     builder:
                                         (
                                           context,
-                                        ) => const GiftScreen(),
+                                        ) => GiftScreen(
+                                          recipientId: 'user_id',
+                                          recipientName: 'User',
+                                        ),
                                   );
                                 },
                                 child: Image.asset(
@@ -973,32 +1097,10 @@ class _SYTReelScreenState
                   (0.2 *
                       value),
               child: GestureDetector(
-                onTap: () {
-                  setState(
-                    () {
-                      _votedReels[index] =
-                          !(_votedReels[index] ??
-                              false);
-                    },
-                  );
-                  HapticFeedback.mediumImpact();
-                  if (_votedReels[index] ==
-                      true) {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Voted for ${reel['username']}!',
-                        ),
-                        backgroundColor: Colors.amber,
-                        duration: const Duration(
-                          seconds: 2,
-                        ),
-                      ),
-                    );
-                  }
-                },
+                onTap: () => _voteForEntry(
+                  reel,
+                  index,
+                ),
                 child: AnimatedContainer(
                   duration: const Duration(
                     milliseconds: 200,

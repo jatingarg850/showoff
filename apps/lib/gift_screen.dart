@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
+import 'services/api_service.dart';
 
 class GiftScreen
     extends
         StatefulWidget {
+  final String
+  recipientId;
+  final String
+  recipientName;
+
   const GiftScreen({
     super.key,
+    required this.recipientId,
+    required this.recipientName,
   });
 
   @override
@@ -21,6 +29,8 @@ class _GiftScreenState
         > {
   int
   selectedGiftIndex = -1;
+  bool
+  _isSending = false;
 
   final List<
     Map<
@@ -236,23 +246,64 @@ class _GiftScreenState
               child: ElevatedButton(
                 onPressed:
                     selectedGiftIndex !=
-                        -1
-                    ? () {
-                        // Handle gift sending
+                            -1 &&
+                        !_isSending
+                    ? () async {
+                        setState(
+                          () => _isSending = true,
+                        );
+
                         final selectedGift = gifts[selectedGiftIndex];
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Sent gift worth ${selectedGift['value']} coins!',
+
+                        try {
+                          final response = await ApiService.sendGift(
+                            recipientId: widget.recipientId,
+                            amount: selectedGift['value'],
+                            message: 'Gift from ShowOff.life',
+                          );
+
+                          if (!mounted) return;
+
+                          if (response['success']) {
+                            ScaffoldMessenger.of(
+                              context,
+                            ).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Sent ${selectedGift['value']} coins to ${widget.recipientName}!',
+                                ),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                            Navigator.pop(
+                              context,
+                            );
+                          } else {
+                            throw Exception(
+                              response['message'],
+                            );
+                          }
+                        } catch (
+                          e
+                        ) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Error: $e',
+                              ),
+                              backgroundColor: Colors.red,
                             ),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                        Navigator.pop(
-                          context,
-                        );
+                          );
+                        } finally {
+                          if (mounted) {
+                            setState(
+                              () => _isSending = false,
+                            );
+                          }
+                        }
                       }
                     : null,
                 style: ElevatedButton.styleFrom(

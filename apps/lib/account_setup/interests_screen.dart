@@ -4,8 +4,15 @@ import 'bio_screen.dart';
 class InterestsScreen
     extends
         StatefulWidget {
+  final String
+  username;
+  final String
+  displayName;
+
   const InterestsScreen({
     super.key,
+    required this.username,
+    required this.displayName,
   });
 
   @override
@@ -246,7 +253,11 @@ class _InterestsScreenState
                             builder:
                                 (
                                   context,
-                                ) => const BioScreen(),
+                                ) => BioScreen(
+                                  username: widget.username,
+                                  displayName: widget.displayName,
+                                  interests: _selectedInterests,
+                                ),
                           ),
                         );
                       }

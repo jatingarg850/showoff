@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'camera_screen.dart';
-import 'leaderboard_screen.dart';
+import 'selfie_leaderboard_screen.dart';
 import 'achievements_screen.dart';
 import 'selfie_calendar_screen.dart';
 import 'selfie_tips_screen.dart';
 import 'models/selfie_streak_manager.dart';
 import 'models/daily_challenges.dart';
+import 'services/api_service.dart';
 
 class DailySelfieScreen
     extends
@@ -48,13 +49,24 @@ class _DailySelfieScreenState
   _challengeManager = DailyChallengeManager();
 
   int
-  get currentStreak => _streakManager.currentStreak;
+  _currentStreak = 0;
   int
-  get longestStreak => _streakManager.longestStreak;
+  _longestStreak = 0;
   bool
-  get todayCompleted => _streakManager.isTodayCompleted();
+  _todayCompleted = false;
+  String
+  _todayTheme = '';
   String
   lastSelfieTime = "2 hours ago";
+  bool
+  _isLoading = true;
+
+  int
+  get currentStreak => _currentStreak;
+  int
+  get longestStreak => _longestStreak;
+  bool
+  get todayCompleted => _todayCompleted;
 
   @override
   void
@@ -105,6 +117,60 @@ class _DailySelfieScreenState
 
     _fadeController.forward();
     _scaleController.forward();
+    _loadSelfieData();
+  }
+
+  Future<
+    void
+  >
+  _loadSelfieData() async {
+    try {
+      final streakResponse = await ApiService.getUserSelfieStreak();
+      final challengeResponse = await ApiService.getTodayChallenge();
+
+      if (streakResponse['success']) {
+        setState(
+          () {
+            _currentStreak =
+                streakResponse['data']['currentStreak'] ??
+                0;
+            _todayCompleted =
+                streakResponse['data']['todayCompleted'] ??
+                false;
+            _todayTheme =
+                streakResponse['data']['todayTheme'] ??
+                '';
+          },
+        );
+      }
+
+      if (challengeResponse['success']) {
+        setState(
+          () {
+            _todayTheme =
+                challengeResponse['data']['theme'] ??
+                _todayTheme;
+          },
+        );
+      }
+
+      setState(
+        () {
+          _isLoading = false;
+        },
+      );
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading selfie data: $e',
+      );
+      setState(
+        () {
+          _isLoading = false;
+        },
+      );
+    }
   }
 
   @override
@@ -325,7 +391,7 @@ class _DailySelfieScreenState
                           builder:
                               (
                                 context,
-                              ) => const LeaderboardScreen(),
+                              ) => const SelfieLeaderboardScreen(),
                         ),
                       );
                     },
@@ -357,27 +423,38 @@ class _DailySelfieScreenState
           ),
 
           // Quick Stats
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  'Current Streak',
-                  '$currentStreak days',
-                  Icons.local_fire_department,
+          _isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(
+                    valueColor:
+                        AlwaysStoppedAnimation<
+                          Color
+                        >(
+                          Colors.white,
+                        ),
+                  ),
+                )
+              : Row(
+                  children: [
+                    Expanded(
+                      child: _buildStatCard(
+                        'Current Streak',
+                        '$currentStreak days',
+                        Icons.local_fire_department,
+                      ),
+                    ),
+                    const SizedBox(
+                      width: 15,
+                    ),
+                    Expanded(
+                      child: _buildStatCard(
+                        'Best Streak',
+                        '$longestStreak days',
+                        Icons.emoji_events,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(
-                width: 15,
-              ),
-              Expanded(
-                child: _buildStatCard(
-                  'Best Streak',
-                  '$longestStreak days',
-                  Icons.emoji_events,
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -546,6 +623,11 @@ class _DailySelfieScreenState
   _buildTodayChallenge() {
     final todaysChallenge = _challengeManager.getTodaysChallenge();
 
+    // Use real theme if available, otherwise use challenge manager
+    final displayTheme = _todayTheme.isNotEmpty
+        ? _todayTheme
+        : todaysChallenge.title;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(
@@ -604,7 +686,7 @@ class _DailySelfieScreenState
             height: 16,
           ),
           Text(
-            todaysChallenge.title,
+            displayTheme,
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,

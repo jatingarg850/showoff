@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:io';
 import 'main_screen.dart';
+import 'services/api_service.dart';
 
 class PreviewScreen
     extends
@@ -81,6 +82,96 @@ class _PreviewScreenState
         'Error initializing video: $e',
       );
     }
+  }
+
+  void
+  _showRewardDialog(
+    Map<
+      String,
+      dynamic
+    >
+    reward,
+  ) {
+    showDialog(
+      context: context,
+      builder:
+          (
+            context,
+          ) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(
+                20,
+              ),
+            ),
+            title: const Text(
+              '🎉 Reward Earned!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(
+                    20,
+                  ),
+                  decoration: BoxDecoration(
+                    color:
+                        const Color(
+                          0xFF701CF5,
+                        ).withOpacity(
+                          0.1,
+                        ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    '+${reward['coins']}',
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Color(
+                        0xFF701CF5,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(
+                  height: 16,
+                ),
+                Text(
+                  'You earned ${reward['coins']} coins for uploading!',
+                  textAlign: TextAlign.center,
+                ),
+                if (reward['bonusAwarded'] ==
+                    true)
+                  const Padding(
+                    padding: EdgeInsets.only(
+                      top: 8,
+                    ),
+                    child: Text(
+                      '🎁 Bonus included!',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(
+                  context,
+                ),
+                child: const Text(
+                  'Awesome!',
+                ),
+              ),
+            ],
+          ),
+    );
   }
 
   @override
@@ -363,45 +454,192 @@ class _PreviewScreenState
                 ),
               ),
               child: ElevatedButton(
-                onPressed: () {
-                  // Handle upload
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Content uploaded to ${widget.selectedPath == 'SYT' ? 'SYT' : 'Reels'}!',
-                        style: const TextStyle(
-                          color: Colors.black,
+                onPressed: () async {
+                  if (widget.mediaPath ==
+                      null) {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'No media selected',
                         ),
+                        backgroundColor: Colors.red,
                       ),
-                      backgroundColor: Colors.white,
-                      duration: const Duration(
-                        seconds: 2,
-                      ),
-                    ),
-                  );
+                    );
+                    return;
+                  }
 
-                  // Navigate to main screen with reel tab selected
-                  Navigator.popUntil(
-                    context,
-                    (
-                      route,
-                    ) => route.isFirst,
-                  );
-
-                  // Navigate to main screen with reels tab (index 0) selected
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (
-                            context,
-                          ) => const MainScreen(
-                            initialIndex: 0,
+                  // Show loading dialog
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder:
+                        (
+                          context,
+                        ) => const Center(
+                          child: CircularProgressIndicator(
+                            valueColor:
+                                AlwaysStoppedAnimation<
+                                  Color
+                                >(
+                                  Color(
+                                    0xFF701CF5,
+                                  ),
+                                ),
                           ),
-                    ),
+                        ),
                   );
+
+                  try {
+                    final mediaFile = File(
+                      widget.mediaPath!,
+                    );
+
+                    // Extract hashtags from caption
+                    final hashtags = widget.caption
+                        .split(
+                          ' ',
+                        )
+                        .where(
+                          (
+                            word,
+                          ) => word.startsWith(
+                            '#',
+                          ),
+                        )
+                        .map(
+                          (
+                            tag,
+                          ) => tag.substring(
+                            1,
+                          ),
+                        )
+                        .toList();
+
+                    // Upload based on path (SYT or regular post)
+                    if (widget.selectedPath ==
+                        'SYT') {
+                      // Submit SYT entry
+                      final response = await ApiService.submitSYTEntry(
+                        videoFile: mediaFile,
+                        title: widget.caption.isEmpty
+                            ? 'My Talent'
+                            : widget.caption,
+                        category:
+                            widget.category ??
+                            'other',
+                        competitionType: 'weekly', // Default to weekly
+                        description: widget.caption,
+                      );
+
+                      if (!mounted) return;
+                      Navigator.pop(
+                        context,
+                      ); // Close loading
+
+                      if (response['success']) {
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'SYT entry submitted successfully!',
+                            ),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      } else {
+                        throw Exception(
+                          response['message'] ??
+                              'Upload failed',
+                        );
+                      }
+                    } else {
+                      // Upload regular post
+                      final response = await ApiService.createPost(
+                        mediaFile: mediaFile,
+                        caption: widget.caption,
+                        hashtags: hashtags,
+                        type: widget.isVideo
+                            ? 'video'
+                            : 'image',
+                      );
+
+                      if (!mounted) return;
+                      Navigator.pop(
+                        context,
+                      ); // Close loading
+
+                      if (response['success']) {
+                        // Show reward if any
+                        if (response['reward'] !=
+                                null &&
+                            response['reward']['awarded']) {
+                          _showRewardDialog(
+                            response['reward'],
+                          );
+                        } else {
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Post uploaded successfully!',
+                              ),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } else {
+                        throw Exception(
+                          response['message'] ??
+                              'Upload failed',
+                        );
+                      }
+                    }
+
+                    // Navigate to main screen
+                    if (!mounted) return;
+                    Navigator.popUntil(
+                      context,
+                      (
+                        route,
+                      ) => route.isFirst,
+                    );
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (
+                              context,
+                            ) => MainScreen(
+                              initialIndex:
+                                  widget.selectedPath ==
+                                      'SYT'
+                                  ? 1
+                                  : 0,
+                            ),
+                      ),
+                    );
+                  } catch (
+                    e
+                  ) {
+                    if (!mounted) return;
+                    Navigator.pop(
+                      context,
+                    ); // Close loading
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Upload failed: $e',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,

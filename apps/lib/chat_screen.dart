@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'services/api_service.dart';
 
 class ChatScreen
     extends
         StatefulWidget {
+  final String
+  userId;
   final String
   username;
   final String
@@ -12,6 +16,7 @@ class ChatScreen
 
   const ChatScreen({
     super.key,
+    required this.userId,
     required this.username,
     required this.displayName,
     this.isVerified = false,
@@ -40,64 +45,212 @@ class _ChatScreenState
       dynamic
     >
   >
-  messages = [
-    {
-      'text': 'Hey! Loved your latest reel! 🔥',
-      'isMe': false,
-      'time': '2:30 PM',
-      'isRead': true,
-    },
-    {
-      'text': 'Thank you so much! Really appreciate it 😊',
-      'isMe': true,
-      'time': '2:32 PM',
-      'isRead': true,
-    },
-    {
-      'text': 'How did you get that amazing shot?',
-      'isMe': false,
-      'time': '2:33 PM',
-      'isRead': true,
-    },
-    {
-      'text': 'It took a lot of patience and the right timing! The lighting was perfect that day ✨',
-      'isMe': true,
-      'time': '2:35 PM',
-      'isRead': true,
-    },
-    {
-      'text': 'That\'s incredible! Keep up the amazing work 👏',
-      'isMe': false,
-      'time': '2:36 PM',
-      'isRead': false,
-    },
-  ];
+  messages = [];
+  bool
+  _isLoading = true;
+  bool
+  _isSending = false;
+  Timer?
+  _pollTimer;
+  String?
+  _currentUserId;
+
+  @override
+  void
+  initState() {
+    super.initState();
+    _loadMessages();
+    _startPolling();
+  }
+
+  void
+  _startPolling() {
+    // Poll for new messages every 2 seconds
+    _pollTimer = Timer.periodic(
+      const Duration(
+        seconds: 2,
+      ),
+      (
+        timer,
+      ) {
+        _loadMessages(
+          silent: true,
+        );
+      },
+    );
+  }
+
+  Future<
+    void
+  >
+  _loadMessages({
+    bool silent = false,
+  }) async {
+    if (!silent) {
+      setState(
+        () {
+          _isLoading = true;
+        },
+      );
+    }
+
+    try {
+      final response = await ApiService.getMessages(
+        widget.userId,
+      );
+
+      if (response['success'] &&
+          mounted) {
+        final List<
+          dynamic
+        >
+        messageData =
+            response['data'] ??
+            [];
+
+        setState(
+          () {
+            messages = messageData.map(
+              (
+                msg,
+              ) {
+                final senderId =
+                    msg['sender']['_id'] ??
+                    msg['sender']['id'];
+                return {
+                  'text': msg['text'],
+                  'isMe':
+                      senderId !=
+                      widget.userId,
+                  'time': _formatTime(
+                    msg['createdAt'],
+                  ),
+                  'isRead':
+                      msg['isRead'] ??
+                      false,
+                };
+              },
+            ).toList();
+            _isLoading = false;
+          },
+        );
+
+        if (!silent) {
+          _scrollToBottom();
+        }
+      }
+    } catch (
+      e
+    ) {
+      if (mounted &&
+          !silent) {
+        setState(
+          () {
+            _isLoading = false;
+          },
+        );
+      }
+    }
+  }
+
+  String
+  _formatTime(
+    String? timestamp,
+  ) {
+    if (timestamp ==
+        null)
+      return '';
+    try {
+      final date = DateTime.parse(
+        timestamp,
+      );
+      final hour =
+          date.hour >
+              12
+          ? date.hour -
+                12
+          : (date.hour ==
+                    0
+                ? 12
+                : date.hour);
+      final minute = date.minute.toString().padLeft(
+        2,
+        '0',
+      );
+      final period =
+          date.hour >=
+              12
+          ? 'PM'
+          : 'AM';
+      return '$hour:$minute $period';
+    } catch (
+      e
+    ) {
+      return '';
+    }
+  }
 
   @override
   void
   dispose() {
+    _pollTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  void
-  _sendMessage() {
-    if (_messageController.text.trim().isNotEmpty) {
-      setState(
-        () {
-          messages.add(
-            {
-              'text': _messageController.text.trim(),
-              'isMe': true,
-              'time': _formatCurrentTime(),
-              'isRead': false,
-            },
-          );
-        },
+  Future<
+    void
+  >
+  _sendMessage() async {
+    if (_messageController.text.trim().isEmpty ||
+        _isSending)
+      return;
+
+    final messageText = _messageController.text.trim();
+    _messageController.clear();
+
+    setState(
+      () {
+        _isSending = true;
+      },
+    );
+
+    try {
+      final response = await ApiService.sendMessage(
+        widget.userId,
+        messageText,
       );
-      _messageController.clear();
-      _scrollToBottom();
+
+      if (response['success']) {
+        await _loadMessages(
+          silent: true,
+        );
+        _scrollToBottom();
+      }
+    } catch (
+      e
+    ) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to send message: ${e.toString()}',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(
+          () {
+            _isSending = false;
+          },
+        );
+      }
     }
   }
 

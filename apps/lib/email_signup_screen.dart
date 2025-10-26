@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'otp_verification_screen.dart';
+import 'set_password_screen.dart';
 
 class EmailSignUpScreen
     extends
@@ -190,22 +190,17 @@ class _EmailSignUpScreenState
                   onPressed: () {
                     // Handle email verification
                     if (_emailController.text.isNotEmpty) {
-                      // Show OTP verification bottom sheet
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        isDismissible: false,
-                        enableDrag: false,
-                        backgroundColor: Colors.transparent,
-                        builder:
-                            (
-                              BuildContext context,
-                            ) {
-                              return OTPVerificationScreen(
-                                phoneNumber: _emailController.text,
-                                countryCode: '', // No country code for email
-                              );
-                            },
+                      // Navigate to set password with email
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (
+                                context,
+                              ) => SetPasswordScreen(
+                                email: _emailController.text.trim(),
+                              ),
+                        ),
                       );
                     } else {
                       ScaffoldMessenger.of(

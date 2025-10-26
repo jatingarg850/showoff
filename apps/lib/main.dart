@@ -1,11 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'splash_screen.dart';
 import 'onboarding_screen.dart';
+import 'providers/auth_provider.dart';
+import 'providers/profile_provider.dart';
 
 void
 main() {
   runApp(
-    const MyApp(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create:
+              (
+                _,
+              ) => AuthProvider(),
+        ),
+        ChangeNotifierProvider(
+          create:
+              (
+                _,
+              ) => ProfileProvider(),
+        ),
+      ],
+      child: const MyApp(),
+    ),
   );
 }
 

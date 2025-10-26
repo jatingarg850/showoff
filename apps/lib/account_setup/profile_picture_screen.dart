@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
 import 'dart:io';
 import 'display_name_screen.dart';
+import '../providers/profile_provider.dart';
 
 class ProfilePictureScreen
     extends
@@ -360,59 +362,108 @@ class _ProfilePictureScreenState
 
             // Profile picture placeholder/preview
             Center(
-              child: GestureDetector(
-                onTap: _showImageSourceDialog,
-                child: Container(
-                  width: 200,
-                  height: 200,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient:
-                        _selectedImage ==
-                            null
-                        ? const LinearGradient(
-                            colors: [
-                              Color(
-                                0xFF701CF5,
-                              ), // Purple
-                              Color(
-                                0xFF3E98E4,
-                              ), // Blue
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          )
-                        : null,
-                    border:
-                        _selectedImage !=
-                            null
-                        ? Border.all(
-                            color: const Color(
-                              0xFF701CF5,
+              child: Stack(
+                children: [
+                  GestureDetector(
+                    onTap: _showImageSourceDialog,
+                    child: Container(
+                      width: 200,
+                      height: 200,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient:
+                            _selectedImage ==
+                                null
+                            ? const LinearGradient(
+                                colors: [
+                                  Color(
+                                    0xFF701CF5,
+                                  ), // Purple
+                                  Color(
+                                    0xFF3E98E4,
+                                  ), // Blue
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              )
+                            : null,
+                        border:
+                            _selectedImage !=
+                                null
+                            ? Border.all(
+                                color: const Color(
+                                  0xFF701CF5,
+                                ),
+                                width: 4,
+                              )
+                            : null,
+                      ),
+                      child:
+                          _selectedImage ==
+                              null
+                          ? const Center(
+                              child: Icon(
+                                Icons.camera_alt,
+                                size: 40,
+                                color: Colors.white,
+                              ),
+                            )
+                          : ClipOval(
+                              child: Image.file(
+                                _selectedImage!,
+                                width: 200,
+                                height: 200,
+                                fit: BoxFit.cover,
+                              ),
                             ),
-                            width: 4,
-                          )
-                        : null,
+                    ),
                   ),
-                  child:
-                      _selectedImage ==
-                          null
-                      ? const Center(
-                          child: Icon(
-                            Icons.camera_alt,
-                            size: 40,
-                            color: Colors.white,
+                  // Remove photo button (only show when image is selected)
+                  if (_selectedImage !=
+                      null)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(
+                            () {
+                              _selectedImage = null;
+                            },
+                          );
+                        },
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white,
+                              width: 3,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(
+                                  0.2,
+                                ),
+                                blurRadius: 8,
+                                offset: const Offset(
+                                  0,
+                                  2,
+                                ),
+                              ),
+                            ],
                           ),
-                        )
-                      : ClipOval(
-                          child: Image.file(
-                            _selectedImage!,
-                            width: 200,
-                            height: 200,
-                            fit: BoxFit.cover,
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 24,
                           ),
                         ),
-                ),
+                      ),
+                    ),
+                ],
               ),
             ),
 
@@ -538,7 +589,63 @@ class _ProfilePictureScreenState
                 ),
               ),
               child: ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
+                  // Upload profile picture if selected
+                  if (_selectedImage !=
+                      null) {
+                    final profileProvider =
+                        Provider.of<
+                          ProfileProvider
+                        >(
+                          context,
+                          listen: false,
+                        );
+
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder:
+                          (
+                            context,
+                          ) => const Center(
+                            child: CircularProgressIndicator(
+                              valueColor:
+                                  AlwaysStoppedAnimation<
+                                    Color
+                                  >(
+                                    Color(
+                                      0xFF701CF5,
+                                    ),
+                                  ),
+                            ),
+                          ),
+                    );
+
+                    final success = await profileProvider.uploadProfilePicture(
+                      _selectedImage!,
+                    );
+
+                    if (!mounted) return;
+                    Navigator.pop(
+                      context,
+                    ); // Close loading
+
+                    if (!success) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            profileProvider.error ??
+                                'Upload failed',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                  }
+
                   Navigator.push(
                     context,
                     MaterialPageRoute(

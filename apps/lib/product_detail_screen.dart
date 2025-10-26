@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 import 'cart_screen.dart';
+import 'services/api_service.dart';
 
 class ProductDetailScreen
     extends
         StatefulWidget {
   final String
-  productName;
-  final String
-  price;
+  productId;
 
   const ProductDetailScreen({
     super.key,
-    required this.productName,
-    required this.price,
+    required this.productId,
   });
 
   @override
@@ -27,20 +25,153 @@ class _ProductDetailScreenState
         State<
           ProductDetailScreen
         > {
-  String
-  selectedSize = 'L';
+  Map<
+    String,
+    dynamic
+  >?
+  _product;
+  bool
+  _isLoading = true;
+  String?
+  selectedSize;
   int
-  selectedColorIndex = 2; // Black selected by default
+  selectedColorIndex = 0;
   int
   quantity = 1;
   bool
   isFavorite = false;
 
   @override
+  void
+  initState() {
+    super.initState();
+    _loadProduct();
+  }
+
+  Future<
+    void
+  >
+  _loadProduct() async {
+    try {
+      final response = await ApiService.getProduct(
+        widget.productId,
+      );
+      if (response['success']) {
+        setState(
+          () {
+            _product = response['data'];
+            if (_product!['sizes'] !=
+                    null &&
+                (_product!['sizes']
+                        as List)
+                    .isNotEmpty) {
+              selectedSize = _product!['sizes'][0];
+            }
+            _isLoading = false;
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      setState(
+        () => _isLoading = false,
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _addToCart() async {
+    if (_product ==
+        null)
+      return;
+
+    try {
+      final response = await ApiService.addToCart(
+        productId: widget.productId,
+        quantity: quantity,
+        size: selectedSize,
+        color:
+            _product!['colors'] !=
+                    null &&
+                (_product!['colors']
+                        as List)
+                    .isNotEmpty
+            ? _product!['colors'][selectedColorIndex]['name']
+            : null,
+      );
+
+      if (response['success'] &&
+          mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Added to cart!',
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(
+              seconds: 1,
+            ),
+          ),
+        );
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (
+                  context,
+                ) => const CartScreen(),
+          ),
+        );
+      }
+    } catch (
+      e
+    ) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error: $e',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
   Widget
   build(
     BuildContext context,
   ) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_product ==
+        null) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: const Center(
+          child: Text(
+            'Product not found',
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Column(
@@ -161,10 +292,11 @@ class _ProductDetailScreenState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Light Dress Bless',
-                          style: TextStyle(
+                          _product!['name'] ??
+                              'Product',
+                          style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: Colors.black,
@@ -264,9 +396,12 @@ class _ProductDetailScreenState
                       const SizedBox(
                         width: 4,
                       ),
-                      const Text(
-                        '5.0',
-                        style: TextStyle(
+                      Text(
+                        _product!['rating']?.toStringAsFixed(
+                              1,
+                            ) ??
+                            '0.0',
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
@@ -275,7 +410,7 @@ class _ProductDetailScreenState
                         width: 4,
                       ),
                       Text(
-                        '(7,932 reviews)',
+                        '(${_product!['reviewCount'] ?? 0} reviews)',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey[600],
@@ -289,28 +424,16 @@ class _ProductDetailScreenState
                   ),
 
                   // Description
-                  RichText(
-                    text: TextSpan(
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                        height: 1.4,
-                      ),
-                      children: const [
-                        TextSpan(
-                          text: 'Its simple and elegant shape makes it perfect for those of you who like you who want minimalist clothes ',
-                        ),
-                        TextSpan(
-                          text: 'Read More...',
-                          style: TextStyle(
-                            color: Color(
-                              0xFF8B5CF6,
-                            ),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                  Text(
+                    _product!['description'] ??
+                        'No description available',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                      height: 1.4,
                     ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                   ),
 
                   const SizedBox(
@@ -338,65 +461,67 @@ class _ProductDetailScreenState
                             ),
                             Row(
                               children:
-                                  [
-                                    'S',
-                                    'M',
-                                    'L',
-                                    'XL',
-                                  ].map(
-                                    (
-                                      size,
-                                    ) {
-                                      final isSelected =
-                                          selectedSize ==
-                                          size;
-                                      return GestureDetector(
-                                        onTap: () {
-                                          setState(
-                                            () {
-                                              selectedSize = size;
+                                  (_product!['sizes']
+                                              as List? ??
+                                          [])
+                                      .map<
+                                        Widget
+                                      >(
+                                        (
+                                          size,
+                                        ) {
+                                          final sizeStr = size.toString();
+                                          final isSelected =
+                                              selectedSize ==
+                                              sizeStr;
+                                          return GestureDetector(
+                                            onTap: () {
+                                              setState(
+                                                () {
+                                                  selectedSize = sizeStr;
+                                                },
+                                              );
                                             },
-                                          );
-                                        },
-                                        child: Container(
-                                          margin: const EdgeInsets.only(
-                                            right: 12,
-                                          ),
-                                          width: 40,
-                                          height: 40,
-                                          decoration: BoxDecoration(
-                                            color: isSelected
-                                                ? const Color(
-                                                    0xFF8B5CF6,
-                                                  )
-                                                : Colors.grey[100],
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                            border: Border.all(
-                                              color: isSelected
-                                                  ? const Color(
-                                                      0xFF8B5CF6,
-                                                    )
-                                                  : Colors.grey[300]!,
-                                            ),
-                                          ),
-                                          child: Center(
-                                            child: Text(
-                                              size,
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
+                                            child: Container(
+                                              margin: const EdgeInsets.only(
+                                                right: 12,
+                                              ),
+                                              width: 40,
+                                              height: 40,
+                                              decoration: BoxDecoration(
                                                 color: isSelected
-                                                    ? Colors.white
-                                                    : Colors.black,
+                                                    ? const Color(
+                                                        0xFF8B5CF6,
+                                                      )
+                                                    : Colors.grey[100],
+                                                borderRadius: BorderRadius.circular(
+                                                  12,
+                                                ),
+                                                border: Border.all(
+                                                  color: isSelected
+                                                      ? const Color(
+                                                          0xFF8B5CF6,
+                                                        )
+                                                      : Colors.grey[300]!,
+                                                ),
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  sizeStr,
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: isSelected
+                                                        ? Colors.white
+                                                        : Colors.black,
+                                                  ),
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ).toList(),
+                                          );
+                                        },
+                                      )
+                                      .toList(),
                             ),
                           ],
                         ),
@@ -419,57 +544,73 @@ class _ProductDetailScreenState
                           ),
                           Row(
                             children:
-                                [
-                                  Colors.grey[400]!,
-                                  Colors.grey[700]!,
-                                  Colors.black,
-                                ].asMap().entries.map(
-                                  (
-                                    entry,
-                                  ) {
-                                    final index = entry.key;
-                                    final color = entry.value;
-                                    final isSelected =
-                                        selectedColorIndex ==
-                                        index;
+                                (_product!['colors']
+                                            as List? ??
+                                        [])
+                                    .asMap()
+                                    .entries
+                                    .map<
+                                      Widget
+                                    >(
+                                      (
+                                        entry,
+                                      ) {
+                                        final index = entry.key;
+                                        final colorData = entry.value;
+                                        final hexCode =
+                                            colorData['hexCode'] ??
+                                            '#808080';
+                                        final color = Color(
+                                          int.parse(
+                                                hexCode.substring(
+                                                  1,
+                                                ),
+                                                radix: 16,
+                                              ) +
+                                              0xFF000000,
+                                        );
+                                        final isSelected =
+                                            selectedColorIndex ==
+                                            index;
 
-                                    return GestureDetector(
-                                      onTap: () {
-                                        setState(
-                                          () {
-                                            selectedColorIndex = index;
+                                        return GestureDetector(
+                                          onTap: () {
+                                            setState(
+                                              () {
+                                                selectedColorIndex = index;
+                                              },
+                                            );
                                           },
+                                          child: Container(
+                                            margin: const EdgeInsets.only(
+                                              right: 12,
+                                            ),
+                                            width: 32,
+                                            height: 32,
+                                            decoration: BoxDecoration(
+                                              color: color,
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: isSelected
+                                                    ? const Color(
+                                                        0xFF8B5CF6,
+                                                      )
+                                                    : Colors.transparent,
+                                                width: 2,
+                                              ),
+                                            ),
+                                            child: isSelected
+                                                ? const Icon(
+                                                    Icons.check,
+                                                    color: Colors.white,
+                                                    size: 16,
+                                                  )
+                                                : null,
+                                          ),
                                         );
                                       },
-                                      child: Container(
-                                        margin: const EdgeInsets.only(
-                                          right: 12,
-                                        ),
-                                        width: 32,
-                                        height: 32,
-                                        decoration: BoxDecoration(
-                                          color: color,
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: isSelected
-                                                ? const Color(
-                                                    0xFF8B5CF6,
-                                                  )
-                                                : Colors.transparent,
-                                            width: 2,
-                                          ),
-                                        ),
-                                        child: isSelected
-                                            ? const Icon(
-                                                Icons.check,
-                                                color: Colors.white,
-                                                size: 16,
-                                              )
-                                            : null,
-                                      ),
-                                    );
-                                  },
-                                ).toList(),
+                                    )
+                                    .toList(),
                           ),
                         ],
                       ),
@@ -498,17 +639,7 @@ class _ProductDetailScreenState
                       ),
                     ),
                     child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (
-                                  context,
-                                ) => const CartScreen(),
-                          ),
-                        );
-                      },
+                      onPressed: _addToCart,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
@@ -537,27 +668,30 @@ class _ProductDetailScreenState
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const Text(
-                            '\$162.99',
-                            style: TextStyle(
+                          Text(
+                            '\$${(_product!['price'] * quantity).toStringAsFixed(2)}',
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(
-                            width: 8,
-                          ),
-                          Text(
-                            '\$190.99',
-                            style: TextStyle(
-                              color: Colors.white.withValues(
-                                alpha: 0.7,
-                              ),
-                              fontSize: 14,
-                              decoration: TextDecoration.lineThrough,
+                          if (_product!['originalPrice'] !=
+                              null) ...[
+                            const SizedBox(
+                              width: 8,
                             ),
-                          ),
+                            Text(
+                              '\$${(_product!['originalPrice'] * quantity).toStringAsFixed(2)}',
+                              style: TextStyle(
+                                color: Colors.white.withValues(
+                                  alpha: 0.7,
+                                ),
+                                fontSize: 14,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'user_profile_screen.dart';
+import 'services/api_service.dart';
 
 class SearchScreen
     extends
@@ -29,130 +31,186 @@ class _SearchScreenState
     >
   >
   _searchResults = [];
-  bool
-  _isSearching = false;
-
-  // Sample user data
-  final List<
+  List<
     Map<
       String,
       dynamic
     >
   >
-  _allUsers = [
-    {
-      'username': 'maria_dance',
-      'displayName': 'Maria Rodriguez',
-      'followers': '12.5K',
-      'isVerified': true,
-      'bio': 'Professional dancer & choreographer',
-      'avatar': 'assets/profile/avatar1.png',
-    },
-    {
-      'username': 'alex_mountain',
-      'displayName': 'Alex Johnson',
-      'followers': '8.9K',
-      'isVerified': false,
-      'bio': 'Adventure photographer',
-      'avatar': 'assets/profile/avatar2.png',
-    },
-    {
-      'username': 'sathon_bird',
-      'displayName': 'Sathon Wildlife',
-      'followers': '25.3K',
-      'isVerified': true,
-      'bio': 'Wildlife photographer & nature lover',
-      'avatar': 'assets/profile/avatar3.png',
-    },
-    {
-      'username': 'yada_tech',
-      'displayName': 'Yada Tech',
-      'followers': '45.2K',
-      'isVerified': true,
-      'bio': 'Tech reviews & tutorials',
-      'avatar': 'assets/profile/avatar4.png',
-    },
-    {
-      'username': 'emma_art',
-      'displayName': 'Emma Creative',
-      'followers': '6.7K',
-      'isVerified': false,
-      'bio': 'Digital artist & illustrator',
-      'avatar': 'assets/profile/avatar5.png',
-    },
-    {
-      'username': 'james_fitness',
-      'displayName': 'James Strong',
-      'followers': '18.1K',
-      'isVerified': true,
-      'bio': 'Fitness coach & nutritionist',
-      'avatar': 'assets/profile/avatar6.png',
-    },
-    {
-      'username': 'lisa_food',
-      'displayName': 'Lisa Kitchen',
-      'followers': '32.4K',
-      'isVerified': true,
-      'bio': 'Chef & food blogger',
-      'avatar': 'assets/profile/avatar7.png',
-    },
-    {
-      'username': 'mike_music',
-      'displayName': 'Mike Melody',
-      'followers': '15.8K',
-      'isVerified': false,
-      'bio': 'Musician & songwriter',
-      'avatar': 'assets/profile/avatar8.png',
-    },
-  ];
+  _allUsers = [];
+  bool
+  _isSearching = false;
+  bool
+  _isLoading = true;
+  Timer?
+  _debounce;
+  Set<
+    String
+  >
+  _followingUsers = {};
 
   @override
   void
   initState() {
     super.initState();
-    _searchResults = _allUsers; // Show all users initially
+    _loadAllUsers();
+    _searchController.addListener(
+      _onSearchChanged,
+    );
   }
 
-  @override
   void
-  dispose() {
-    _searchController.dispose();
-    super.dispose();
+  _onSearchChanged() {
+    if (_debounce?.isActive ??
+        false)
+      _debounce!.cancel();
+    _debounce = Timer(
+      const Duration(
+        milliseconds: 300,
+      ),
+      () {
+        _performSearch(
+          _searchController.text,
+        );
+      },
+    );
+  }
+
+  Future<
+    void
+  >
+  _loadAllUsers() async {
+    setState(
+      () {
+        _isLoading = true;
+      },
+    );
+
+    try {
+      // For now, we'll fetch all users - in production, you'd want pagination
+      final response = await ApiService.searchUsers(
+        '',
+      );
+
+      if (response['success']) {
+        setState(
+          () {
+            _allUsers =
+                List<
+                  Map<
+                    String,
+                    dynamic
+                  >
+                >.from(
+                  response['data'] ??
+                      [],
+                );
+            _searchResults = _allUsers;
+            _isLoading = false;
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading users: $e',
+      );
+      setState(
+        () {
+          _isLoading = false;
+        },
+      );
+    }
   }
 
   void
   _performSearch(
     String query,
   ) {
+    if (query.isEmpty) {
+      setState(
+        () {
+          _searchResults = _allUsers;
+          _isSearching = false;
+        },
+      );
+      return;
+    }
+
     setState(
       () {
-        _isSearching = query.isNotEmpty;
-        if (query.isEmpty) {
-          _searchResults = _allUsers;
-        } else {
-          _searchResults = _allUsers.where(
-            (
-              user,
-            ) {
-              final username = user['username'].toString().toLowerCase();
-              final displayName = user['displayName'].toString().toLowerCase();
-              final bio = user['bio'].toString().toLowerCase();
-              final searchQuery = query.toLowerCase();
-
-              return username.contains(
-                    searchQuery,
-                  ) ||
-                  displayName.contains(
-                    searchQuery,
-                  ) ||
-                  bio.contains(
-                    searchQuery,
-                  );
-            },
-          ).toList();
-        }
+        _isSearching = true;
+        _searchResults = _allUsers.where(
+          (
+            user,
+          ) {
+            final username =
+                user['username']?.toString().toLowerCase() ??
+                '';
+            final displayName =
+                user['displayName']?.toString().toLowerCase() ??
+                '';
+            final searchLower = query.toLowerCase();
+            return username.contains(
+                  searchLower,
+                ) ||
+                displayName.contains(
+                  searchLower,
+                );
+          },
+        ).toList();
       },
     );
+  }
+
+  Future<
+    void
+  >
+  _toggleFollow(
+    String userId,
+    bool isFollowing,
+  ) async {
+    try {
+      if (isFollowing) {
+        await ApiService.unfollowUser(
+          userId,
+        );
+        setState(
+          () {
+            _followingUsers.remove(
+              userId,
+            );
+          },
+        );
+      } else {
+        await ApiService.followUser(
+          userId,
+        );
+        setState(
+          () {
+            _followingUsers.add(
+              userId,
+            );
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error: ${e.toString()}',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -228,7 +286,11 @@ class _SearchScreenState
 
           // Search results list
           Expanded(
-            child: _searchResults.isEmpty
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(),
+                  )
+                : _searchResults.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -292,8 +354,17 @@ class _SearchScreenState
     >
     user,
   ) {
+    final userId =
+        user['_id'] ??
+        user['id'] ??
+        '';
+    final isFollowing = _followingUsers.contains(
+      userId,
+    );
+
     return GestureDetector(
       onTap: () {
+        // Navigate to user profile
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -433,34 +504,49 @@ class _SearchScreenState
             ),
 
             // Follow button
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
+            GestureDetector(
+              onTap: () => _toggleFollow(
+                userId,
+                isFollowing,
               ),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(
-                      0xFF701CF5,
-                    ),
-                    Color(
-                      0xFF3E98E4,
-                    ),
-                  ],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
                 ),
-                borderRadius: BorderRadius.circular(
-                  20,
+                decoration: BoxDecoration(
+                  gradient: isFollowing
+                      ? null
+                      : const LinearGradient(
+                          colors: [
+                            Color(
+                              0xFF701CF5,
+                            ),
+                            Color(
+                              0xFF3E98E4,
+                            ),
+                          ],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
+                  color: isFollowing
+                      ? Colors.grey[300]
+                      : null,
+                  borderRadius: BorderRadius.circular(
+                    20,
+                  ),
                 ),
-              ),
-              child: const Text(
-                'Follow',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                child: Text(
+                  isFollowing
+                      ? 'Following'
+                      : 'Follow',
+                  style: TextStyle(
+                    color: isFollowing
+                        ? Colors.grey[700]
+                        : Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -468,5 +554,16 @@ class _SearchScreenState
         ),
       ),
     );
+  }
+
+  @override
+  void
+  dispose() {
+    _debounce?.cancel();
+    _searchController.removeListener(
+      _onSearchChanged,
+    );
+    _searchController.dispose();
+    super.dispose();
   }
 }

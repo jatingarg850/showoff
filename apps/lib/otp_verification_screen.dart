@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'set_password_screen.dart';
+import 'services/api_service.dart';
 
 class OTPVerificationScreen
     extends
@@ -27,7 +28,9 @@ class _OTPVerificationScreenState
     extends
         State<
           OTPVerificationScreen
-        > {
+        >
+    with
+        SingleTickerProviderStateMixin {
   final List<
     TextEditingController
   >
@@ -51,12 +54,53 @@ class _OTPVerificationScreenState
   _timer;
   int
   _remainingTime = 20;
+  bool
+  _hasError = false;
+  late AnimationController
+  _shakeController;
+  late Animation<
+    double
+  >
+  _shakeAnimation;
 
   @override
   void
   initState() {
     super.initState();
     _startTimer();
+
+    // Initialize shake animation
+    _shakeController = AnimationController(
+      duration: const Duration(
+        milliseconds: 500,
+      ),
+      vsync: this,
+    );
+    _shakeAnimation =
+        Tween<
+              double
+            >(
+              begin: 0,
+              end: 10,
+            )
+            .chain(
+              CurveTween(
+                curve: Curves.elasticIn,
+              ),
+            )
+            .animate(
+              _shakeController,
+            )
+          ..addStatusListener(
+            (
+              status,
+            ) {
+              if (status ==
+                  AnimationStatus.completed) {
+                _shakeController.reverse();
+              }
+            },
+          );
   }
 
   void
@@ -83,30 +127,71 @@ class _OTPVerificationScreenState
   }
 
   void
-  _resendOTP() {
-    setState(
-      () {
-        _remainingTime = 20;
-      },
-    );
-    _startTimer();
-    // Clear all OTP fields
-    for (var controller in _otpControllers) {
-      controller.clear();
+  _resendOTP() async {
+    try {
+      // Send OTP again
+      final response = await ApiService.sendOTP(
+        phone: widget.phoneNumber,
+        countryCode: widget.countryCode,
+      );
+
+      if (response['success']) {
+        setState(
+          () {
+            _remainingTime = 20;
+          },
+        );
+        _startTimer();
+        // Clear all OTP fields
+        for (var controller in _otpControllers) {
+          controller.clear();
+        }
+        // Show resend message
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'OTP code resent successfully',
+              ),
+              backgroundColor: Color(
+                0xFF701CF5,
+              ),
+            ),
+          );
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(
+            SnackBar(
+              content: Text(
+                response['message'] ??
+                    'Failed to resend OTP',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (
+      e
+    ) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error: ${e.toString()}',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
-    // Show resend message
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'OTP code resent successfully',
-        ),
-        backgroundColor: Color(
-          0xFF701CF5,
-        ),
-      ),
-    );
   }
 
   void
@@ -114,6 +199,15 @@ class _OTPVerificationScreenState
     String value,
     int index,
   ) {
+    // Clear error state when user types
+    if (_hasError) {
+      setState(
+        () {
+          _hasError = false;
+        },
+      );
+    }
+
     if (value.isNotEmpty &&
         index <
             5) {
@@ -141,7 +235,7 @@ class _OTPVerificationScreenState
   }
 
   void
-  _verifyOTP() {
+  _verifyOTP() async {
     String otp = _otpControllers
         .map(
           (
@@ -151,31 +245,131 @@ class _OTPVerificationScreenState
         .join();
     if (otp.length ==
         6) {
-      // Handle OTP verification
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Phone number verified successfully!',
-          ),
-          backgroundColor: Colors.green,
-        ),
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (
+              context,
+            ) => const Center(
+              child: CircularProgressIndicator(),
+            ),
       );
-      // Navigate to password setup
-      Navigator.of(
-        context,
-      ).pop(); // Close OTP modal
-      Navigator.of(
-        context,
-      ).pushReplacement(
-        MaterialPageRoute(
-          builder:
-              (
-                context,
-              ) => const SetPasswordScreen(),
-        ),
-      );
+
+      try {
+        // Verify OTP with backend
+        final response = await ApiService.verifyOTP(
+          phone: widget.phoneNumber,
+          countryCode: widget.countryCode,
+          otp: otp,
+        );
+
+        // Close loading
+        if (context.mounted)
+          Navigator.pop(
+            context,
+          );
+
+        if (response['success']) {
+          // Show success message
+          if (context.mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Phone number verified successfully!',
+                ),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+
+          // Navigate to password setup
+          if (context.mounted) {
+            Navigator.of(
+              context,
+            ).pop(); // Close OTP modal
+            Navigator.of(
+              context,
+            ).push(
+              MaterialPageRoute(
+                builder:
+                    (
+                      context,
+                    ) => SetPasswordScreen(
+                      phone: widget.phoneNumber,
+                      countryCode: widget.countryCode,
+                    ),
+              ),
+            );
+          }
+        } else {
+          // Trigger shake animation and show error state
+          setState(
+            () {
+              _hasError = true;
+            },
+          );
+          _shakeController.forward(
+            from: 0,
+          );
+
+          // Clear OTP fields
+          for (var controller in _otpControllers) {
+            controller.clear();
+          }
+          _focusNodes[0].requestFocus();
+
+          // Show error
+          if (context.mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(
+              SnackBar(
+                content: Text(
+                  response['message'] ??
+                      'Invalid OTP',
+                ),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      } catch (
+        e
+      ) {
+        // Close loading
+        if (context.mounted)
+          Navigator.pop(
+            context,
+          );
+
+        // Trigger shake animation
+        setState(
+          () {
+            _hasError = true;
+          },
+        );
+        _shakeController.forward(
+          from: 0,
+        );
+
+        // Show error
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Error: ${e.toString()}',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -284,75 +478,98 @@ class _OTPVerificationScreenState
               height: 32,
             ),
 
-            // OTP Input Fields
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(
-                6,
-                (
-                  index,
-                ) {
-                  return Container(
-                    width: 45,
-                    height: 45,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(
-                        8,
+            // OTP Input Fields with shake animation
+            AnimatedBuilder(
+              animation: _shakeAnimation,
+              builder:
+                  (
+                    context,
+                    child,
+                  ) {
+                    return Transform.translate(
+                      offset: Offset(
+                        _shakeAnimation.value,
+                        0,
                       ),
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color(
-                            0xFF701CF5,
-                          ), // Purple
-                          Color(
-                            0xFF3E98E4,
-                          ), // Blue
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: Container(
-                      margin: const EdgeInsets.all(
-                        2,
-                      ), // Border width
+                      child: child,
+                    );
+                  },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: List.generate(
+                  6,
+                  (
+                    index,
+                  ) {
+                    return Container(
+                      width: 45,
+                      height: 45,
                       decoration: BoxDecoration(
-                        color: Colors.white,
                         borderRadius: BorderRadius.circular(
-                          6,
+                          8,
+                        ),
+                        gradient: LinearGradient(
+                          colors: _hasError
+                              ? [
+                                  Colors.red,
+                                  Colors.red.shade700,
+                                ]
+                              : [
+                                  const Color(
+                                    0xFF701CF5,
+                                  ), // Purple
+                                  const Color(
+                                    0xFF3E98E4,
+                                  ), // Blue
+                                ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
                       ),
-                      child: TextField(
-                        controller: _otpControllers[index],
-                        focusNode: _focusNodes[index],
-                        keyboardType: TextInputType.number,
-                        textAlign: TextAlign.center,
-                        maxLength: 1,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                        decoration: const InputDecoration(
-                          counterText: '',
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          contentPadding: EdgeInsets.all(
-                            0,
+                      child: Container(
+                        margin: const EdgeInsets.all(
+                          2,
+                        ), // Border width
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(
+                            6,
                           ),
                         ),
-                        onChanged:
-                            (
-                              value,
-                            ) => _onOTPChanged(
-                              value,
-                              index,
+                        child: TextField(
+                          controller: _otpControllers[index],
+                          focusNode: _focusNodes[index],
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          maxLength: 1,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: _hasError
+                                ? Colors.red
+                                : Colors.black,
+                          ),
+                          decoration: const InputDecoration(
+                            counterText: '',
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.all(
+                              0,
                             ),
+                          ),
+                          onChanged:
+                              (
+                                value,
+                              ) => _onOTPChanged(
+                                value,
+                                index,
+                              ),
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
 
@@ -486,6 +703,7 @@ class _OTPVerificationScreenState
   void
   dispose() {
     _timer?.cancel();
+    _shakeController.dispose();
     for (var controller in _otpControllers) {
       controller.dispose();
     }

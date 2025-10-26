@@ -1,12 +1,178 @@
 import 'package:flutter/material.dart';
 import 'product_detail_screen.dart';
+import 'cart_screen.dart';
+import 'services/api_service.dart';
 
 class StoreScreen
     extends
-        StatelessWidget {
+        StatefulWidget {
   const StoreScreen({
     super.key,
   });
+
+  @override
+  State<
+    StoreScreen
+  >
+  createState() => _StoreScreenState();
+}
+
+class _StoreScreenState
+    extends
+        State<
+          StoreScreen
+        > {
+  List<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  _newProducts = [];
+  List<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  _popularProducts = [];
+  Map<
+    String,
+    dynamic
+  >
+  _cart = {};
+  bool
+  _isLoading = true;
+
+  @override
+  void
+  initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<
+    void
+  >
+  _loadData() async {
+    await Future.wait(
+      [
+        _loadNewProducts(),
+        _loadPopularProducts(),
+        _loadCart(),
+      ],
+    );
+    setState(
+      () => _isLoading = false,
+    );
+  }
+
+  Future<
+    void
+  >
+  _loadNewProducts() async {
+    try {
+      final response = await ApiService.getNewProducts();
+      if (response['success']) {
+        setState(
+          () {
+            _newProducts =
+                List<
+                  Map<
+                    String,
+                    dynamic
+                  >
+                >.from(
+                  response['data'],
+                );
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      // Handle error silently
+    }
+  }
+
+  Future<
+    void
+  >
+  _loadPopularProducts() async {
+    try {
+      final response = await ApiService.getPopularProducts();
+      if (response['success']) {
+        setState(
+          () {
+            _popularProducts =
+                List<
+                  Map<
+                    String,
+                    dynamic
+                  >
+                >.from(
+                  response['data'],
+                );
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      // Handle error silently
+    }
+  }
+
+  Future<
+    void
+  >
+  _loadCart() async {
+    try {
+      final response = await ApiService.getCart();
+      if (response['success']) {
+        setState(
+          () {
+            _cart = response['data'];
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      // Handle error silently
+    }
+  }
+
+  double
+  _getCartTotal() {
+    if (_cart['items'] ==
+        null)
+      return 0;
+    double total = 0;
+    for (var item in _cart['items']) {
+      total +=
+          (item['price'] ??
+              0) *
+          (item['quantity'] ??
+              1);
+    }
+    return total;
+  }
+
+  int
+  _getCartItemCount() {
+    if (_cart['items'] ==
+        null)
+      return 0;
+    int count = 0;
+    for (var item in _cart['items']) {
+      count +=
+          (item['quantity'] ??
+                  0)
+              as int;
+    }
+    return count;
+  }
 
   @override
   Widget
@@ -54,39 +220,40 @@ class StoreScreen
                 const SizedBox(
                   height: 16,
                 ),
-                SizedBox(
-                  height: 200,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: 3,
-                    itemBuilder:
-                        (
-                          context,
-                          index,
-                        ) {
-                          final items = [
-                            {
-                              'price': '\$17.00',
-                              'image': 'assets/store/item1.jpg',
-                            },
-                            {
-                              'price': '\$32.00',
-                              'image': 'assets/store/item2.jpg',
-                            },
-                            {
-                              'price': '\$21.00',
-                              'image': 'assets/store/item3.jpg',
-                            },
-                          ];
-                          return _buildNewItemCard(
-                            context,
-                            items[index]['price']!,
-                            items[index]['image']!,
-                          );
-                        },
-                  ),
-                ),
-
+                _isLoading
+                    ? const SizedBox(
+                        height: 200,
+                        child: Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
+                    : SizedBox(
+                        height: 200,
+                        child: _newProducts.isEmpty
+                            ? Center(
+                                child: Text(
+                                  'No new products',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              )
+                            : ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _newProducts.length,
+                                itemBuilder:
+                                    (
+                                      context,
+                                      index,
+                                    ) {
+                                      final product = _newProducts[index];
+                                      return _buildNewItemCard(
+                                        context,
+                                        product,
+                                      );
+                                    },
+                              ),
+                      ),
                 const SizedBox(
                   height: 32,
                 ),
@@ -98,38 +265,40 @@ class StoreScreen
                 const SizedBox(
                   height: 16,
                 ),
-                SizedBox(
-                  height: 140,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: 4,
-                    itemBuilder:
-                        (
-                          context,
-                          index,
-                        ) {
-                          final badges = [
-                            'New',
-                            'Sale',
-                            'Hot',
-                            '',
-                          ];
-                          final colors = [
-                            Colors.blue,
-                            Colors.red,
-                            Colors.orange,
-                            Colors.grey,
-                          ];
-                          return _buildPopularItemCard(
-                            context,
-                            '1780',
-                            badges[index],
-                            colors[index],
-                          );
-                        },
-                  ),
-                ),
-
+                _isLoading
+                    ? const SizedBox(
+                        height: 140,
+                        child: Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
+                    : SizedBox(
+                        height: 140,
+                        child: _popularProducts.isEmpty
+                            ? Center(
+                                child: Text(
+                                  'No popular products',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              )
+                            : ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _popularProducts.length,
+                                itemBuilder:
+                                    (
+                                      context,
+                                      index,
+                                    ) {
+                                      final product = _popularProducts[index];
+                                      return _buildPopularItemCard(
+                                        context,
+                                        product,
+                                      );
+                                    },
+                              ),
+                      ),
                 const SizedBox(
                   height: 32,
                 ),
@@ -142,10 +311,9 @@ class StoreScreen
                   height: 16,
                 ),
                 _buildCategoriesGrid(),
-
                 const SizedBox(
                   height: 120,
-                ), // Space for bottom cart
+                ),
               ],
             ),
           ),
@@ -198,67 +366,71 @@ class StoreScreen
             left: 20,
             right: 20,
             bottom: 20,
-            child: Container(
-              height: 60,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(
-                      0xFF8B5CF6,
-                    ),
-                    Color(
-                      0xFF7C3AED,
-                    ),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(
-                  30,
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.shopping_cart_outlined,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                    const SizedBox(
-                      width: 12,
-                    ),
-                    const Text(
-                      'Add to Cart | ',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (
+                          context,
+                        ) => const CartScreen(),
+                  ),
+                ).then(
+                  (
+                    _,
+                  ) => _loadCart(),
+                );
+              },
+              child: Container(
+                height: 60,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(
+                        0xFF8B5CF6,
                       ),
-                    ),
-                    const Text(
-                      '\$162.99',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                      Color(
+                        0xFF7C3AED,
                       ),
-                    ),
-                    const SizedBox(
-                      width: 8,
-                    ),
-                    Text(
-                      '\$190.99',
-                      style: TextStyle(
-                        color: Colors.white.withValues(
-                          alpha: 0.7,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(
+                    30,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.shopping_cart_outlined,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                      const SizedBox(
+                        width: 12,
+                      ),
+                      Text(
+                        'View Cart (${_getCartItemCount()}) | ',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
                         ),
-                        fontSize: 14,
-                        decoration: TextDecoration.lineThrough,
                       ),
-                    ),
-                  ],
+                      Text(
+                        '\$${_getCartTotal().toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -320,8 +492,11 @@ class StoreScreen
   Widget
   _buildNewItemCard(
     BuildContext context,
-    String price,
-    String imagePath,
+    Map<
+      String,
+      dynamic
+    >
+    product,
   ) {
     return GestureDetector(
       onTap: () {
@@ -332,10 +507,13 @@ class StoreScreen
                 (
                   context,
                 ) => ProductDetailScreen(
-                  productName: 'Light Dress Bless',
-                  price: price,
+                  productId: product['_id'],
                 ),
           ),
+        ).then(
+          (
+            _,
+          ) => _loadCart(),
         );
       },
       child: Container(
@@ -362,7 +540,7 @@ class StoreScreen
                   color: Colors.grey[300],
                   child: const Center(
                     child: Icon(
-                      Icons.person,
+                      Icons.shopping_bag,
                       size: 40,
                       color: Colors.grey,
                     ),
@@ -373,9 +551,10 @@ class StoreScreen
             const SizedBox(
               height: 8,
             ),
-            const Text(
-              'Lorem ipsum dolor sit amet consectetur.',
-              style: TextStyle(
+            Text(
+              product['description'] ??
+                  '',
+              style: const TextStyle(
                 fontSize: 12,
                 color: Colors.grey,
                 height: 1.3,
@@ -387,7 +566,7 @@ class StoreScreen
               height: 4,
             ),
             Text(
-              price,
+              '\$${product['price']?.toStringAsFixed(2) ?? '0.00'}',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -403,10 +582,26 @@ class StoreScreen
   Widget
   _buildPopularItemCard(
     BuildContext context,
-    String price,
-    String badge,
-    Color badgeColor,
+    Map<
+      String,
+      dynamic
+    >
+    product,
   ) {
+    final badge =
+        product['badge'] ??
+        '';
+    Color badgeColor = Colors.grey;
+    if (badge ==
+        'new')
+      badgeColor = Colors.blue;
+    if (badge ==
+        'sale')
+      badgeColor = Colors.red;
+    if (badge ==
+        'hot')
+      badgeColor = Colors.orange;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -416,10 +611,13 @@ class StoreScreen
                 (
                   context,
                 ) => ProductDetailScreen(
-                  productName: 'Light Dress Bless',
-                  price: '\$$price',
+                  productId: product['_id'],
                 ),
           ),
+        ).then(
+          (
+            _,
+          ) => _loadCart(),
         );
       },
       child: Container(
@@ -445,7 +643,7 @@ class StoreScreen
                   color: Colors.grey[300],
                   child: const Center(
                     child: Icon(
-                      Icons.person,
+                      Icons.shopping_bag,
                       size: 30,
                       color: Colors.grey,
                     ),
@@ -460,7 +658,7 @@ class StoreScreen
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  price,
+                  '\$${product['price']?.toStringAsFixed(0) ?? '0'}',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -492,7 +690,7 @@ class StoreScreen
                           ),
                         ),
                         child: Text(
-                          badge,
+                          badge.toUpperCase(),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 8,
@@ -586,7 +784,6 @@ class StoreScreen
       ),
       child: Stack(
         children: [
-          // Background pattern/image placeholder
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(
@@ -604,8 +801,6 @@ class StoreScreen
               ),
             ),
           ),
-
-          // Content
           if (title.isNotEmpty)
             Positioned(
               bottom: 12,

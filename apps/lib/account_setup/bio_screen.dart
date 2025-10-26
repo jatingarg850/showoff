@@ -1,11 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../welcome_screen.dart';
+import '../providers/profile_provider.dart';
+import '../providers/auth_provider.dart';
 
 class BioScreen
     extends
         StatefulWidget {
+  final String
+  username;
+  final String
+  displayName;
+  final List<
+    String
+  >
+  interests;
+
   const BioScreen({
     super.key,
+    required this.username,
+    required this.displayName,
+    required this.interests,
   });
 
   @override
@@ -211,9 +226,73 @@ class _BioScreenState
                 ),
               ),
               child: ElevatedButton(
-                onPressed: () {
-                  if (_bioController.text.trim().isNotEmpty) {
+                onPressed: () async {
+                  if (_bioController.text.trim().isEmpty) return;
+
+                  final profileProvider =
+                      Provider.of<
+                        ProfileProvider
+                      >(
+                        context,
+                        listen: false,
+                      );
+                  final authProvider =
+                      Provider.of<
+                        AuthProvider
+                      >(
+                        context,
+                        listen: false,
+                      );
+
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder:
+                        (
+                          context,
+                        ) => const Center(
+                          child: CircularProgressIndicator(
+                            valueColor:
+                                AlwaysStoppedAnimation<
+                                  Color
+                                >(
+                                  Color(
+                                    0xFF701CF5,
+                                  ),
+                                ),
+                          ),
+                        ),
+                  );
+
+                  // Update profile with all collected data
+                  final success = await profileProvider.updateProfile(
+                    username: widget.username,
+                    displayName: widget.displayName,
+                    bio: _bioController.text.trim(),
+                    interests: widget.interests,
+                  );
+
+                  if (!mounted) return;
+                  Navigator.pop(
+                    context,
+                  ); // Close loading
+
+                  if (success) {
+                    // Refresh user data
+                    await authProvider.refreshUser();
                     _showCongratulationsPopup();
+                  } else {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          profileProvider.error ??
+                              'Update failed',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
                   }
                 },
                 style: ElevatedButton.styleFrom(

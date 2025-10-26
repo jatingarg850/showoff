@@ -1,19 +1,59 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'referral_transaction_history_screen.dart';
+import 'providers/auth_provider.dart';
 
 class ReferralsScreen
     extends
-        StatelessWidget {
+        StatefulWidget {
   const ReferralsScreen({
     super.key,
   });
 
   @override
+  State<
+    ReferralsScreen
+  >
+  createState() => _ReferralsScreenState();
+}
+
+class _ReferralsScreenState
+    extends
+        State<
+          ReferralsScreen
+        > {
+  @override
   Widget
   build(
     BuildContext context,
   ) {
+    final authProvider =
+        Provider.of<
+          AuthProvider
+        >(
+          context,
+        );
+    final user = authProvider.user;
+
+    if (user ==
+        null) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    final referralCode =
+        user['referralCode'] ??
+        'LOADING';
+    final referralCount =
+        user['referralCount'] ??
+        0;
+    final referralCoins =
+        user['referralCoinsEarned'] ??
+        0;
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -70,9 +110,9 @@ class ReferralsScreen
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'SHOWINF',
-                    style: TextStyle(
+                  Text(
+                    referralCode,
+                    style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Colors.black,
@@ -82,8 +122,8 @@ class ReferralsScreen
                   GestureDetector(
                     onTap: () {
                       Clipboard.setData(
-                        const ClipboardData(
-                          text: 'SHOWINF',
+                        ClipboardData(
+                          text: referralCode,
                         ),
                       );
                       ScaffoldMessenger.of(

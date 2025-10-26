@@ -3,13 +3,240 @@ import 'spin_wheel_screen.dart';
 import 'add_money_screen.dart';
 import 'withdrawal_screen.dart';
 import 'transaction_history_screen.dart';
+import 'services/api_service.dart';
 
 class WalletScreen
     extends
-        StatelessWidget {
+        StatefulWidget {
   const WalletScreen({
     super.key,
   });
+
+  @override
+  State<
+    WalletScreen
+  >
+  createState() => _WalletScreenState();
+}
+
+class _WalletScreenState
+    extends
+        State<
+          WalletScreen
+        > {
+  int
+  _coinBalance = 0;
+  int
+  _withdrawableBalance = 0;
+  bool
+  _isLoading = true;
+  List<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  _transactions = [];
+
+  @override
+  void
+  initState() {
+    super.initState();
+    _loadWalletData();
+  }
+
+  Future<
+    void
+  >
+  _loadWalletData() async {
+    await Future.wait(
+      [
+        _loadBalance(),
+        _loadTransactions(),
+      ],
+    );
+  }
+
+  Future<
+    void
+  >
+  _loadBalance() async {
+    try {
+      final response = await ApiService.getCoinBalance();
+      if (response['success']) {
+        setState(
+          () {
+            _coinBalance =
+                response['data']['coinBalance'] ??
+                0;
+            _withdrawableBalance =
+                response['data']['withdrawableBalance'] ??
+                0;
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error loading balance: $e',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<
+    void
+  >
+  _loadTransactions() async {
+    try {
+      final response = await ApiService.getTransactions(
+        limit: 10,
+      );
+      if (response['success']) {
+        setState(
+          () {
+            _transactions =
+                List<
+                  Map<
+                    String,
+                    dynamic
+                  >
+                >.from(
+                  response['data'],
+                );
+            _isLoading = false;
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      setState(
+        () => _isLoading = false,
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _watchAd() async {
+    try {
+      final response = await ApiService.watchAd();
+      if (response['success'] &&
+          mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Earned ${response['coinsEarned']} coins!',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(
+              seconds: 2,
+            ),
+          ),
+        );
+        _loadBalance();
+      } else if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              response['message'] ??
+                  'Failed to watch ad',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (
+      e
+    ) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error: $e',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  String
+  _formatTransactionType(
+    String type,
+  ) {
+    switch (type) {
+      case 'ad_watch':
+        return 'Ads';
+      case 'spin_wheel':
+        return 'Spin Wheel';
+      case 'gift_received':
+        return 'Gift Received';
+      case 'gift_sent':
+        return 'Gift Sent';
+      case 'post_like':
+        return 'Post Like';
+      case 'post_share':
+        return 'Shares';
+      case 'post_upload':
+        return 'Uploads';
+      case 'withdrawal':
+        return 'Withdrawal';
+      case 'top_up':
+        return 'Topped up Wallet';
+      default:
+        return type;
+    }
+  }
+
+  String
+  _formatDateTime(
+    String? dateString,
+  ) {
+    if (dateString ==
+        null)
+      return '';
+
+    try {
+      final date = DateTime.parse(
+        dateString,
+      );
+      final dateStr = '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year.toString().substring(2)}';
+      final timeStr = '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')} ${date.hour >= 12 ? 'PM' : 'AM'}';
+      return '$dateStr  $timeStr';
+    } catch (
+      e
+    ) {
+      return '';
+    }
+  }
+
+  double
+  _coinsToUSD(
+    int coins,
+  ) {
+    // Assuming 1 coin = $0.01 USD (adjust as needed)
+    return coins *
+        0.01;
+  }
 
   @override
   Widget
@@ -69,40 +296,46 @@ class WalletScreen
                     ),
 
                     // Balance amount with coin icon
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          '1345',
-                          style: TextStyle(
+                    _isLoading
+                        ? const CircularProgressIndicator(
                             color: Colors.white,
-                            fontSize: 48,
-                            fontWeight: FontWeight.bold,
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                _coinBalance.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 48,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(
+                                width: 8,
+                              ),
+                              Image.asset(
+                                'assets/setup/coins.png',
+                                width: 32,
+                                height: 32,
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(
-                          width: 8,
-                        ),
-                        Image.asset(
-                          'assets/setup/coins.png',
-                          width: 32,
-                          height: 32,
-                        ),
-                      ],
-                    ),
 
                     const SizedBox(
                       height: 8,
                     ),
 
                     // USD equivalent
-                    const Text(
-                      '=\$600',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 16,
-                      ),
-                    ),
+                    _isLoading
+                        ? const SizedBox.shrink()
+                        : Text(
+                            '=\$${_coinsToUSD(_coinBalance).toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 16,
+                            ),
+                          ),
 
                     const SizedBox(
                       height: 30,
@@ -160,8 +393,11 @@ class WalletScreen
                             'assets/wallet_screen/monetization.png',
                           ),
                         ),
-                        _buildActionButtonWithImage(
-                          'assets/wallet_screen/ads.png',
+                        GestureDetector(
+                          onTap: _watchAd,
+                          child: _buildActionButtonWithImage(
+                            'assets/wallet_screen/ads.png',
+                          ),
                         ),
                       ],
                     ),
@@ -218,59 +454,47 @@ class WalletScreen
 
                     // Transaction list
                     Expanded(
-                      child: ListView(
-                        children: [
-                          _buildTransactionItem(
-                            'Shares',
-                            '30/09/25',
-                            '12:34 AM',
-                            '+\$15.30',
-                            true,
-                          ),
-                          _buildTransactionItem(
-                            'Uploads',
-                            '30/09/25',
-                            '12:34 AM',
-                            '-\$15.30',
-                            false,
-                          ),
-                          _buildTransactionItem(
-                            'Withdrawal',
-                            '30/09/25',
-                            '12:34 AM',
-                            '-\$25.30',
-                            false,
-                          ),
-                          _buildTransactionItem(
-                            'Gift Recieved',
-                            '30/09/25',
-                            '12:34 AM',
-                            '+\$215.30',
-                            true,
-                          ),
-                          _buildTransactionItem(
-                            'Topped up Wallet',
-                            '30/09/25',
-                            '12:34 AM',
-                            '+\$15.30',
-                            true,
-                          ),
-                          _buildTransactionItem(
-                            'Withdrawal',
-                            '30/09/25',
-                            '12:34 AM',
-                            '-\$15.30',
-                            false,
-                          ),
-                          _buildTransactionItem(
-                            'Ads',
-                            '30/09/25',
-                            '12:34 AM',
-                            '+\$15.30',
-                            true,
-                          ),
-                        ],
-                      ),
+                      child: _isLoading
+                          ? const Center(
+                              child: CircularProgressIndicator(),
+                            )
+                          : _transactions.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No transactions yet',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 14,
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: _transactions.length,
+                              itemBuilder:
+                                  (
+                                    context,
+                                    index,
+                                  ) {
+                                    final transaction = _transactions[index];
+                                    final amount =
+                                        transaction['amount'] ??
+                                        0;
+                                    final isPositive =
+                                        amount >
+                                        0;
+                                    return _buildTransactionItem(
+                                      _formatTransactionType(
+                                        transaction['type'] ??
+                                            '',
+                                      ),
+                                      _formatDateTime(
+                                        transaction['createdAt'],
+                                      ),
+                                      '${isPositive ? '+' : ''}${amount}',
+                                      isPositive,
+                                    );
+                                  },
+                            ),
                     ),
                   ],
                 ),
@@ -319,8 +543,7 @@ class WalletScreen
   Widget
   _buildTransactionItem(
     String title,
-    String date,
-    String time,
+    String dateTime,
     String amount,
     bool isPositive,
   ) {
@@ -346,7 +569,7 @@ class WalletScreen
                   height: 4,
                 ),
                 Text(
-                  '$date  $time',
+                  dateTime,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[600],
@@ -355,15 +578,27 @@ class WalletScreen
               ],
             ),
           ),
-          Text(
-            amount,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: isPositive
-                  ? Colors.green
-                  : Colors.red,
-            ),
+          Row(
+            children: [
+              Text(
+                amount,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: isPositive
+                      ? Colors.green
+                      : Colors.red,
+                ),
+              ),
+              const SizedBox(
+                width: 4,
+              ),
+              Image.asset(
+                'assets/setup/coins.png',
+                width: 16,
+                height: 16,
+              ),
+            ],
           ),
         ],
       ),

@@ -30,6 +30,8 @@ class _MainScreenState
         > {
   late int
   _currentIndex;
+  int
+  _screenKey = 0; // Key to force screen rebuild
 
   @override
   void
@@ -38,16 +40,60 @@ class _MainScreenState
     _currentIndex = widget.initialIndex;
   }
 
-  final List<
-    Widget
-  >
-  _screens = [
-    const ReelScreen(),
-    const TalentScreen(),
-    const PathSelectionScreen(),
-    const WalletScreen(),
-    const ProfileScreen(),
-  ];
+  // Method to get current screen - creates new instance each time
+  Widget
+  _getCurrentScreen() {
+    switch (_currentIndex) {
+      case 0:
+        return ReelScreen(
+          key: ValueKey(
+            'reel_$_screenKey',
+          ),
+        );
+      case 1:
+        return TalentScreen(
+          key: ValueKey(
+            'talent_$_screenKey',
+          ),
+        );
+      case 2:
+        return PathSelectionScreen(
+          key: ValueKey(
+            'path_$_screenKey',
+          ),
+        );
+      case 3:
+        return WalletScreen(
+          key: ValueKey(
+            'wallet_$_screenKey',
+          ),
+        );
+      case 4:
+        return ProfileScreen(
+          key: ValueKey(
+            'profile_$_screenKey',
+          ),
+        );
+      default:
+        return ReelScreen(
+          key: ValueKey(
+            'reel_$_screenKey',
+          ),
+        );
+    }
+  }
+
+  void
+  _onNavItemTapped(
+    int index,
+  ) {
+    setState(
+      () {
+        _currentIndex = index;
+        _screenKey++; // Increment key to force rebuild
+      },
+    );
+  }
 
   @override
   Widget
@@ -62,8 +108,8 @@ class _MainScreenState
           : Colors.white,
       body: Stack(
         children: [
-          // Current screen content
-          _screens[_currentIndex],
+          // Current screen content - gets rebuilt on navigation
+          _getCurrentScreen(),
 
           // Floating bottom navigation bar (consistent across all screens)
           Positioned(
@@ -150,13 +196,9 @@ class _MainScreenState
         index;
 
     return GestureDetector(
-      onTap: () {
-        setState(
-          () {
-            _currentIndex = index;
-          },
-        );
-      },
+      onTap: () => _onNavItemTapped(
+        index,
+      ),
       child: isActive
           ? Column(
               mainAxisAlignment: MainAxisAlignment.center,

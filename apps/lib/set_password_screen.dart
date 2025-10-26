@@ -1,11 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'account_setup/profile_picture_screen.dart';
+import 'providers/auth_provider.dart';
 
 class SetPasswordScreen
     extends
         StatefulWidget {
+  final String?
+  email;
+  final String?
+  phone;
+  final String?
+  countryCode;
+
   const SetPasswordScreen({
     super.key,
+    this.email,
+    this.phone,
+    this.countryCode,
   });
 
   @override
@@ -390,30 +402,82 @@ class _SetPasswordScreenState
               ),
               child: ElevatedButton(
                 onPressed: _canProceed
-                    ? () {
-                        // Handle password setup completion
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Password set successfully!',
-                            ),
-                            backgroundColor: Color(
-                              0xFF701CF5,
-                            ),
-                          ),
+                    ? () async {
+                        final authProvider =
+                            Provider.of<
+                              AuthProvider
+                            >(
+                              context,
+                              listen: false,
+                            );
+
+                        // Show loading dialog
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder:
+                              (
+                                context,
+                              ) => const Center(
+                                child: CircularProgressIndicator(
+                                  valueColor:
+                                      AlwaysStoppedAnimation<
+                                        Color
+                                      >(
+                                        Color(
+                                          0xFF701CF5,
+                                        ),
+                                      ),
+                                ),
+                              ),
                         );
-                        // Navigate to profile picture setup
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (
-                                  context,
-                                ) => const ProfilePictureScreen(),
-                          ),
+
+                        // Generate temporary username and display name
+                        final timestamp = DateTime.now().millisecondsSinceEpoch;
+                        final tempUsername = 'user$timestamp';
+
+                        // Register user
+                        final success = await authProvider.register(
+                          username: tempUsername,
+                          displayName: 'User',
+                          password: _passwordController.text,
+                          email: widget.email,
+                          phone:
+                              widget.phone !=
+                                  null
+                              ? '${widget.countryCode}${widget.phone}'
+                              : null,
                         );
+
+                        if (!mounted) return;
+                        Navigator.pop(
+                          context,
+                        ); // Close loading dialog
+
+                        if (success) {
+                          // Navigate to profile picture setup
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (
+                                    context,
+                                  ) => const ProfilePictureScreen(),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                authProvider.error ??
+                                    'Registration failed',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
                       }
                     : null,
                 style: ElevatedButton.styleFrom(

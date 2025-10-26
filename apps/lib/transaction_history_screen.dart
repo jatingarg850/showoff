@@ -1,11 +1,112 @@
 import 'package:flutter/material.dart';
+import 'services/api_service.dart';
 
 class TransactionHistoryScreen
     extends
-        StatelessWidget {
+        StatefulWidget {
   const TransactionHistoryScreen({
     super.key,
   });
+
+  @override
+  State<
+    TransactionHistoryScreen
+  >
+  createState() => _TransactionHistoryScreenState();
+}
+
+class _TransactionHistoryScreenState
+    extends
+        State<
+          TransactionHistoryScreen
+        > {
+  List<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  _transactions = [];
+  bool
+  _isLoading = true;
+  int
+  _currentPage = 1;
+
+  @override
+  void
+  initState() {
+    super.initState();
+    _loadTransactions();
+  }
+
+  Future<
+    void
+  >
+  _loadTransactions() async {
+    try {
+      final response = await ApiService.getTransactions(
+        page: _currentPage,
+        limit: 20,
+      );
+      if (response['success']) {
+        setState(
+          () {
+            _transactions =
+                List<
+                  Map<
+                    String,
+                    dynamic
+                  >
+                >.from(
+                  response['data'],
+                );
+            _isLoading = false;
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading transactions: $e',
+      );
+      setState(
+        () => _isLoading = false,
+      );
+    }
+  }
+
+  String
+  _getTransactionIcon(
+    String type,
+  ) {
+    switch (type) {
+      case 'upload_reward':
+        return '📤';
+      case 'view_reward':
+        return '👁️';
+      case 'ad_watch':
+        return '📺';
+      case 'referral':
+        return '👥';
+      case 'spin_wheel':
+        return '🎡';
+      case 'vote_received':
+        return '👍';
+      case 'gift_received':
+        return '🎁';
+      case 'gift_sent':
+        return '💝';
+      case 'competition_prize':
+        return '🏆';
+      case 'withdrawal':
+        return '💰';
+      case 'profile_completion':
+        return '✅';
+      default:
+        return '💰';
+    }
+  }
 
   @override
   Widget
@@ -53,104 +154,57 @@ class TransactionHistoryScreen
 
             // Transaction list
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                ),
-                children: [
-                  _buildTransactionItem(
-                    'Shares',
-                    '30/09/25',
-                    '12:34 AM',
-                    '+\$15.30',
-                    true,
-                  ),
-                  _buildTransactionItem(
-                    'Uploads',
-                    '30/09/25',
-                    '12:34 AM',
-                    '-\$15.30',
-                    false,
-                  ),
-                  _buildTransactionItem(
-                    'Withdrawal',
-                    '30/09/25',
-                    '12:34 AM',
-                    '-\$25.30',
-                    false,
-                  ),
-                  _buildTransactionItem(
-                    'Gift Recieved',
-                    '30/09/25',
-                    '12:34 AM',
-                    '+\$215.30',
-                    true,
-                  ),
-                  _buildTransactionItem(
-                    'Topped up Wallet',
-                    '30/09/25',
-                    '12:34 AM',
-                    '-\$15.30',
-                    false,
-                  ),
-                  _buildTransactionItem(
-                    'Withdrawal',
-                    '30/09/25',
-                    '12:34 AM',
-                    '-\$15.30',
-                    false,
-                  ),
-                  _buildTransactionItem(
-                    'Ads',
-                    '30/09/25',
-                    '12:34 AM',
-                    '+\$315.30',
-                    true,
-                  ),
-                  _buildTransactionItem(
-                    'Referral',
-                    '30/09/25',
-                    '12:34 AM',
-                    '+\$315.30',
-                    true,
-                  ),
-                  _buildTransactionItem(
-                    'Gift',
-                    '30/09/25',
-                    '12:34 AM',
-                    '+\$315.30',
-                    true,
-                  ),
-                  _buildTransactionItem(
-                    'Shares',
-                    '30/09/25',
-                    '12:34 AM',
-                    '+\$315.30',
-                    true,
-                  ),
-                  _buildTransactionItem(
-                    'Ads',
-                    '30/09/25',
-                    '12:34 AM',
-                    '+\$315.30',
-                    true,
-                  ),
-                  _buildTransactionItem(
-                    'Topped up wallet',
-                    '30/09/25',
-                    '12:34 AM',
-                    '+\$315.30',
-                    true,
-                  ),
-                  _buildTransactionItem(
-                    'Ads',
-                    '30/09/25',
-                    '12:34 AM',
-                    '+\$315.30',
-                    true,
-                  ),
-                ],
-              ),
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        valueColor:
+                            AlwaysStoppedAnimation<
+                              Color
+                            >(
+                              Color(
+                                0xFF8B5CF6,
+                              ),
+                            ),
+                      ),
+                    )
+                  : _transactions.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No transactions yet',
+                        style: TextStyle(
+                          color: Colors.grey,
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                      ),
+                      itemCount: _transactions.length,
+                      itemBuilder:
+                          (
+                            context,
+                            index,
+                          ) {
+                            final transaction = _transactions[index];
+                            final isPositive =
+                                transaction['amount'] >
+                                0;
+                            final date = DateTime.parse(
+                              transaction['createdAt'],
+                            );
+                            final dateStr = '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year.toString().substring(2)}';
+                            final timeStr = '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+
+                            return _buildTransactionItem(
+                              '${_getTransactionIcon(transaction['type'])} ${transaction['description']}',
+                              dateStr,
+                              timeStr,
+                              '${isPositive ? '+' : ''}${transaction['amount']} coins',
+                              isPositive,
+                            );
+                          },
+                    ),
             ),
           ],
         ),
@@ -166,9 +220,19 @@ class TransactionHistoryScreen
     String amount,
     bool isPositive,
   ) {
-    return Padding(
-      padding: const EdgeInsets.only(
-        bottom: 20,
+    // Keep existing _buildTransactionItem implementation
+    return Container(
+      margin: const EdgeInsets.only(
+        bottom: 16,
+      ),
+      padding: const EdgeInsets.all(
+        16,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(
+          12,
+        ),
       ),
       child: Row(
         children: [
@@ -180,7 +244,7 @@ class TransactionHistoryScreen
                   title,
                   style: const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                     color: Colors.black,
                   ),
                 ),
@@ -188,7 +252,7 @@ class TransactionHistoryScreen
                   height: 4,
                 ),
                 Text(
-                  '$date  $time',
+                  '$date • $time',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[600],
@@ -201,7 +265,7 @@ class TransactionHistoryScreen
             amount,
             style: TextStyle(
               fontSize: 16,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.bold,
               color: isPositive
                   ? Colors.green
                   : Colors.red,

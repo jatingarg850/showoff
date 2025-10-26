@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 import 'comments_screen.dart';
 import 'gift_screen.dart';
-import 'search_screen.dart';
-import 'chat_screen.dart';
-import 'notification_screen.dart';
+import 'user_profile_screen.dart';
+import 'services/api_service.dart';
+import 'config/api_config.dart';
 
 class ReelScreen
     extends
@@ -23,222 +24,773 @@ class _ReelScreenState
     extends
         State<
           ReelScreen
-        >
-    with
-        TickerProviderStateMixin {
+        > {
   final PageController
   _pageController = PageController();
 
-  late AnimationController
-  _fadeController;
-  late AnimationController
-  _scaleController;
-  late Animation<
-    double
-  >
-  _fadeAnimation;
-  late Animation<
-    double
-  >
-  _scaleAnimation;
-
-  int
-  _currentIndex = 0;
-
-  // Track liked and saved states for each reel
-  final Map<
-    int,
-    bool
-  >
-  _likedReels = {};
-  final Map<
-    int,
-    bool
-  >
-  _savedReels = {};
-
-  @override
-  void
-  initState() {
-    super.initState();
-
-    // Initialize animation controllers
-    _fadeController = AnimationController(
-      duration: const Duration(
-        milliseconds: 300,
-      ),
-      vsync: this,
-    );
-
-    _scaleController = AnimationController(
-      duration: const Duration(
-        milliseconds: 400,
-      ),
-      vsync: this,
-    );
-
-    // Initialize animations
-    _fadeAnimation =
-        Tween<
-              double
-            >(
-              begin: 0.0,
-              end: 1.0,
-            )
-            .animate(
-              CurvedAnimation(
-                parent: _fadeController,
-                curve: Curves.easeInOut,
-              ),
-            );
-
-    _scaleAnimation =
-        Tween<
-              double
-            >(
-              begin: 0.8,
-              end: 1.0,
-            )
-            .animate(
-              CurvedAnimation(
-                parent: _scaleController,
-                curve: Curves.elasticOut,
-              ),
-            );
-
-    // Start initial animations
-    _fadeController.forward();
-    _scaleController.forward();
-  }
-
-  @override
-  void
-  dispose() {
-    _fadeController.dispose();
-    _scaleController.dispose();
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  // Sample reel data
-  final List<
+  List<
     Map<
       String,
       dynamic
     >
   >
-  _reels = [
-    {
-      'username': 'Sathon',
-      'description': 'A bird flying in the sky soaring high in the sky scouting for its prey....😍',
-      'likes': '8976',
-      'comments': '4576',
-      'shares': '200',
-      'bookmarks': '200',
-      'isAd': false,
-      'duration': '00:15',
-    },
-    {
-      'username': 'Yada',
-      'description': 'MEET NEW FRIENDS EVERYDAY',
-      'likes': '5432',
-      'comments': '2341',
-      'shares': '156',
-      'bookmarks': '89',
-      'isAd': true,
-      'duration': '00:30',
-    },
-    {
-      'username': 'Alex',
-      'description': 'Amazing sunset view from the mountains 🌅',
-      'likes': '12.5K',
-      'comments': '892',
-      'shares': '445',
-      'bookmarks': '1.2K',
-      'isAd': false,
-      'duration': '00:22',
-    },
-    {
-      'username': 'Maria',
-      'description': 'Dancing in the rain! Life is beautiful ☔💃',
-      'likes': '9876',
-      'comments': '3456',
-      'shares': '678',
-      'bookmarks': '543',
-      'isAd': false,
-      'duration': '00:18',
-    },
-  ];
+  _posts = [];
+  bool
+  _isLoading = true;
+  int
+  _currentIndex = 0;
+
+  // Video controllers
+  final Map<
+    int,
+    VideoPlayerController?
+  >
+  _videoControllers = {};
+  final Map<
+    int,
+    bool
+  >
+  _videoInitialized = {};
+
+  @override
+  void
+  initState() {
+    super.initState();
+    _loadFeed();
+  }
+
+  Future<
+    void
+  >
+  _loadFeed() async {
+    try {
+      final response = await ApiService.getFeed(
+        page: 1,
+        limit: 20,
+      );
+
+      if (response['success']) {
+        final posts =
+            List<
+              Map<
+                String,
+                dynamic
+              >
+            >.from(
+              response['data'],
+            );
+
+        // Load stats for each post
+        for (
+          int i = 0;
+          i <
+              posts.length;
+          i++
+        ) {
+          try {
+            final statsResponse = await ApiService.getPostStats(
+              posts[i]['_id'],
+            );
+            if (statsResponse['success']) {
+              posts[i]['stats'] = statsResponse['data'];
+            }
+          } catch (
+            e
+          ) {
+            print(
+              'Error loading stats: $e',
+            );
+          }
+        }
+
+        setState(
+          () {
+            _posts = posts;
+            _isLoading = false;
+          },
+        );
+
+        // Initialize first video
+        if (_posts.isNotEmpty) {
+          _initializeVideoController(
+            0,
+          );
+          _trackView(
+            _posts[0]['_id'],
+          );
+        }
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading feed: $e',
+      );
+      setState(
+        () => _isLoading = false,
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _initializeVideoController(
+    int index,
+  ) async {
+    if (_posts.isEmpty ||
+        index >=
+            _posts.length)
+      return;
+
+    final mediaUrl = _posts[index]['mediaUrl'];
+    if (mediaUrl ==
+            null ||
+        mediaUrl.isEmpty)
+      return;
+
+    // Dispose existing controller
+    _videoControllers[index]?.dispose();
+
+    try {
+      String videoUrl = mediaUrl;
+      if (mediaUrl.startsWith(
+        '/uploads',
+      )) {
+        videoUrl = '${ApiConfig.baseUrl}$mediaUrl';
+      }
+
+      final controller = VideoPlayerController.networkUrl(
+        Uri.parse(
+          videoUrl,
+        ),
+      );
+      _videoControllers[index] = controller;
+
+      await controller.initialize();
+      controller.setLooping(
+        true,
+      );
+
+      if (mounted) {
+        setState(
+          () {
+            _videoInitialized[index] = true;
+          },
+        );
+
+        if (index ==
+            _currentIndex) {
+          controller.play();
+        }
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error initializing video $index: $e',
+      );
+      if (mounted) {
+        setState(
+          () {
+            _videoInitialized[index] = false;
+          },
+        );
+      }
+    }
+  }
+
+  void
+  _onPageChanged(
+    int index,
+  ) {
+    setState(
+      () {
+        _currentIndex = index;
+      },
+    );
+
+    // Pause all other videos
+    _videoControllers.forEach(
+      (
+        key,
+        controller,
+      ) {
+        if (key !=
+            index) {
+          controller?.pause();
+        }
+      },
+    );
+
+    // Play current video
+    if (_videoInitialized[index] ==
+        true) {
+      _videoControllers[index]?.play();
+    } else {
+      _initializeVideoController(
+        index,
+      );
+    }
+
+    // Preload next video
+    if (index +
+            1 <
+        _posts.length) {
+      _initializeVideoController(
+        index +
+            1,
+      );
+    }
+
+    // Track view
+    if (_posts.isNotEmpty &&
+        index <
+            _posts.length) {
+      _trackView(
+        _posts[index]['_id'],
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _trackView(
+    String postId,
+  ) async {
+    try {
+      // Track view - using existing method
+      await ApiService.toggleLike(
+        postId,
+      );
+    } catch (
+      e
+    ) {
+      print(
+        'Error tracking view: $e',
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _toggleLike(
+    String postId,
+    int index,
+  ) async {
+    try {
+      final response = await ApiService.toggleLike(
+        postId,
+      );
+      if (response['success'] &&
+          mounted) {
+        setState(
+          () {
+            _posts[index]['likesCount'] = response['data']['likesCount'];
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error toggling like: $e',
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _toggleBookmark(
+    String postId,
+    int index,
+  ) async {
+    try {
+      final response = await ApiService.toggleBookmark(
+        postId,
+      );
+      if (response['success'] &&
+          mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              response['data']['isBookmarked']
+                  ? 'Saved!'
+                  : 'Removed from saved',
+            ),
+            duration: const Duration(
+              seconds: 1,
+            ),
+          ),
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error toggling bookmark: $e',
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _sharePost(
+    String postId,
+    int index,
+  ) async {
+    try {
+      final response = await ApiService.sharePost(
+        postId,
+      );
+      if (response['success'] &&
+          mounted) {
+        setState(
+          () {
+            _posts[index]['sharesCount'] = response['data']['sharesCount'];
+          },
+        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Shared!',
+            ),
+            duration: Duration(
+              seconds: 1,
+            ),
+          ),
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error sharing post: $e',
+      );
+    }
+  }
+
+  @override
+  void
+  dispose() {
+    _pageController.dispose();
+    _videoControllers.forEach(
+      (
+        key,
+        controller,
+      ) {
+        controller?.dispose();
+      },
+    );
+    _videoControllers.clear();
+    super.dispose();
+  }
 
   @override
   Widget
   build(
     BuildContext context,
   ) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: CircularProgressIndicator(
+            color: Colors.white,
+          ),
+        ),
+      );
+    }
+
+    if (_posts.isEmpty) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.video_library_outlined,
+                size: 80,
+                color: Colors.white54,
+              ),
+              const SizedBox(
+                height: 20,
+              ),
+              const Text(
+                'No Reels Yet',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(
+                height: 10,
+              ),
+              Text(
+                'Be the first to upload a reel!',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(
+                    0.7,
+                  ),
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: PageView.builder(
         controller: _pageController,
         scrollDirection: Axis.vertical,
-        physics: const BouncingScrollPhysics(),
-        onPageChanged:
-            (
-              index,
-            ) {
-              setState(
-                () {
-                  _currentIndex = index;
-                },
-              );
-
-              // Trigger animations on page change
-              _fadeController.reset();
-              _scaleController.reset();
-              _fadeController.forward();
-              _scaleController.forward();
-            },
-        itemCount: _reels.length,
+        onPageChanged: _onPageChanged,
+        itemCount: _posts.length,
         itemBuilder:
             (
               context,
               index,
             ) {
-              final reel = _reels[index];
-              return AnimatedBuilder(
-                animation: _pageController,
-                builder:
-                    (
-                      context,
-                      child,
-                    ) {
-                      double value = 1.0;
-                      if (_pageController.position.haveDimensions) {
-                        value =
-                            _pageController.page! -
-                            index;
-                        value =
-                            (1 -
-                                    (value.abs() *
-                                        0.3))
-                                .clamp(
-                                  0.0,
-                                  1.0,
-                                );
-                      }
+              final post = _posts[index];
+              final user =
+                  post['user'] ??
+                  {};
+              final stats =
+                  post['stats'] ??
+                  {};
 
-                      return Transform.scale(
-                        scale: Curves.easeOut.transform(
-                          value,
+              return Stack(
+                children: [
+                  // Video Player
+                  _buildVideoPlayer(
+                    index,
+                  ),
+
+                  // Top Bar
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.all(
+                          16,
                         ),
-                        child: Opacity(
-                          opacity: value,
-                          child: _buildReelItem(
-                            reel,
-                            index,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(
+                                  0.3,
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                  20,
+                                ),
+                              ),
+                              child: const Text(
+                                '00:30',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              decoration: BoxDecoration(
+                                image: const DecorationImage(
+                                  image: AssetImage(
+                                    'assets/reel/up.png',
+                                  ),
+                                  fit: BoxFit.fill,
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                  30,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    icon: Image.asset(
+                                      'assets/upreel/search.png',
+                                      width: 24,
+                                      height: 24,
+                                    ),
+                                    onPressed: () {},
+                                  ),
+                                  IconButton(
+                                    icon: Image.asset(
+                                      'assets/upreel/coment.png',
+                                      width: 24,
+                                      height: 24,
+                                    ),
+                                    onPressed: () {},
+                                  ),
+                                  IconButton(
+                                    icon: Image.asset(
+                                      'assets/upreel/notbell.png',
+                                      width: 24,
+                                      height: 24,
+                                    ),
+                                    onPressed: () {},
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Right Side Actions
+                  Positioned(
+                    right: 8,
+                    bottom: 140,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        image: const DecorationImage(
+                          image: AssetImage(
+                            'assets/reel/side.png',
+                          ),
+                          fit: BoxFit.fill,
+                        ),
+                        borderRadius: BorderRadius.circular(
+                          35,
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 20,
+                        horizontal: 12,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildActionButton(
+                            'assets/sidereel/like.png',
+                            post['likesCount']?.toString() ??
+                                '0',
+                            () => _toggleLike(
+                              post['_id'],
+                              index,
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 24,
+                          ),
+                          _buildActionButton(
+                            'assets/sidereel/comment.png',
+                            post['commentsCount']?.toString() ??
+                                '0',
+                            () {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder:
+                                    (
+                                      context,
+                                    ) => CommentsScreen(
+                                      postId: post['_id'],
+                                    ),
+                              );
+                            },
+                          ),
+                          const SizedBox(
+                            height: 24,
+                          ),
+                          _buildActionButton(
+                            'assets/sidereel/saved.png',
+                            stats['bookmarksCount']?.toString() ??
+                                '0',
+                            () => _toggleBookmark(
+                              post['_id'],
+                              index,
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 24,
+                          ),
+                          _buildActionButton(
+                            'assets/sidereel/share.png',
+                            post['sharesCount']?.toString() ??
+                                '0',
+                            () => _sharePost(
+                              post['_id'],
+                              index,
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 24,
+                          ),
+                          _buildActionButton(
+                            'assets/sidereel/gift.png',
+                            '',
+                            () {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder:
+                                    (
+                                      context,
+                                    ) => GiftScreen(
+                                      recipientId:
+                                          post['user']?['_id'] ??
+                                          '',
+                                      recipientName:
+                                          post['user']?['username'] ??
+                                          'user',
+                                    ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Bottom User Info
+                  Positioned(
+                    left: 16,
+                    right: 80,
+                    bottom: 100,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (
+                                      context,
+                                    ) => UserProfileScreen(
+                                      userInfo: user,
+                                    ),
+                              ),
+                            );
+                          },
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: ClipOval(
+                                  child:
+                                      user['profilePicture'] !=
+                                          null
+                                      ? Image.network(
+                                          ApiService.getImageUrl(
+                                            user['profilePicture'],
+                                          ),
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (
+                                                context,
+                                                error,
+                                                stackTrace,
+                                              ) {
+                                                return const Icon(
+                                                  Icons.person,
+                                                  color: Colors.white,
+                                                );
+                                              },
+                                        )
+                                      : const Icon(
+                                          Icons.person,
+                                          color: Colors.white,
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(
+                                width: 12,
+                              ),
+                              Text(
+                                user['username'] ??
+                                    'user',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(
+                                width: 12,
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(
+                                        0xFF701CF5,
+                                      ),
+                                      Color(
+                                        0xFF3E98E4,
+                                      ),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(
+                                    20,
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Follow',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      );
-                    },
+                        const SizedBox(
+                          height: 12,
+                        ),
+                        Text(
+                          post['caption'] ??
+                              '',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               );
             },
       ),
@@ -246,745 +798,68 @@ class _ReelScreenState
   }
 
   Widget
-  _buildReelItem(
-    Map<
-      String,
-      dynamic
-    >
-    reel,
+  _buildVideoPlayer(
     int index,
   ) {
-    return Stack(
-      children: [
-        // Animated background with smooth transitions
-        AnimatedContainer(
-          duration: const Duration(
-            milliseconds: 500,
-          ),
-          curve: Curves.easeInOut,
-          width: double.infinity,
-          height: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: reel['isAd']
-                  ? [
-                      Colors.purple[800]!,
-                      Colors.purple[600]!,
-                    ]
-                  : [
-                      Colors.grey[800]!,
-                      Colors.grey[600]!,
-                    ],
-            ),
-          ),
-          child: AnimatedBuilder(
-            animation: Listenable.merge(
-              [
-                _fadeAnimation,
-                _scaleAnimation,
-              ],
-            ),
-            builder:
-                (
-                  context,
-                  child,
-                ) {
-                  final isCurrentReel =
-                      index ==
-                      _currentIndex;
-                  return AnimatedScale(
-                    scale: isCurrentReel
-                        ? _scaleAnimation.value
-                        : 0.95,
-                    duration: const Duration(
-                      milliseconds: 400,
-                    ),
-                    curve: Curves.elasticOut,
-                    child: FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: Center(
-                        child: reel['isAd']
-                            ? TweenAnimationBuilder<
-                                double
-                              >(
-                                duration: const Duration(
-                                  milliseconds: 600,
-                                ),
-                                tween: Tween(
-                                  begin: 0.0,
-                                  end: 1.0,
-                                ),
-                                builder:
-                                    (
-                                      context,
-                                      value,
-                                      child,
-                                    ) {
-                                      return Transform.scale(
-                                        scale:
-                                            0.8 +
-                                            (0.2 *
-                                                value),
-                                        child: Opacity(
-                                          opacity: value,
-                                          child: Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                Icons.ads_click,
-                                                color: Colors.white54,
-                                                size: 60,
-                                              ),
-                                              const SizedBox(
-                                                height: 16,
-                                              ),
-                                              Text(
-                                                'Advertisement',
-                                                style: TextStyle(
-                                                  color: Colors.white54,
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    },
-                              )
-                            : TweenAnimationBuilder<
-                                double
-                              >(
-                                duration: const Duration(
-                                  milliseconds: 800,
-                                ),
-                                tween: Tween(
-                                  begin: 0.0,
-                                  end: 1.0,
-                                ),
-                                builder:
-                                    (
-                                      context,
-                                      value,
-                                      child,
-                                    ) {
-                                      return Transform.rotate(
-                                        angle:
-                                            (1 -
-                                                value) *
-                                            0.1,
-                                        child: Transform.scale(
-                                          scale:
-                                              0.7 +
-                                              (0.3 *
-                                                  value),
-                                          child: Opacity(
-                                            opacity: value,
-                                            child: Icon(
-                                              Icons.play_circle_outline,
-                                              color: Colors.white54,
-                                              size: 80,
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                              ),
-                      ),
-                    ),
-                  );
-                },
-          ),
-        ),
-
-        // Top bar
-        Positioned(
-          top:
-              MediaQuery.of(
-                context,
-              ).padding.top +
-              10,
-          right: 20,
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(
-                25,
-              ),
-              image: const DecorationImage(
-                image: AssetImage(
-                  'assets/reel/up.png',
-                ),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (
-                              context,
-                            ) => const SearchScreen(),
-                      ),
-                    );
-                  },
-                  child: Image.asset(
-                    'assets/upreel/search.png',
-                    width: 24,
-                    height: 24,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(
-                  width: 16,
-                ),
-                GestureDetector(
-                  onTap: () {
-                    final currentReel = _reels[_currentIndex];
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (
-                              context,
-                            ) => ChatScreen(
-                              username: currentReel['username'],
-                              displayName: currentReel['username'],
-                              isVerified: false,
-                            ),
-                      ),
-                    );
-                  },
-                  child: Image.asset(
-                    'assets/upreel/coment.png',
-                    width: 24,
-                    height: 24,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(
-                  width: 16,
-                ),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (
-                              context,
-                            ) => const NotificationScreen(),
-                      ),
-                    );
-                  },
-                  child: Image.asset(
-                    'assets/upreel/notbell.png',
-                    width: 24,
-                    height: 24,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
+    if (_videoInitialized[index] ==
+            true &&
+        _videoControllers[index] !=
+            null) {
+      return SizedBox.expand(
+        child: FittedBox(
+          fit: BoxFit.cover,
+          child: SizedBox(
+            width: _videoControllers[index]!.value.size.width,
+            height: _videoControllers[index]!.value.size.height,
+            child: VideoPlayer(
+              _videoControllers[index]!,
             ),
           ),
         ),
+      );
+    }
 
-        // Duration indicator (top left)
-        Positioned(
-          top:
-              MediaQuery.of(
-                context,
-              ).padding.top +
-              20,
-          left: 20,
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 4,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(
-                alpha: 0.6,
-              ),
-              borderRadius: BorderRadius.circular(
-                12,
-              ),
-            ),
-            child: Text(
-              reel['duration'],
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
+    return Container(
+      color: Colors.grey[900],
+      child: const Center(
+        child: CircularProgressIndicator(
+          color: Colors.white,
         ),
-
-        // Right side action buttons with staggered animation
-        Positioned(
-          right: 12,
-          top:
-              MediaQuery.of(
-                context,
-              ).size.height *
-              0.35,
-          child:
-              TweenAnimationBuilder<
-                Offset
-              >(
-                duration: const Duration(
-                  milliseconds: 800,
-                ),
-                tween: Tween(
-                  begin: const Offset(
-                    1,
-                    0,
-                  ),
-                  end: Offset.zero,
-                ),
-                curve: Curves.elasticOut,
-                builder:
-                    (
-                      context,
-                      offset,
-                      child,
-                    ) {
-                      return Transform.translate(
-                        offset:
-                            offset *
-                            100,
-                        child: AnimatedContainer(
-                          duration: const Duration(
-                            milliseconds: 400,
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 20,
-                            horizontal: 16,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(
-                              30,
-                            ),
-                            image: const DecorationImage(
-                              image: AssetImage(
-                                'assets/reel/side.png',
-                              ),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              _buildActionButton(
-                                'assets/sidereel/like.png',
-                                reel['likes'],
-                                _likedReels[index] ==
-                                        true
-                                    ? Colors.red
-                                    : Colors.white,
-                                onTap: () {
-                                  setState(
-                                    () {
-                                      _likedReels[index] =
-                                          !(_likedReels[index] ??
-                                              false);
-                                    },
-                                  );
-                                },
-                              ),
-                              const SizedBox(
-                                height: 20,
-                              ),
-                              _buildActionButton(
-                                'assets/sidereel/comment.png',
-                                reel['comments'],
-                                Colors.white,
-                                onTap: () {
-                                  showModalBottomSheet(
-                                    context: context,
-                                    isScrollControlled: true,
-                                    backgroundColor: Colors.transparent,
-                                    builder:
-                                        (
-                                          context,
-                                        ) => const CommentsScreen(),
-                                  );
-                                },
-                              ),
-                              const SizedBox(
-                                height: 20,
-                              ),
-                              _buildActionButton(
-                                'assets/sidereel/saved.png',
-                                reel['bookmarks'],
-                                _savedReels[index] ==
-                                        true
-                                    ? Colors.yellow
-                                    : Colors.white,
-                                onTap: () {
-                                  setState(
-                                    () {
-                                      _savedReels[index] =
-                                          !(_savedReels[index] ??
-                                              false);
-                                    },
-                                  );
-                                },
-                              ),
-                              const SizedBox(
-                                height: 20,
-                              ),
-                              _buildActionButton(
-                                'assets/sidereel/share.png',
-                                reel['shares'],
-                                Colors.white,
-                              ),
-                              const SizedBox(
-                                height: 20,
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  showModalBottomSheet(
-                                    context: context,
-                                    isScrollControlled: true,
-                                    backgroundColor: Colors.transparent,
-                                    builder:
-                                        (
-                                          context,
-                                        ) => const GiftScreen(),
-                                  );
-                                },
-                                child: Image.asset(
-                                  'assets/sidereel/gift.png',
-                                  width: 28,
-                                  height: 28,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-              ),
-        ),
-
-        // Bottom user info with slide-in animation
-        Positioned(
-          left: 16,
-          right: 80,
-          bottom: 120,
-          child:
-              TweenAnimationBuilder<
-                Offset
-              >(
-                duration: const Duration(
-                  milliseconds: 600,
-                ),
-                tween: Tween(
-                  begin: const Offset(
-                    0,
-                    1,
-                  ),
-                  end: Offset.zero,
-                ),
-                curve: Curves.easeOutBack,
-                builder:
-                    (
-                      context,
-                      offset,
-                      child,
-                    ) {
-                      return Transform.translate(
-                        offset:
-                            offset *
-                            50,
-                        child: FadeTransition(
-                          opacity: _fadeAnimation,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // User info row
-                              Row(
-                                children: [
-                                  // Profile picture
-                                  Container(
-                                    width: 50,
-                                    height: 50,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 2,
-                                      ),
-                                      color: Colors.grey[400],
-                                    ),
-                                    child: reel['isAd']
-                                        ? ClipOval(
-                                            child: Image.asset(
-                                              'assets/setup/coins.png',
-                                              width: 30,
-                                              height: 30,
-                                              fit: BoxFit.cover,
-                                            ),
-                                          )
-                                        : const Icon(
-                                            Icons.person,
-                                            color: Colors.white,
-                                            size: 30,
-                                          ),
-                                  ),
-                                  const SizedBox(
-                                    width: 12,
-                                  ),
-
-                                  // Username
-                                  Text(
-                                    reel['username'],
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(
-                                    width: 16,
-                                  ),
-
-                                  // Follow/Ads button
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 22,
-                                      vertical: 7,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: reel['isAd']
-                                            ? [
-                                                const Color(
-                                                  0xFF701CF5,
-                                                ),
-                                                const Color(
-                                                  0xFF8B7ED8,
-                                                ),
-                                              ]
-                                            : [
-                                                const Color(
-                                                  0xFF701CF5,
-                                                ),
-                                                const Color.fromRGBO(
-                                                  68,
-                                                  138,
-                                                  255,
-                                                  1,
-                                                ),
-                                              ],
-                                        begin: Alignment.centerLeft,
-                                        end: Alignment.centerRight,
-                                      ),
-                                      borderRadius: BorderRadius.circular(
-                                        10,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      reel['isAd']
-                                          ? 'Ads'
-                                          : 'Follow',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(
-                                height: 12,
-                              ),
-
-                              // Description with safe typewriter effect
-                              TweenAnimationBuilder<
-                                double
-                              >(
-                                duration: const Duration(
-                                  milliseconds: 1000,
-                                ),
-                                tween: Tween(
-                                  begin: 0.0,
-                                  end: 1.0,
-                                ),
-                                builder:
-                                    (
-                                      context,
-                                      value,
-                                      child,
-                                    ) {
-                                      final description =
-                                          reel['description']
-                                              as String;
-                                      final runes = description.runes.toList();
-                                      final displayLength =
-                                          (runes.length *
-                                                  value)
-                                              .round();
-                                      final safeText =
-                                          displayLength >=
-                                              runes.length
-                                          ? description
-                                          : String.fromCharCodes(
-                                              runes.take(
-                                                displayLength,
-                                              ),
-                                            );
-
-                                      return Text(
-                                        safeText,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          height: 1.3,
-                                        ),
-                                      );
-                                    },
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-              ),
-        ),
-
-        // Floating action button
-        Positioned(
-          right: 20,
-          bottom: 110,
-          child: Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(
-                alpha: 0.2,
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.auto_awesome,
-              color: Colors.white,
-              size: 24,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
   Widget
   _buildActionButton(
     String imagePath,
-    String count,
-    Color iconColor, {
-    VoidCallback? onTap,
-  }) {
-    return TweenAnimationBuilder<
-      double
-    >(
-      duration: const Duration(
-        milliseconds: 400,
-      ),
-      tween: Tween(
-        begin: 0.0,
-        end: 1.0,
-      ),
-      builder:
-          (
-            context,
-            value,
-            child,
-          ) {
-            return Transform.scale(
-              scale:
-                  0.8 +
-                  (0.2 *
-                      value),
-              child: GestureDetector(
-                onTap: onTap,
-                child: AnimatedContainer(
-                  duration: const Duration(
-                    milliseconds: 200,
-                  ),
-                  padding: const EdgeInsets.all(
-                    8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(
-                      20,
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      TweenAnimationBuilder<
-                        double
-                      >(
-                        duration: const Duration(
-                          milliseconds: 300,
-                        ),
-                        tween: Tween(
-                          begin: 0.0,
-                          end: 1.0,
-                        ),
-                        builder:
-                            (
-                              context,
-                              iconValue,
-                              child,
-                            ) {
-                              return Transform.rotate(
-                                angle:
-                                    (1 -
-                                        iconValue) *
-                                    0.2,
-                                child: Image.asset(
-                                  imagePath,
-                                  width: 28,
-                                  height: 28,
-                                  color: iconColor,
-                                ),
-                              );
-                            },
-                      ),
-                      const SizedBox(
-                        height: 4,
-                      ),
-                      FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: Text(
-                          count,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+    String label,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Image.asset(
+            imagePath,
+            width: 28,
+            height: 28,
+          ),
+          if (label.isNotEmpty) ...[
+            const SizedBox(
+              height: 2,
+            ),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
               ),
-            );
-          },
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

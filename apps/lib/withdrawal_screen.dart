@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'withdrawal_successful_screen.dart';
+import 'services/api_service.dart';
 
 class WithdrawalScreen
     extends
@@ -22,6 +23,46 @@ class _WithdrawalScreenState
         > {
   final TextEditingController
   _amountController = TextEditingController();
+
+  int
+  _availableBalance = 0;
+  bool
+  _isLoading = true;
+
+  @override
+  void
+  initState() {
+    super.initState();
+    _loadBalance();
+  }
+
+  Future<
+    void
+  >
+  _loadBalance() async {
+    try {
+      final response = await ApiService.getCoinBalance();
+      if (response['success']) {
+        setState(
+          () {
+            _availableBalance =
+                response['data']['withdrawableBalance'] ??
+                0;
+            _isLoading = false;
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading balance: $e',
+      );
+      setState(
+        () => _isLoading = false,
+      );
+    }
+  }
 
   @override
   void
@@ -801,7 +842,6 @@ class _WithdrawalScreenState
           },
     );
   }
-
 
   void
   _showSofftAddressModal(

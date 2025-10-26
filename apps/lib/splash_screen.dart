@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'providers/auth_provider.dart';
+import 'main_screen.dart';
+import 'onboarding_screen.dart';
 
 class SplashScreen
     extends
@@ -54,22 +58,56 @@ class _SplashScreenState
             );
 
     _animationController.forward();
+    _checkAuthAndNavigate();
+  }
 
-    // Navigate to next screen after 3 seconds
-    Future.delayed(
+  Future<
+    void
+  >
+  _checkAuthAndNavigate() async {
+    // Initialize auth provider
+    final authProvider =
+        Provider.of<
+          AuthProvider
+        >(
+          context,
+          listen: false,
+        );
+    await authProvider.initialize();
+
+    // Wait for animation
+    await Future.delayed(
       const Duration(
         seconds: 3,
       ),
-      () {
-        if (mounted) {
-          Navigator.of(
-            context,
-          ).pushReplacementNamed(
-            '/onboarding',
-          );
-        }
-      },
     );
+
+    if (!mounted) return;
+
+    // Navigate based on auth status
+    if (authProvider.isAuthenticated) {
+      Navigator.of(
+        context,
+      ).pushReplacement(
+        MaterialPageRoute(
+          builder:
+              (
+                _,
+              ) => const MainScreen(),
+        ),
+      );
+    } else {
+      Navigator.of(
+        context,
+      ).pushReplacement(
+        MaterialPageRoute(
+          builder:
+              (
+                _,
+              ) => const OnboardingScreen(),
+        ),
+      );
+    }
   }
 
   @override
