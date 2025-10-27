@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'chat_screen.dart';
+import 'main_screen.dart';
 import 'services/api_service.dart';
 
 class UserProfileScreen
@@ -580,49 +581,80 @@ class _UserProfileScreenState
                       index,
                     ) {
                       final post = userPosts[index];
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: post['color'],
-                          borderRadius: BorderRadius.circular(
-                            12,
+                      return GestureDetector(
+                        onTap: () {
+                          // Navigate to main screen with reel tab and specific post
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (
+                                    context,
+                                  ) => MainScreen(
+                                    initialIndex: 0,
+                                    initialPostId: post['_id'],
+                                  ),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color:
+                                post['color'] ??
+                                Colors.grey[800],
+                            borderRadius: BorderRadius.circular(
+                              12,
+                            ),
+                            image:
+                                post['thumbnailUrl'] !=
+                                    null
+                                ? DecorationImage(
+                                    image: NetworkImage(
+                                      ApiService.getImageUrl(
+                                        post['thumbnailUrl'],
+                                      ),
+                                    ),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
                           ),
-                        ),
-                        child: Stack(
-                          children: [
-                            const Center(
-                              child: Icon(
-                                Icons.play_arrow,
-                                color: Colors.white,
-                                size: 30,
-                              ),
-                            ),
-                            Positioned(
-                              bottom: 8,
-                              right: 8,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(
-                                    alpha: 0.7,
-                                  ),
-                                  borderRadius: BorderRadius.circular(
-                                    4,
-                                  ),
-                                ),
-                                child: Text(
-                                  post['views'],
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                          child: Stack(
+                            children: [
+                              const Center(
+                                child: Icon(
+                                  Icons.play_arrow,
+                                  color: Colors.white,
+                                  size: 30,
                                 ),
                               ),
-                            ),
-                          ],
+                              Positioned(
+                                bottom: 8,
+                                right: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(
+                                      alpha: 0.7,
+                                    ),
+                                    borderRadius: BorderRadius.circular(
+                                      4,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    post['views'],
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },

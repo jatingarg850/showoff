@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'services/api_service.dart';
 
 class SpinWheelScreen
     extends
@@ -69,6 +70,31 @@ class _SpinWheelScreenState
             .animate(
               _controller,
             );
+    _checkSpinStatus();
+  }
+
+  Future<
+    void
+  >
+  _checkSpinStatus() async {
+    try {
+      final response = await ApiService.getSpinWheelStatus();
+      if (response['success']) {
+        setState(
+          () {
+            _spinsLeft =
+                response['data']['spinsRemaining'] ??
+                0;
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error checking spin status: $e',
+      );
+    }
   }
 
   @override
@@ -93,80 +119,114 @@ class _SpinWheelScreenState
     setState(
       () {
         _isSpinning = true;
-        _spinsLeft--;
       },
     );
 
-    // Random rotation between 5-10 full rotations plus random angle
-    final double randomRotation =
-        (5 +
-            Random().nextDouble() *
-                5) *
-        2 *
-        pi;
-    final double finalAngle =
-        randomRotation +
-        Random().nextDouble() *
-            2 *
-            pi;
+    try {
+      // Call API to spin wheel
+      final response = await ApiService.spinWheel();
 
-    _animation =
-        Tween<
-              double
-            >(
-              begin: 0,
-              end: finalAngle,
-            )
-            .animate(
-              CurvedAnimation(
-                parent: _controller,
-                curve: Curves.easeOutCubic,
-              ),
-            );
-
-    _controller.forward().then(
-      (
-        _,
-      ) {
+      if (!response['success']) {
         setState(
           () {
             _isSpinning = false;
           },
         );
 
-        // Calculate which number was selected
-        final double normalizedAngle =
-            (finalAngle %
-            (2 *
-                pi));
-        final double sectionAngle =
-            2 *
-            pi /
-            _wheelValues.length;
-        final int selectedIndex =
-            ((normalizedAngle +
-                        sectionAngle /
-                            2) /
-                    sectionAngle)
-                .floor() %
-            _wheelValues.length;
-        final int selectedValue = _wheelValues[selectedIndex];
-
-        _controller.reset();
-
-        // Show result modal after a short delay
-        Future.delayed(
-          const Duration(
-            milliseconds: 500,
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              response['message'] ??
+                  'Failed to spin wheel',
+            ),
+            backgroundColor: Colors.red,
           ),
-          () {
-            _showResultModal(
-              selectedValue,
-            );
-          },
         );
-      },
-    );
+        return;
+      }
+
+      final int coinsWon = response['data']['coinsWon'];
+
+      setState(
+        () {
+          _spinsLeft = 0; // Used the daily spin
+        },
+      );
+
+      // Random rotation between 5-10 full rotations plus random angle
+      final double randomRotation =
+          (5 +
+              Random().nextDouble() *
+                  5) *
+          2 *
+          pi;
+      final double finalAngle =
+          randomRotation +
+          Random().nextDouble() *
+              2 *
+              pi;
+
+      _animation =
+          Tween<
+                double
+              >(
+                begin: 0,
+                end: finalAngle,
+              )
+              .animate(
+                CurvedAnimation(
+                  parent: _controller,
+                  curve: Curves.easeOutCubic,
+                ),
+              );
+
+      _controller.forward().then(
+        (
+          _,
+        ) {
+          setState(
+            () {
+              _isSpinning = false;
+            },
+          );
+
+          _controller.reset();
+
+          // Show result modal after a short delay
+          Future.delayed(
+            const Duration(
+              milliseconds: 500,
+            ),
+            () {
+              _showResultModal(
+                coinsWon,
+              );
+            },
+          );
+        },
+      );
+    } catch (
+      e
+    ) {
+      setState(
+        () {
+          _isSpinning = false;
+        },
+      );
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error: $e',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void

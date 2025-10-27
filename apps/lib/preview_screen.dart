@@ -17,6 +17,12 @@ class PreviewScreen
   caption;
   final bool
   isVideo;
+  final String?
+  thumbnailPath;
+  final List<
+    String
+  >
+  hashtags;
 
   const PreviewScreen({
     super.key,
@@ -25,6 +31,8 @@ class PreviewScreen
     this.category,
     required this.caption,
     this.isVideo = false,
+    this.thumbnailPath,
+    this.hashtags = const [],
   });
 
   @override
@@ -557,13 +565,24 @@ class _PreviewScreenState
                       }
                     } else {
                       // Upload regular post
+                      File? thumbnailFile;
+                      if (widget.thumbnailPath !=
+                          null) {
+                        thumbnailFile = File(
+                          widget.thumbnailPath!,
+                        );
+                      }
+
                       final response = await ApiService.createPost(
                         mediaFile: mediaFile,
                         caption: widget.caption,
-                        hashtags: hashtags,
+                        hashtags: widget.hashtags.isNotEmpty
+                            ? widget.hashtags
+                            : hashtags,
                         type: widget.isVideo
                             ? 'video'
                             : 'image',
+                        thumbnailFile: thumbnailFile,
                       );
 
                       if (!mounted) return;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'upload_content_screen.dart';
 
@@ -611,8 +612,29 @@ class _CameraScreenState
               children: [
                 // Recent photo thumbnail
                 GestureDetector(
-                  onTap: () {
-                    // Open gallery or show recent photos
+                  onTap: () async {
+                    // Open gallery to pick video
+                    final ImagePicker picker = ImagePicker();
+                    final XFile? video = await picker.pickVideo(
+                      source: ImageSource.gallery,
+                    );
+
+                    if (video !=
+                        null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (
+                                context,
+                              ) => UploadContentScreen(
+                                selectedPath: widget.selectedPath,
+                                mediaPath: video.path,
+                                isVideo: true,
+                              ),
+                        ),
+                      );
+                    }
                   },
                   child: Container(
                     width: 50,

@@ -5,6 +5,7 @@ import 'community_screen.dart';
 import 'store_screen.dart';
 import 'achievements_screen.dart';
 import 'edit_profile_screen.dart';
+import 'main_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/profile_provider.dart';
 import 'services/api_service.dart';
@@ -555,32 +556,49 @@ class _ProfileScreenState
                                           index,
                                         ) {
                                           final post = _posts[index];
-                                          return Container(
-                                            decoration: BoxDecoration(
-                                              color: _getGridItemColor(
-                                                index,
-                                              ),
-                                              borderRadius: BorderRadius.circular(
-                                                12,
-                                              ),
-                                              image:
-                                                  post['thumbnailUrl'] !=
-                                                      null
-                                                  ? DecorationImage(
-                                                      image: NetworkImage(
-                                                        ApiService.getImageUrl(
-                                                          post['thumbnailUrl'],
-                                                        ),
+                                          return GestureDetector(
+                                            onTap: () {
+                                              // Navigate to main screen with reel tab and specific post
+                                              Navigator.pushReplacement(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder:
+                                                      (
+                                                        context,
+                                                      ) => MainScreen(
+                                                        initialIndex: 0,
+                                                        initialPostId: post['_id'],
                                                       ),
-                                                      fit: BoxFit.cover,
-                                                    )
-                                                  : null,
-                                            ),
-                                            child: const Center(
-                                              child: Icon(
-                                                Icons.play_arrow,
-                                                color: Colors.white,
-                                                size: 30,
+                                                ),
+                                              );
+                                            },
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                color: _getGridItemColor(
+                                                  index,
+                                                ),
+                                                borderRadius: BorderRadius.circular(
+                                                  12,
+                                                ),
+                                                image:
+                                                    post['thumbnailUrl'] !=
+                                                        null
+                                                    ? DecorationImage(
+                                                        image: NetworkImage(
+                                                          ApiService.getImageUrl(
+                                                            post['thumbnailUrl'],
+                                                          ),
+                                                        ),
+                                                        fit: BoxFit.cover,
+                                                      )
+                                                    : null,
+                                              ),
+                                              child: const Center(
+                                                child: Icon(
+                                                  Icons.play_arrow,
+                                                  color: Colors.white,
+                                                  size: 30,
+                                                ),
                                               ),
                                             ),
                                           );

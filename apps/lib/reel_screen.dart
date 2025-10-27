@@ -9,8 +9,12 @@ import 'config/api_config.dart';
 class ReelScreen
     extends
         StatefulWidget {
+  final String?
+  initialPostId;
+
   const ReelScreen({
     super.key,
+    this.initialPostId,
   });
 
   @override
@@ -110,10 +114,40 @@ class _ReelScreenState
           },
         );
 
-        // Initialize first video
+        // Find initial post index if provided
+        int initialIndex = 0;
+        if (widget.initialPostId !=
+            null) {
+          final index = _posts.indexWhere(
+            (
+              post,
+            ) =>
+                post['_id'] ==
+                widget.initialPostId,
+          );
+          if (index !=
+              -1) {
+            initialIndex = index;
+          }
+        }
+
+        // Initialize video at the correct index
         if (_posts.isNotEmpty) {
+          // Jump to the initial post if specified
+          if (initialIndex >
+              0) {
+            WidgetsBinding.instance.addPostFrameCallback(
+              (
+                _,
+              ) {
+                _pageController.jumpToPage(
+                  initialIndex,
+                );
+              },
+            );
+          }
           _initializeVideoController(
-            0,
+            initialIndex,
           );
           _trackView(
             _posts[0]['_id'],

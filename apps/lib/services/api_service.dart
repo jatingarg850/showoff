@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart' as http_parser;
+import 'package:video_thumbnail/video_thumbnail.dart';
 import 'storage_service.dart';
 import '../config/api_config.dart';
 
@@ -447,6 +448,7 @@ class ApiService {
     >?
     hashtags,
     String? type,
+    File? thumbnailFile,
   }) async {
     final request = http.MultipartRequest(
       'POST',
@@ -467,6 +469,7 @@ class ApiService {
         .last
         .toLowerCase();
     String contentType;
+    bool isVideo = false;
     if (extension ==
             'mp4' ||
         extension ==
@@ -474,6 +477,7 @@ class ApiService {
         extension ==
             'avi') {
       contentType = 'video/mp4';
+      isVideo = true;
     } else if (extension ==
         'png') {
       contentType = 'image/png';
@@ -493,6 +497,51 @@ class ApiService {
         ),
       ),
     );
+
+    // Upload thumbnail if provided, or auto-generate for videos
+    if (thumbnailFile !=
+        null) {
+      // Use provided thumbnail file
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'thumbnail',
+          thumbnailFile.path,
+          contentType: http_parser.MediaType.parse(
+            'image/jpeg',
+          ),
+        ),
+      );
+    } else if (isVideo) {
+      // Auto-generate thumbnail as fallback
+      try {
+        final thumbnailPath = await VideoThumbnail.thumbnailFile(
+          video: mediaFile.path,
+          imageFormat: ImageFormat.JPEG,
+          maxWidth: 640,
+          quality: 75,
+        );
+
+        if (thumbnailPath !=
+            null) {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'thumbnail',
+              thumbnailPath,
+              contentType: http_parser.MediaType.parse(
+                'image/jpeg',
+              ),
+            ),
+          );
+        }
+      } catch (
+        e
+      ) {
+        print(
+          'Error generating thumbnail: $e',
+        );
+        // Continue without thumbnail if generation fails
+      }
+    }
 
     if (caption !=
         null)
@@ -971,24 +1020,6 @@ class ApiService {
     final response = await http.post(
       Uri.parse(
         '$baseUrl/coins/watch-ad',
-      ),
-      headers: await _getHeaders(),
-    );
-    return jsonDecode(
-      response.body,
-    );
-  }
-
-  static Future<
-    Map<
-      String,
-      dynamic
-    >
-  >
-  spinWheel() async {
-    final response = await http.post(
-      Uri.parse(
-        '$baseUrl/coins/spin-wheel',
       ),
       headers: await _getHeaders(),
     );
@@ -1968,6 +1999,43 @@ class ApiService {
     final response = await http.get(
       Uri.parse(
         '$baseUrl/groups/my/groups',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  // Spin Wheel APIs
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  getSpinWheelStatus() async {
+    final response = await http.get(
+      Uri.parse(
+        '$baseUrl/spin-wheel/status',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  spinWheel() async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/spin-wheel/spin',
       ),
       headers: await _getHeaders(),
     );

@@ -13,7 +13,11 @@ exports.createPost = async (req, res) => {
   try {
     const { caption, hashtags, type } = req.body;
 
-    if (!req.file) {
+    // Handle both single file and multiple files (media + thumbnail)
+    const mediaFile = req.files?.media?.[0] || req.file;
+    const thumbnailFile = req.files?.thumbnail?.[0];
+
+    if (!mediaFile) {
       return res.status(400).json({
         success: false,
         message: 'Please upload media file',
@@ -22,29 +26,44 @@ exports.createPost = async (req, res) => {
 
     // Handle both S3 (location/key) and local storage (path)
     let mediaUrl;
-    if (req.file.key) {
+    if (mediaFile.key) {
       // S3/Wasabi - construct correct public URL
       const region = process.env.WASABI_REGION || 'ap-southeast-1';
       const bucketName = process.env.WASABI_BUCKET_NAME;
       // Use path-style URL that matches SSL certificate
-      mediaUrl = `https://s3.${region}.wasabisys.com/${bucketName}/${req.file.key}`;
-    } else if (req.file.location) {
+      mediaUrl = `https://s3.${region}.wasabisys.com/${bucketName}/${mediaFile.key}`;
+    } else if (mediaFile.location) {
       // Fallback to location if provided
-      mediaUrl = req.file.location;
+      mediaUrl = mediaFile.location;
     } else {
       // Local storage - construct relative path
-      const folder = req.file.mimetype.startsWith('image/') ? 'images' : 'videos';
-      mediaUrl = `/uploads/${folder}/${req.file.filename}`;
+      const folder = mediaFile.mimetype.startsWith('image/') ? 'images' : 'videos';
+      mediaUrl = `/uploads/${folder}/${mediaFile.filename}`;
+    }
+
+    // Handle thumbnail URL if provided
+    let thumbnailUrl = null;
+    if (thumbnailFile) {
+      if (thumbnailFile.key) {
+        const region = process.env.WASABI_REGION || 'ap-southeast-1';
+        const bucketName = process.env.WASABI_BUCKET_NAME;
+        thumbnailUrl = `https://s3.${region}.wasabisys.com/${bucketName}/${thumbnailFile.key}`;
+      } else if (thumbnailFile.location) {
+        thumbnailUrl = thumbnailFile.location;
+      } else {
+        thumbnailUrl = `/uploads/images/${thumbnailFile.filename}`;
+      }
     }
 
     // Determine type from file
-    const mediaType = req.file.mimetype.startsWith('image/') ? 'image' : 
-                     req.file.mimetype.startsWith('video/') ? 'video' : 'reel';
+    const mediaType = mediaFile.mimetype.startsWith('image/') ? 'image' : 
+                     mediaFile.mimetype.startsWith('video/') ? 'video' : 'reel';
 
     const post = await Post.create({
       user: req.user.id,
       type: type || mediaType,
       mediaUrl: mediaUrl,
+      thumbnailUrl: thumbnailUrl,
       caption,
       hashtags: hashtags ? hashtags.split(',').map(tag => tag.trim()) : [],
     });
@@ -176,6 +195,7 @@ exports.toggleLike = async (req, res) => {
       });
     }
   } catch (error) {
+    console.error('Like toggle error:', error);
     res.status(500).json({
       success: false,
       message: error.message,

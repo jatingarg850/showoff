@@ -10,10 +10,13 @@ class MainScreen
         StatefulWidget {
   final int
   initialIndex;
+  final String?
+  initialPostId;
 
   const MainScreen({
     super.key,
     this.initialIndex = 0,
+    this.initialPostId,
   });
 
   @override
@@ -49,6 +52,7 @@ class _MainScreenState
           key: ValueKey(
             'reel_$_screenKey',
           ),
+          initialPostId: widget.initialPostId,
         );
       case 1:
         return TalentScreen(

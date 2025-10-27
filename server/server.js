@@ -53,6 +53,7 @@ app.use('/api/withdrawal', require('./routes/withdrawalRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/cart', require('./routes/cartRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
+app.use('/api/spin-wheel', require('./routes/spinWheelRoutes'));
 
 // Health check
 app.get('/health', (req, res) => {

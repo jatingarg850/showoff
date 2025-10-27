@@ -16,7 +16,10 @@ const {
 const { protect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
-router.post('/', protect, upload.single('media'), createPost);
+router.post('/', protect, upload.fields([
+  { name: 'media', maxCount: 1 },
+  { name: 'thumbnail', maxCount: 1 }
+]), createPost);
 router.get('/feed', getFeed);
 router.get('/user/:userId', getUserPosts);
 router.post('/:id/like', protect, toggleLike);

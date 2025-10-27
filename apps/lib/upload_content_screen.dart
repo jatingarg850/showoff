@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'preview_screen.dart';
+import 'thumbnail_selector_screen.dart';
 
 class UploadContentScreen
     extends
@@ -178,22 +179,40 @@ class _UploadContentScreenState
                 ),
                 child: ElevatedButton(
                   onPressed: () {
-                    // Navigate to preview screen
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (
-                              context,
-                            ) => PreviewScreen(
-                              selectedPath: widget.selectedPath,
-                              mediaPath: widget.mediaPath,
-                              category: null,
-                              caption: _captionController.text,
-                              isVideo: widget.isVideo,
-                            ),
-                      ),
-                    );
+                    // For videos, go to thumbnail selector first
+                    if (widget.isVideo) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (
+                                context,
+                              ) => ThumbnailSelectorScreen(
+                                videoPath: widget.mediaPath!,
+                                selectedPath: widget.selectedPath,
+                                caption: _captionController.text,
+                                hashtags: [],
+                              ),
+                        ),
+                      );
+                    } else {
+                      // For images, go directly to preview
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (
+                                context,
+                              ) => PreviewScreen(
+                                selectedPath: widget.selectedPath,
+                                mediaPath: widget.mediaPath,
+                                category: null,
+                                caption: _captionController.text,
+                                isVideo: widget.isVideo,
+                              ),
+                        ),
+                      );
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.transparent,
