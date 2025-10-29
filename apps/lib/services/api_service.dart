@@ -2174,4 +2174,23 @@ class ApiService {
       response.body,
     );
   }
+
+  // SYT Weekly Submission Check
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  checkUserWeeklySubmission() async {
+    final response = await http.get(
+      Uri.parse(
+        '$baseUrl/syt/weekly-check',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
 }

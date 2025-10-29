@@ -8,6 +8,7 @@ const {
   toggleLike,
   getEntryStats,
   toggleBookmark,
+  checkUserWeeklySubmission,
 } = require('../controllers/sytController');
 const { protect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
@@ -22,5 +23,6 @@ router.post('/:id/like', protect, toggleLike);
 router.post('/:id/bookmark', protect, toggleBookmark);
 router.get('/:id/stats', protect, getEntryStats);
 router.get('/leaderboard', getLeaderboard);
+router.get('/weekly-check', protect, checkUserWeeklySubmission);
 
 module.exports = router;

@@ -411,3 +411,55 @@ exports.toggleBookmark = async (req, res) => {
     });
   }
 };
+
+// @desc    Check if user has submitted for current week
+// @route   GET /api/syt/weekly-check
+// @access  Private
+exports.checkUserWeeklySubmission = async (req, res) => {
+  try {
+    // Get current week period (Monday to Sunday)
+    const now = new Date();
+    
+    // Calculate the start of the current week (Monday)
+    const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // If Sunday, go back 6 days
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - daysToMonday);
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    // Calculate the end of the current week (Sunday)
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    // Check if user has submitted any SYT entry this week
+    const weeklySubmission = await SYTEntry.findOne({
+      user: req.user.id,
+      createdAt: {
+        $gte: startOfWeek,
+        $lte: endOfWeek,
+      },
+      isActive: true,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        hasSubmitted: !!weeklySubmission,
+        weekStart: startOfWeek,
+        weekEnd: endOfWeek,
+        submission: weeklySubmission ? {
+          id: weeklySubmission._id,
+          title: weeklySubmission.title,
+          category: weeklySubmission.category,
+          submittedAt: weeklySubmission.createdAt,
+        } : null,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

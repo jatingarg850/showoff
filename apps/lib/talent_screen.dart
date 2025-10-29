@@ -44,12 +44,15 @@ class _TalentScreenState
   _entries = [];
   bool
   _isLoading = true;
+  bool
+  _hasSubmittedThisWeek = false;
 
   @override
   void
   initState() {
     super.initState();
     _loadEntries();
+    _checkUserWeeklySubmission();
   }
 
   Future<
@@ -87,6 +90,53 @@ class _TalentScreenState
         () => _isLoading = false,
       );
     }
+  }
+
+  Future<
+    void
+  >
+  _checkUserWeeklySubmission() async {
+    try {
+      final response = await ApiService.checkUserWeeklySubmission();
+      if (response['success']) {
+        setState(
+          () {
+            _hasSubmittedThisWeek =
+                response['data']['hasSubmitted'] ??
+                false;
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error checking weekly submission: $e',
+      );
+      // Default to false if there's an error
+      setState(
+        () {
+          _hasSubmittedThisWeek = false;
+        },
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _refreshData() async {
+    setState(
+      () {
+        _isLoading = true;
+      },
+    );
+    await Future.wait(
+      [
+        _loadEntries(),
+        _checkUserWeeklySubmission(),
+      ],
+    );
   }
 
   final List<
@@ -335,181 +385,184 @@ class _TalentScreenState
               height: 20,
             ),
 
-            // Message Box
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.symmetric(
-                horizontal: 16,
-              ),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(
-                  16,
-                ),
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(
-                      0xFF701CF5,
-                    ),
-                    Color(
-                      0xFF74B9FF,
-                    ),
-                  ],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-              ),
-              child: Container(
-                margin: const EdgeInsets.all(
-                  2,
+            // Message Box - Show only if user hasn't submitted this week
+            if (!_hasSubmittedThisWeek)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.symmetric(
+                  horizontal: 16,
                 ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(
-                    14,
+                    16,
                   ),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(
-                    14,
-                  ),
-                  child: Stack(
-                    children: [
-                      // White background
-                      Positioned.fill(
-                        child: Container(
-                          color: Colors.white,
-                        ),
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(
+                        0xFF701CF5,
                       ),
-                      // Subtle background pattern
-                      Positioned.fill(
-                        child: Opacity(
-                          opacity: 1,
-                          child: Image.asset(
-                            'assets/syt/uploadbg.png',
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      // Content
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 32,
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            ShaderMask(
-                              shaderCallback:
-                                  (
-                                    bounds,
-                                  ) =>
-                                      const LinearGradient(
-                                        colors: [
-                                          Color(
-                                            0xFF701CF5,
-                                          ),
-                                          Color(
-                                            0xFF74B9FF,
-                                          ),
-                                        ],
-                                        begin: Alignment.centerLeft,
-                                        end: Alignment.centerRight,
-                                      ).createShader(
-                                        bounds,
-                                      ),
-                              child: const Text(
-                                'You have not shared your\ntalent to the world',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(
-                              height: 8,
-                            ),
-                            const Text(
-                              'Click the button below to showoff',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(
-                              height: 20,
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(
-                                      0xFF701CF5,
-                                    ),
-                                    Color(
-                                      0xFF74B9FF,
-                                    ),
-                                  ],
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                ),
-                                borderRadius: BorderRadius.circular(
-                                  25,
-                                ),
-                              ),
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder:
-                                          (
-                                            context,
-                                          ) => const MainScreen(
-                                            initialIndex: 2,
-                                          ),
-                                    ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.transparent,
-                                  foregroundColor: Colors.white,
-                                  shadowColor: Colors.transparent,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 32,
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(
-                                      25,
-                                    ),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Show off',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                      Color(
+                        0xFF74B9FF,
                       ),
                     ],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                ),
+                child: Container(
+                  margin: const EdgeInsets.all(
+                    2,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(
+                      14,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(
+                      14,
+                    ),
+                    child: Stack(
+                      children: [
+                        // White background
+                        Positioned.fill(
+                          child: Container(
+                            color: Colors.white,
+                          ),
+                        ),
+                        // Subtle background pattern
+                        Positioned.fill(
+                          child: Opacity(
+                            opacity: 1,
+                            child: Image.asset(
+                              'assets/syt/uploadbg.png',
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        // Content
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 32,
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              ShaderMask(
+                                shaderCallback:
+                                    (
+                                      bounds,
+                                    ) =>
+                                        const LinearGradient(
+                                          colors: [
+                                            Color(
+                                              0xFF701CF5,
+                                            ),
+                                            Color(
+                                              0xFF74B9FF,
+                                            ),
+                                          ],
+                                          begin: Alignment.centerLeft,
+                                          end: Alignment.centerRight,
+                                        ).createShader(
+                                          bounds,
+                                        ),
+                                child: const Text(
+                                  'You have not shared your\ntalent to the world',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(
+                                height: 8,
+                              ),
+                              const Text(
+                                'Click the button below to showoff',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(
+                                height: 20,
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(
+                                        0xFF701CF5,
+                                      ),
+                                      Color(
+                                        0xFF74B9FF,
+                                      ),
+                                    ],
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(
+                                    25,
+                                  ),
+                                ),
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (
+                                              context,
+                                            ) => const MainScreen(
+                                              initialIndex: 2,
+                                            ),
+                                      ),
+                                    );
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    foregroundColor: Colors.white,
+                                    shadowColor: Colors.transparent,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 32,
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        25,
+                                      ),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Show off',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            const SizedBox(
-              height: 20,
+            SizedBox(
+              height: _hasSubmittedThisWeek
+                  ? 0
+                  : 20,
             ),
 
             // Competition Grid with Floating Button
@@ -537,110 +590,113 @@ class _TalentScreenState
                                   ),
                             ),
                           )
-                        : GridView.builder(
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              childAspectRatio: 0.8,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                            ),
-                            itemCount: _entries.isEmpty
-                                ? 4
-                                : _entries.length,
-                            itemBuilder:
-                                (
-                                  context,
-                                  index,
-                                ) {
-                                  // Use loaded entries if available, otherwise use dummy data
-                                  final competition =
-                                      _entries.isNotEmpty &&
-                                          index <
-                                              _entries.length
-                                      ? {
-                                          'username': '@${_entries[index]['user']?['username'] ?? 'user'}',
-                                          'category':
-                                              _entries[index]['category'] ??
-                                              'Other',
-                                          'likes':
-                                              _entries[index]['likesCount']?.toString() ??
-                                              '0',
-                                          'gradient':
-                                              competitions[index %
-                                                  competitions.length]['gradient'],
-                                          'entryId': _entries[index]['_id'],
-                                          'thumbnailUrl': _entries[index]['thumbnailUrl'],
-                                          'videoUrl': _entries[index]['videoUrl'],
-                                        }
-                                      : competitions[index];
+                        : RefreshIndicator(
+                            onRefresh: _refreshData,
+                            child: GridView.builder(
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                childAspectRatio: 0.8,
+                                crossAxisSpacing: 16,
+                                mainAxisSpacing: 16,
+                              ),
+                              itemCount: _entries.isEmpty
+                                  ? 4
+                                  : _entries.length,
+                              itemBuilder:
+                                  (
+                                    context,
+                                    index,
+                                  ) {
+                                    // Use loaded entries if available, otherwise use dummy data
+                                    final competition =
+                                        _entries.isNotEmpty &&
+                                            index <
+                                                _entries.length
+                                        ? {
+                                            'username': '@${_entries[index]['user']?['username'] ?? 'user'}',
+                                            'category':
+                                                _entries[index]['category'] ??
+                                                'Other',
+                                            'likes':
+                                                _entries[index]['likesCount']?.toString() ??
+                                                '0',
+                                            'gradient':
+                                                competitions[index %
+                                                    competitions.length]['gradient'],
+                                            'entryId': _entries[index]['_id'],
+                                            'thumbnailUrl': _entries[index]['thumbnailUrl'],
+                                            'videoUrl': _entries[index]['videoUrl'],
+                                          }
+                                        : competitions[index];
 
-                                  return GestureDetector(
-                                    onTap: () {
-                                      // Only navigate if we have real entries
-                                      if (_entries.isEmpty) {
-                                        ScaffoldMessenger.of(
+                                    return GestureDetector(
+                                      onTap: () {
+                                        // Only navigate if we have real entries
+                                        if (_entries.isEmpty) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'No entries available yet',
+                                              ),
+                                              duration: Duration(
+                                                seconds: 2,
+                                              ),
+                                            ),
+                                          );
+                                          return;
+                                        }
+
+                                        // Create real competition data for reel screen
+                                        final realCompetitions = _entries
+                                            .map(
+                                              (
+                                                entry,
+                                              ) => {
+                                                'username': '@${entry['user']?['username'] ?? 'user'}',
+                                                'category':
+                                                    entry['category'] ??
+                                                    'Other',
+                                                'likes':
+                                                    entry['likesCount']?.toString() ??
+                                                    '0',
+                                                'gradient':
+                                                    competitions[_entries.indexOf(
+                                                          entry,
+                                                        ) %
+                                                        competitions.length]['gradient'],
+                                                'entryId': entry['_id'],
+                                                'user': entry['user'],
+                                                'title': entry['title'],
+                                                'description': entry['description'],
+                                                'thumbnailUrl': entry['thumbnailUrl'],
+                                                'videoUrl': entry['videoUrl'],
+                                                '_id': entry['_id'],
+                                              },
+                                            )
+                                            .toList();
+
+                                        Navigator.push(
                                           context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'No entries available yet',
-                                            ),
-                                            duration: Duration(
-                                              seconds: 2,
-                                            ),
+                                          MaterialPageRoute(
+                                            builder:
+                                                (
+                                                  context,
+                                                ) => SYTReelScreen(
+                                                  competitions: realCompetitions,
+                                                  initialIndex: index,
+                                                ),
                                           ),
                                         );
-                                        return;
-                                      }
-
-                                      // Create real competition data for reel screen
-                                      final realCompetitions = _entries
-                                          .map(
-                                            (
-                                              entry,
-                                            ) => {
-                                              'username': '@${entry['user']?['username'] ?? 'user'}',
-                                              'category':
-                                                  entry['category'] ??
-                                                  'Other',
-                                              'likes':
-                                                  entry['likesCount']?.toString() ??
-                                                  '0',
-                                              'gradient':
-                                                  competitions[_entries.indexOf(
-                                                        entry,
-                                                      ) %
-                                                      competitions.length]['gradient'],
-                                              'entryId': entry['_id'],
-                                              'user': entry['user'],
-                                              'title': entry['title'],
-                                              'description': entry['description'],
-                                              'thumbnailUrl': entry['thumbnailUrl'],
-                                              'videoUrl': entry['videoUrl'],
-                                              '_id': entry['_id'],
-                                            },
-                                          )
-                                          .toList();
-
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (
-                                                context,
-                                              ) => SYTReelScreen(
-                                                competitions: realCompetitions,
-                                                initialIndex: index,
-                                              ),
-                                        ),
-                                      );
-                                    },
-                                    child: _buildCompetitionCard(
-                                      competition,
-                                      index,
-                                    ),
-                                  );
-                                },
+                                      },
+                                      child: _buildCompetitionCard(
+                                        competition,
+                                        index,
+                                      ),
+                                    );
+                                  },
+                            ),
                           ),
                   ),
 
