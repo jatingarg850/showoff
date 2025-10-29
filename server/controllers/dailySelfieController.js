@@ -286,18 +286,31 @@ exports.getDailySelfieLeaderboard = async (req, res) => {
 // @access  Private
 exports.getUserStreak = async (req, res) => {
   try {
-    const streak = await calculateUserStreak(req.user.id);
+    const currentStreak = await calculateUserStreak(req.user.id);
+    const longestStreak = await calculateLongestStreak(req.user.id);
+    
     const todaySubmitted = await DailySelfie.findOne({
       user: req.user.id,
       challengeDate: getTodayDateString(),
-    });
+    }).populate('user', 'username displayName profilePicture');
+
+    let todaySelfieUrl = null;
+    let todaySelfieTime = null;
+    
+    if (todaySubmitted) {
+      todaySelfieUrl = todaySubmitted.imageUrl;
+      todaySelfieTime = formatTimeAgo(todaySubmitted.createdAt);
+    }
 
     res.status(200).json({
       success: true,
       data: {
-        currentStreak: streak,
+        currentStreak,
+        longestStreak,
         todayCompleted: !!todaySubmitted,
         todayTheme: getTodayTheme(),
+        todaySelfieUrl,
+        todaySelfieTime,
       },
     });
   } catch (error) {
@@ -348,6 +361,70 @@ const calculateUserStreak = async (userId) => {
   } catch (error) {
     console.error('Error calculating streak:', error);
     return 0;
+  }
+};
+
+// Helper function to calculate user's longest streak
+const calculateLongestStreak = async (userId) => {
+  try {
+    const userSelfies = await DailySelfie.find({
+      user: userId,
+      isActive: true,
+    }).sort({ challengeDate: 1 }); // Sort ascending for longest streak calculation
+
+    if (userSelfies.length === 0) return 0;
+
+    let longestStreak = 0;
+    let currentStreak = 0;
+    let previousDate = null;
+
+    for (const selfie of userSelfies) {
+      const selfieDate = new Date(selfie.challengeDate);
+      
+      if (previousDate) {
+        const dayDifference = Math.floor((selfieDate - previousDate) / (1000 * 60 * 60 * 24));
+        
+        if (dayDifference === 1) {
+          // Consecutive day
+          currentStreak++;
+        } else {
+          // Streak broken, check if it's the longest
+          longestStreak = Math.max(longestStreak, currentStreak);
+          currentStreak = 1; // Start new streak
+        }
+      } else {
+        currentStreak = 1; // First selfie
+      }
+      
+      previousDate = selfieDate;
+    }
+
+    // Check final streak
+    longestStreak = Math.max(longestStreak, currentStreak);
+    
+    return longestStreak;
+  } catch (error) {
+    console.error('Error calculating longest streak:', error);
+    return 0;
+  }
+};
+
+// Helper function to format time ago
+const formatTimeAgo = (date) => {
+  const now = new Date();
+  const diffInMs = now - new Date(date);
+  const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  const diffInDays = Math.floor(diffInHours / 24);
+
+  if (diffInMinutes < 1) {
+    return 'Just now';
+  } else if (diffInMinutes < 60) {
+    return `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''} ago`;
+  } else if (diffInHours < 24) {
+    return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+  } else {
+    return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
   }
 };
 

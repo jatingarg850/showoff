@@ -138,6 +138,9 @@ class _DailySelfieScreenState
             _currentStreak =
                 streakResponse['data']['currentStreak'] ??
                 0;
+            _longestStreak =
+                streakResponse['data']['longestStreak'] ??
+                0;
             _todayCompleted =
                 streakResponse['data']['todayCompleted'] ??
                 false;
@@ -623,7 +626,7 @@ class _DailySelfieScreenState
                 height: 12,
               ),
               Text(
-                'Uploaded $lastSelfieTime',
+                'Uploaded ${_todaySelfieTime ?? lastSelfieTime}',
                 style: TextStyle(
                   color: Colors.white.withValues(
                     alpha: 0.7,

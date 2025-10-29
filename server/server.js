@@ -104,7 +104,7 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
@@ -118,6 +118,20 @@ app.listen(PORT, () => {
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
   `);
+
+  // Initialize default achievements
+  try {
+    const { initializeAchievements } = require('./controllers/achievementController');
+    await initializeAchievements(
+      { user: { id: 'system' } }, 
+      { 
+        json: (data) => console.log('✅ Default achievements initialized:', data.message),
+        status: () => ({ json: () => {} })
+      }
+    );
+  } catch (error) {
+    console.log('⚠️  Achievement initialization skipped:', error.message);
+  }
 });
 
 module.exports = app;
