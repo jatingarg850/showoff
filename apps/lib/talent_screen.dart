@@ -3,7 +3,7 @@ import 'leaderboard_screen.dart';
 import 'chat_screen.dart';
 import 'notification_screen.dart';
 import 'syt_reel_screen.dart';
-import 'main_screen.dart';
+import 'camera_screen.dart';
 import 'services/api_service.dart';
 
 class TalentScreen
@@ -521,8 +521,8 @@ class _TalentScreenState
                                         builder:
                                             (
                                               context,
-                                            ) => const MainScreen(
-                                              initialIndex: 2,
+                                            ) => const CameraScreen(
+                                              selectedPath: 'SYT',
                                             ),
                                       ),
                                     );
@@ -746,8 +746,8 @@ class _TalentScreenState
                               builder:
                                   (
                                     context,
-                                  ) => const MainScreen(
-                                    initialIndex: 2,
+                                  ) => const CameraScreen(
+                                    selectedPath: 'SYT',
                                   ),
                             ),
                           );
