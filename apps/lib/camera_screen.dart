@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import 'upload_content_screen.dart';
 
 class CameraScreen
@@ -43,10 +42,12 @@ class _CameraScreenState
   isFrontCamera = false;
   bool
   _isCameraInitialized = false;
-  String?
-  _lastImagePath;
+
+  // Check if this is selfie challenge mode
   bool
-  _isVideoMode = false;
+  get _isSelfieMode =>
+      widget.selectedPath ==
+      'selfie_challenge';
 
   @override
   void
@@ -183,11 +184,6 @@ class _CameraScreenState
 
     try {
       final XFile image = await _cameraController!.takePicture();
-      setState(
-        () {
-          _lastImagePath = image.path;
-        },
-      );
 
       // Haptic feedback
       HapticFeedback.mediumImpact();
@@ -295,15 +291,6 @@ class _CameraScreenState
         },
       );
     }
-  }
-
-  void
-  _toggleRecordingMode() {
-    setState(
-      () {
-        _isVideoMode = !_isVideoMode;
-      },
-    );
   }
 
   @override
@@ -511,93 +498,6 @@ class _CameraScreenState
               ),
             ),
 
-          // Mode toggle (Photo/Video)
-          Positioned(
-            bottom:
-                MediaQuery.of(
-                  context,
-                ).padding.bottom +
-                120,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(
-                      alpha: 0.5,
-                    ),
-                    borderRadius: BorderRadius.circular(
-                      25,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          if (_isVideoMode) _toggleRecordingMode();
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: !_isVideoMode
-                                ? Colors.white
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(
-                              20,
-                            ),
-                          ),
-                          child: Text(
-                            'Photo',
-                            style: TextStyle(
-                              color: !_isVideoMode
-                                  ? Colors.black
-                                  : Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          if (!_isVideoMode) _toggleRecordingMode();
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _isVideoMode
-                                ? Colors.white
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(
-                              20,
-                            ),
-                          ),
-                          child: Text(
-                            'Video',
-                            style: TextStyle(
-                              color: _isVideoMode
-                                  ? Colors.black
-                                  : Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
           // Bottom controls
           Positioned(
             bottom:
@@ -613,27 +513,54 @@ class _CameraScreenState
                 // Recent photo thumbnail
                 GestureDetector(
                   onTap: () async {
-                    // Open gallery to pick video
                     final ImagePicker picker = ImagePicker();
-                    final XFile? video = await picker.pickVideo(
-                      source: ImageSource.gallery,
-                    );
 
-                    if (video !=
-                        null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (
-                                context,
-                              ) => UploadContentScreen(
-                                selectedPath: widget.selectedPath,
-                                mediaPath: video.path,
-                                isVideo: true,
-                              ),
-                        ),
+                    if (_isSelfieMode) {
+                      // Pick image for selfie mode
+                      final XFile? image = await picker.pickImage(
+                        source: ImageSource.gallery,
                       );
+
+                      if (image !=
+                              null &&
+                          mounted) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (
+                                  context,
+                                ) => UploadContentScreen(
+                                  selectedPath: widget.selectedPath,
+                                  mediaPath: image.path,
+                                  isVideo: false,
+                                ),
+                          ),
+                        );
+                      }
+                    } else {
+                      // Pick video for reels/SYT mode
+                      final XFile? video = await picker.pickVideo(
+                        source: ImageSource.gallery,
+                      );
+
+                      if (video !=
+                              null &&
+                          mounted) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (
+                                  context,
+                                ) => UploadContentScreen(
+                                  selectedPath: widget.selectedPath,
+                                  mediaPath: video.path,
+                                  isVideo: true,
+                                ),
+                          ),
+                        );
+                      }
                     }
                   },
                   child: Container(
@@ -653,35 +580,23 @@ class _CameraScreenState
                         width: 1,
                       ),
                     ),
-                    child:
-                        _lastImagePath !=
-                            null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(
-                              12,
-                            ),
-                            child: Image.file(
-                              File(
-                                _lastImagePath!,
-                              ),
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : const Icon(
-                            Icons.photo_library,
-                            color: Colors.white,
-                            size: 24,
-                          ),
+                    child: Icon(
+                      _isSelfieMode
+                          ? Icons.photo_library
+                          : Icons.video_library,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                   ),
                 ),
 
                 // Capture button
                 GestureDetector(
-                  onTap: _isVideoMode
-                      ? (isRecording
+                  onTap: _isSelfieMode
+                      ? _takePicture
+                      : (isRecording
                             ? _stopVideoRecording
-                            : _startVideoRecording)
-                      : _takePicture,
+                            : _startVideoRecording),
                   child: Container(
                     width: 80,
                     height: 80,
@@ -699,23 +614,23 @@ class _CameraScreenState
                         8,
                       ),
                       decoration: BoxDecoration(
-                        color: _isVideoMode
-                            ? (isRecording
+                        color: _isSelfieMode
+                            ? Colors.white
+                            : (isRecording
                                   ? Colors.red
-                                  : Colors.white)
-                            : Colors.white,
-                        shape:
-                            _isVideoMode &&
-                                isRecording
-                            ? BoxShape.rectangle
-                            : BoxShape.circle,
-                        borderRadius:
-                            _isVideoMode &&
-                                isRecording
-                            ? BorderRadius.circular(
-                                8,
-                              )
-                            : null,
+                                  : Colors.white),
+                        shape: _isSelfieMode
+                            ? BoxShape.circle
+                            : (isRecording
+                                  ? BoxShape.rectangle
+                                  : BoxShape.circle),
+                        borderRadius: _isSelfieMode
+                            ? null
+                            : (isRecording
+                                  ? BorderRadius.circular(
+                                      8,
+                                    )
+                                  : null),
                       ),
                     ),
                   ),

@@ -563,44 +563,64 @@ class _TalentScreenState
                                               _entries[index]['category'] ??
                                               'Other',
                                           'likes':
-                                              _entries[index]['votesCount']?.toString() ??
+                                              _entries[index]['likesCount']?.toString() ??
                                               '0',
                                           'gradient':
                                               competitions[index %
                                                   competitions.length]['gradient'],
                                           'entryId': _entries[index]['_id'],
+                                          'thumbnailUrl': _entries[index]['thumbnailUrl'],
+                                          'videoUrl': _entries[index]['videoUrl'],
                                         }
                                       : competitions[index];
 
                                   return GestureDetector(
                                     onTap: () {
+                                      // Only navigate if we have real entries
+                                      if (_entries.isEmpty) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'No entries available yet',
+                                            ),
+                                            duration: Duration(
+                                              seconds: 2,
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+
                                       // Create real competition data for reel screen
-                                      final realCompetitions = _entries.isNotEmpty
-                                          ? _entries
-                                                .map(
-                                                  (
-                                                    entry,
-                                                  ) => {
-                                                    'username': '@${entry['user']?['username'] ?? 'user'}',
-                                                    'category':
-                                                        entry['category'] ??
-                                                        'Other',
-                                                    'likes':
-                                                        entry['votesCount']?.toString() ??
-                                                        '0',
-                                                    'gradient':
-                                                        competitions[_entries.indexOf(
-                                                              entry,
-                                                            ) %
-                                                            competitions.length]['gradient'],
-                                                    'entryId': entry['_id'],
-                                                    'user': entry['user'],
-                                                    'title': entry['title'],
-                                                    'description': entry['description'],
-                                                  },
-                                                )
-                                                .toList()
-                                          : competitions;
+                                      final realCompetitions = _entries
+                                          .map(
+                                            (
+                                              entry,
+                                            ) => {
+                                              'username': '@${entry['user']?['username'] ?? 'user'}',
+                                              'category':
+                                                  entry['category'] ??
+                                                  'Other',
+                                              'likes':
+                                                  entry['likesCount']?.toString() ??
+                                                  '0',
+                                              'gradient':
+                                                  competitions[_entries.indexOf(
+                                                        entry,
+                                                      ) %
+                                                      competitions.length]['gradient'],
+                                              'entryId': entry['_id'],
+                                              'user': entry['user'],
+                                              'title': entry['title'],
+                                              'description': entry['description'],
+                                              'thumbnailUrl': entry['thumbnailUrl'],
+                                              'videoUrl': entry['videoUrl'],
+                                              '_id': entry['_id'],
+                                            },
+                                          )
+                                          .toList();
 
                                       Navigator.push(
                                         context,
@@ -798,35 +818,54 @@ class _TalentScreenState
     competition,
     int index,
   ) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder:
-                (
-                  context,
-                ) => SYTReelScreen(
-                  competitions: competitions,
-                  initialIndex: index,
-                ),
-          ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(
-            16,
-          ),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: competition['gradient'],
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(
+          16,
         ),
-        child: Stack(
-          children: [
-            // Background pattern/texture
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: competition['gradient'],
+        ),
+      ),
+      child: Stack(
+        children: [
+          // Thumbnail image if available
+          if (competition['thumbnailUrl'] !=
+              null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(
+                16,
+              ),
+              child: Image.network(
+                ApiService.getImageUrl(
+                  competition['thumbnailUrl'],
+                ),
+                width: double.infinity,
+                height: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder:
+                    (
+                      context,
+                      error,
+                      stackTrace,
+                    ) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(
+                            16,
+                          ),
+                          color: Colors.black.withValues(
+                            alpha: 0.3,
+                          ),
+                        ),
+                      );
+                    },
+              ),
+            )
+          else
+            // Background pattern/texture fallback
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(
@@ -838,107 +877,125 @@ class _TalentScreenState
               ),
             ),
 
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(
+          // Dark overlay for text readability
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(
                 16,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // In competition badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(
-                        alpha: 0.9,
-                      ),
-                      borderRadius: BorderRadius.circular(
-                        12,
-                      ),
-                    ),
-                    child: ShaderMask(
-                      shaderCallback:
-                          (
-                            bounds,
-                          ) =>
-                              const LinearGradient(
-                                colors: [
-                                  Color(
-                                    0xFF701CF5,
-                                  ),
-                                  Color(
-                                    0xFF74B9FF,
-                                  ),
-                                ],
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                              ).createShader(
-                                bounds,
-                              ),
-                      child: const Text(
-                        'In competition',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  // User info
-                  Text(
-                    competition['username'],
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    competition['category'],
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 8,
-                  ),
-
-                  // Likes
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.thumb_up,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                      const SizedBox(
-                        width: 4,
-                      ),
-                      Text(
-                        competition['likes'],
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withValues(
+                    alpha: 0.7,
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+
+          // Content
+          Padding(
+            padding: const EdgeInsets.all(
+              16,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // In competition badge
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(
+                      alpha: 0.9,
+                    ),
+                    borderRadius: BorderRadius.circular(
+                      12,
+                    ),
+                  ),
+                  child: ShaderMask(
+                    shaderCallback:
+                        (
+                          bounds,
+                        ) =>
+                            const LinearGradient(
+                              colors: [
+                                Color(
+                                  0xFF701CF5,
+                                ),
+                                Color(
+                                  0xFF74B9FF,
+                                ),
+                              ],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            ).createShader(
+                              bounds,
+                            ),
+                    child: const Text(
+                      'In competition',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const Spacer(),
+
+                // User info
+                Text(
+                  competition['username'],
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  competition['category'],
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 8,
+                ),
+
+                // Likes
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.thumb_up,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                    const SizedBox(
+                      width: 4,
+                    ),
+                    Text(
+                      competition['likes'],
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

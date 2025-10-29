@@ -81,7 +81,8 @@ exports.sendMessage = async (req, res) => {
 // @access  Private
 exports.getConversations = async (req, res) => {
   try {
-    const currentUserId = req.user.id;
+    const mongoose = require('mongoose');
+    const currentUserId = new mongoose.Types.ObjectId(req.user.id);
 
     // Get all unique users the current user has chatted with
     const messages = await Message.aggregate([
@@ -124,11 +125,25 @@ exports.getConversations = async (req, res) => {
       },
     ]);
 
-    // Populate user details
-    const conversations = await User.populate(messages, {
+
+
+    // Populate user details and format response
+    const populatedMessages = await User.populate(messages, {
       path: '_id',
       select: 'username displayName profilePicture isVerified',
     });
+
+    // Format conversations for frontend
+    const conversations = populatedMessages.map(msg => ({
+      otherUser: msg._id, // This contains the populated user data
+      lastMessage: {
+        content: msg.lastMessage.text,
+        createdAt: msg.lastMessage.createdAt,
+      },
+      unreadCount: msg.unreadCount,
+    }));
+
+
 
     res.status(200).json({
       success: true,

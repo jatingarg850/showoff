@@ -154,6 +154,8 @@ exports.getUserPosts = async (req, res) => {
 // @access  Private
 exports.toggleLike = async (req, res) => {
   try {
+    console.log('Toggle like request:', { userId: req.user.id, postId: req.params.id });
+    
     const post = await Post.findById(req.params.id);
     
     if (!post) {
@@ -170,10 +172,12 @@ exports.toggleLike = async (req, res) => {
 
     if (existingLike) {
       // Unlike
+      console.log('Unliking post - current count:', post.likesCount);
       await existingLike.deleteOne();
-      post.likesCount -= 1;
+      post.likesCount = Math.max(0, post.likesCount - 1);
       await post.save();
 
+      console.log('Unlike successful, new count:', post.likesCount);
       res.status(200).json({
         success: true,
         liked: false,
@@ -181,12 +185,24 @@ exports.toggleLike = async (req, res) => {
       });
     } else {
       // Like
+      console.log('Liking post - current count:', post.likesCount);
       await Like.create({
         user: req.user.id,
         post: post._id,
       });
-      post.likesCount += 1;
+      post.likesCount = (post.likesCount || 0) + 1;
       await post.save();
+
+      // Verify the actual count from database
+      const actualCount = await Like.countDocuments({ post: post._id });
+      console.log('Like successful, saved count:', post.likesCount, 'actual DB count:', actualCount);
+      
+      // If there's a mismatch, fix it
+      if (actualCount !== post.likesCount) {
+        console.log('Count mismatch detected! Fixing...');
+        post.likesCount = actualCount;
+        await post.save();
+      }
 
       res.status(200).json({
         success: true,
@@ -435,6 +451,14 @@ exports.getPostStats = async (req, res) => {
     // Get bookmark count for this post
     const bookmarksCount = await Bookmark.countDocuments({ post: post._id });
 
+    // Check if current user has liked/bookmarked
+    const like = await Like.findOne({ user: req.user.id, post: post._id });
+    const bookmark = await Bookmark.findOne({ user: req.user.id, post: post._id });
+    const isLiked = !!like;
+    const isBookmarked = !!bookmark;
+
+    console.log('Get stats:', { postId: post._id, userId: req.user.id, isLiked, likesCount: post.likesCount });
+
     res.status(200).json({
       success: true,
       data: {
@@ -443,6 +467,8 @@ exports.getPostStats = async (req, res) => {
         sharesCount: post.sharesCount,
         viewsCount: post.viewsCount,
         bookmarksCount,
+        isLiked,
+        isBookmarked,
       },
     });
   } catch (error) {

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'models/selfie_achievements.dart';
-import 'models/selfie_streak_manager.dart';
+import 'services/api_service.dart';
 
 class AchievementsScreen
     extends
@@ -23,17 +22,33 @@ class _AchievementsScreenState
         >
     with
         TickerProviderStateMixin {
-  final SelfieAchievementManager
-  _achievementManager = SelfieAchievementManager();
-  final SelfieStreakManager
-  _streakManager = SelfieStreakManager();
-
   late AnimationController
   _fadeController;
   late Animation<
     double
   >
   _fadeAnimation;
+
+  List<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  _achievements = [];
+  Map<
+    String,
+    dynamic
+  >?
+  _nextAchievement;
+  int
+  _currentStreak = 0;
+  int
+  _unlockedCount = 0;
+  int
+  _totalCount = 0;
+  bool
+  _isLoading = true;
 
   @override
   void
@@ -59,6 +74,62 @@ class _AchievementsScreenState
               ),
             );
     _fadeController.forward();
+    _loadAchievements();
+  }
+
+  Future<
+    void
+  >
+  _loadAchievements() async {
+    try {
+      // Check for new achievements first
+      await ApiService.checkAndUnlockAchievements();
+
+      // Then load all achievements
+      final response = await ApiService.getUserAchievements();
+
+      if (response['success'] &&
+          mounted) {
+        setState(
+          () {
+            _achievements =
+                List<
+                  Map<
+                    String,
+                    dynamic
+                  >
+                >.from(
+                  response['data']['achievements'] ??
+                      [],
+                );
+            _nextAchievement = response['data']['nextAchievement'];
+            _currentStreak =
+                response['data']['currentStreak'] ??
+                0;
+            _unlockedCount =
+                response['data']['unlockedCount'] ??
+                0;
+            _totalCount =
+                response['data']['totalCount'] ??
+                0;
+            _isLoading = false;
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading achievements: $e',
+      );
+      if (mounted) {
+        setState(
+          () {
+            _isLoading = false;
+          },
+        );
+      }
+    }
   }
 
   @override
@@ -68,22 +139,18 @@ class _AchievementsScreenState
     super.dispose();
   }
 
+  Future<
+    void
+  >
+  _refreshAchievements() async {
+    await _loadAchievements();
+  }
+
   @override
   Widget
   build(
     BuildContext context,
   ) {
-    final currentStreak = _streakManager.currentStreak;
-    final unlockedAchievements = _achievementManager.getUnlockedAchievements(
-      currentStreak,
-    );
-    final nextAchievement = _achievementManager.getNextAchievement(
-      currentStreak,
-    );
-    final progress = _achievementManager.getProgressToNextAchievement(
-      currentStreak,
-    );
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -108,81 +175,185 @@ class _AchievementsScreenState
         ),
         centerTitle: true,
       ),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(
-            20,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Progress to next achievement
-              if (nextAchievement !=
-                  null)
-                _buildNextAchievementCard(
-                  nextAchievement,
-                  progress,
-                ),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(
+                valueColor:
+                    AlwaysStoppedAnimation<
+                      Color
+                    >(
+                      Color(
+                        0xFF701CF5,
+                      ),
+                    ),
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _refreshAchievements,
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(
+                    20,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Progress to next achievement
+                      if (_nextAchievement !=
+                          null)
+                        _buildNextAchievementCard(
+                          _nextAchievement!,
+                        ),
 
-              const SizedBox(
-                height: 30,
-              ),
+                      const SizedBox(
+                        height: 30,
+                      ),
 
-              // Achievements grid
-              const Text(
-                'Your Achievements',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                      // Stats row
+                      _buildStatsRow(),
+
+                      const SizedBox(
+                        height: 30,
+                      ),
+
+                      // Achievements grid
+                      const Text(
+                        'Your Achievements',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(
+                        height: 16,
+                      ),
+
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 0.85,
+                        ),
+                        itemCount: _achievements.length,
+                        itemBuilder:
+                            (
+                              context,
+                              index,
+                            ) {
+                              final achievement = _achievements[index];
+                              return _buildAchievementCard(
+                                achievement,
+                              );
+                            },
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(
-                height: 16,
-              ),
+            ),
+    );
+  }
 
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 0.85,
-                ),
-                itemCount: _achievementManager.achievements.length,
-                itemBuilder:
-                    (
-                      context,
-                      index,
-                    ) {
-                      final achievement = _achievementManager.achievements[index];
-                      final isUnlocked = unlockedAchievements.contains(
-                        achievement,
-                      );
-                      return _buildAchievementCard(
-                        achievement,
-                        isUnlocked,
-                      );
-                    },
-              ),
-            ],
+  Widget
+  _buildStatsRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
+            'Current Streak',
+            '$_currentStreak days',
+            Icons.local_fire_department,
+            Colors.orange,
           ),
         ),
+        const SizedBox(
+          width: 16,
+        ),
+        Expanded(
+          child: _buildStatCard(
+            'Unlocked',
+            '$_unlockedCount/$_totalCount',
+            Icons.emoji_events,
+            Colors.green,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget
+  _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(
+        16,
+      ),
+      decoration: BoxDecoration(
+        color: color.withOpacity(
+          0.1,
+        ),
+        borderRadius: BorderRadius.circular(
+          12,
+        ),
+        border: Border.all(
+          color: color.withOpacity(
+            0.3,
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            color: color,
+            size: 24,
+          ),
+          const SizedBox(
+            height: 8,
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget
   _buildNextAchievementCard(
-    SelfieAchievement nextAchievement,
-    double progress,
+    Map<
+      String,
+      dynamic
+    >
+    nextAchievement,
   ) {
-    final currentStreak = _streakManager.currentStreak;
     final remaining =
-        nextAchievement.requiredStreak -
-        currentStreak;
+        nextAchievement['requiredStreak'] -
+        _currentStreak;
+    final progress =
+        nextAchievement['progress'] ??
+        0.0;
 
     return Container(
       width: double.infinity,
@@ -235,7 +406,8 @@ class _AchievementsScreenState
                   ),
                 ),
                 child: Text(
-                  nextAchievement.icon,
+                  nextAchievement['icon'] ??
+                      '🏆',
                   style: const TextStyle(
                     fontSize: 24,
                   ),
@@ -259,7 +431,8 @@ class _AchievementsScreenState
                       ),
                     ),
                     Text(
-                      nextAchievement.title,
+                      nextAchievement['title'] ??
+                          '',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
@@ -332,9 +505,15 @@ class _AchievementsScreenState
 
   Widget
   _buildAchievementCard(
-    SelfieAchievement achievement,
-    bool isUnlocked,
+    Map<
+      String,
+      dynamic
+    >
+    achievement,
   ) {
+    final isUnlocked =
+        achievement['isUnlocked'] ??
+        false;
     return Container(
       padding: const EdgeInsets.all(
         16,
@@ -392,7 +571,8 @@ class _AchievementsScreenState
             ),
             child: Center(
               child: Text(
-                achievement.icon,
+                achievement['icon'] ??
+                    '🏆',
                 style: TextStyle(
                   fontSize: 28,
                   color: isUnlocked
@@ -406,7 +586,8 @@ class _AchievementsScreenState
             height: 12,
           ),
           Text(
-            achievement.title,
+            achievement['title'] ??
+                '',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -420,7 +601,8 @@ class _AchievementsScreenState
             height: 6,
           ),
           Text(
-            achievement.description,
+            achievement['description'] ??
+                '',
             style: TextStyle(
               fontSize: 12,
               color: isUnlocked
@@ -453,7 +635,7 @@ class _AchievementsScreenState
             child: Text(
               isUnlocked
                   ? 'Unlocked!'
-                  : '${achievement.requiredStreak} days',
+                  : '${achievement['requiredStreak'] ?? 0} days',
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,

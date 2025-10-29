@@ -33,57 +33,69 @@ class _MainScreenState
         > {
   late int
   _currentIndex;
-  int
-  _screenKey = 0; // Key to force screen rebuild
+
+  // Keep screen instances to preserve state
+  late final Widget
+  _reelScreen;
+  late final Widget
+  _talentScreen;
+  late final Widget
+  _pathScreen;
+  late final Widget
+  _walletScreen;
+  late final Widget
+  _profileScreen;
 
   @override
   void
   initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+
+    // Create screens once and reuse them
+    _reelScreen = ReelScreen(
+      key: const ValueKey(
+        'reel_screen',
+      ),
+      initialPostId: widget.initialPostId,
+    );
+    _talentScreen = TalentScreen(
+      key: const ValueKey(
+        'talent_screen',
+      ),
+    );
+    _pathScreen = PathSelectionScreen(
+      key: const ValueKey(
+        'path_screen',
+      ),
+    );
+    _walletScreen = WalletScreen(
+      key: const ValueKey(
+        'wallet_screen',
+      ),
+    );
+    _profileScreen = ProfileScreen(
+      key: const ValueKey(
+        'profile_screen',
+      ),
+    );
   }
 
-  // Method to get current screen - creates new instance each time
   Widget
   _getCurrentScreen() {
     switch (_currentIndex) {
       case 0:
-        return ReelScreen(
-          key: ValueKey(
-            'reel_$_screenKey',
-          ),
-          initialPostId: widget.initialPostId,
-        );
+        return _reelScreen;
       case 1:
-        return TalentScreen(
-          key: ValueKey(
-            'talent_$_screenKey',
-          ),
-        );
+        return _talentScreen;
       case 2:
-        return PathSelectionScreen(
-          key: ValueKey(
-            'path_$_screenKey',
-          ),
-        );
+        return _pathScreen;
       case 3:
-        return WalletScreen(
-          key: ValueKey(
-            'wallet_$_screenKey',
-          ),
-        );
+        return _walletScreen;
       case 4:
-        return ProfileScreen(
-          key: ValueKey(
-            'profile_$_screenKey',
-          ),
-        );
+        return _profileScreen;
       default:
-        return ReelScreen(
-          key: ValueKey(
-            'reel_$_screenKey',
-          ),
-        );
+        return _reelScreen;
     }
   }
 
@@ -94,7 +106,6 @@ class _MainScreenState
     setState(
       () {
         _currentIndex = index;
-        _screenKey++; // Increment key to force rebuild
       },
     );
   }

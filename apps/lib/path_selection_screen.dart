@@ -322,6 +322,9 @@ class _PathSelectionScreenState
                               (
                                 context,
                               ) => const DailySelfieScreen(),
+                          settings: const RouteSettings(
+                            name: '/daily_selfie',
+                          ),
                         ),
                       );
                     },

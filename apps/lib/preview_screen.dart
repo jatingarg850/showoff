@@ -525,12 +525,50 @@ class _PreviewScreenState
                         )
                         .toList();
 
-                    // Upload based on path (SYT or regular post)
+                    // Upload based on path (SYT, selfie challenge, or regular post)
                     if (widget.selectedPath ==
+                        'selfie_challenge') {
+                      // Submit daily selfie
+                      final response = await ApiService.submitDailySelfie(
+                        mediaFile,
+                      );
+
+                      if (!mounted) return;
+                      Navigator.pop(
+                        context,
+                      ); // Close loading
+
+                      if (response['success']) {
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Daily selfie submitted successfully! 📸',
+                            ),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      } else {
+                        throw Exception(
+                          response['message'] ??
+                              'Selfie upload failed',
+                        );
+                      }
+                    } else if (widget.selectedPath ==
                         'SYT') {
-                      // Submit SYT entry
+                      // Submit SYT entry with thumbnail
+                      File? thumbnailFile;
+                      if (widget.thumbnailPath !=
+                          null) {
+                        thumbnailFile = File(
+                          widget.thumbnailPath!,
+                        );
+                      }
+
                       final response = await ApiService.submitSYTEntry(
                         videoFile: mediaFile,
+                        thumbnailFile: thumbnailFile,
                         title: widget.caption.isEmpty
                             ? 'My Talent'
                             : widget.caption,
@@ -618,29 +656,45 @@ class _PreviewScreenState
                       }
                     }
 
-                    // Navigate to main screen
+                    // Navigate based on upload type
                     if (!mounted) return;
-                    Navigator.popUntil(
-                      context,
-                      (
-                        route,
-                      ) => route.isFirst,
-                    );
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (
-                              context,
-                            ) => MainScreen(
-                              initialIndex:
-                                  widget.selectedPath ==
-                                      'SYT'
-                                  ? 1
-                                  : 0,
-                            ),
-                      ),
-                    );
+
+                    if (widget.selectedPath ==
+                        'selfie_challenge') {
+                      // For selfie challenge, go back to daily selfie screen
+                      Navigator.popUntil(
+                        context,
+                        (
+                          route,
+                        ) =>
+                            route.settings.name ==
+                                '/daily_selfie' ||
+                            route.isFirst,
+                      );
+                    } else {
+                      // For other uploads, go to main screen
+                      Navigator.popUntil(
+                        context,
+                        (
+                          route,
+                        ) => route.isFirst,
+                      );
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (
+                                context,
+                              ) => MainScreen(
+                                initialIndex:
+                                    widget.selectedPath ==
+                                        'SYT'
+                                    ? 1
+                                    : 0,
+                              ),
+                        ),
+                      );
+                    }
                   } catch (
                     e
                   ) {

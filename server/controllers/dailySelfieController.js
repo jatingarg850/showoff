@@ -91,10 +91,19 @@ exports.submitDailySelfie = async (req, res) => {
     await awardCoins(
       req.user.id,
       5,
-      'daily_selfie',
+      'upload_reward',
       'Daily selfie challenge participation',
       { relatedDailySelfie: selfie._id }
     );
+
+    // Check for new achievements
+    try {
+      const { checkAndUnlockAchievements } = require('./achievementController');
+      await checkAndUnlockAchievements({ user: { id: req.user.id } }, { json: () => {} });
+    } catch (achievementError) {
+      console.error('Error checking achievements:', achievementError);
+      // Don't fail the selfie submission if achievement check fails
+    }
 
     res.status(201).json({
       success: true,

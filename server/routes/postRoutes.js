@@ -29,6 +29,6 @@ router.post('/:id/view', incrementView);
 router.post('/:id/bookmark', protect, toggleBookmark);
 router.post('/:id/share', protect, sharePost);
 router.get('/bookmarks', protect, getUserBookmarks);
-router.get('/:id/stats', getPostStats);
+router.get('/:id/stats', protect, getPostStats);
 
 module.exports = router;

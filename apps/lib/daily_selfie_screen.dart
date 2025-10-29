@@ -60,6 +60,10 @@ class _DailySelfieScreenState
   lastSelfieTime = "2 hours ago";
   bool
   _isLoading = true;
+  String?
+  _todaySelfieUrl;
+  String?
+  _todaySelfieTime;
 
   int
   get currentStreak => _currentStreak;
@@ -140,6 +144,8 @@ class _DailySelfieScreenState
             _todayTheme =
                 streakResponse['data']['todayTheme'] ??
                 '';
+            _todaySelfieUrl = streakResponse['data']['todaySelfieUrl'];
+            _todaySelfieTime = streakResponse['data']['todaySelfieTime'];
           },
         );
       }
@@ -221,6 +227,19 @@ class _DailySelfieScreenState
                       const SizedBox(
                         height: 30,
                       ),
+
+                      // Today's Selfie (if completed)
+                      if (_todayCompleted &&
+                          _todaySelfieUrl !=
+                              null)
+                        _buildTodaysSelfie(),
+
+                      if (_todayCompleted &&
+                          _todaySelfieUrl !=
+                              null)
+                        const SizedBox(
+                          height: 30,
+                        ),
 
                       // Recent Selfies
                       _buildRecentSelfies(),
@@ -782,6 +801,13 @@ class _DailySelfieScreenState
                                 selectedPath: 'selfie_challenge',
                               ),
                         ),
+                      ).then(
+                        (
+                          _,
+                        ) {
+                          // Refresh data when returning from camera
+                          _loadSelfieData();
+                        },
                       );
                     },
               style: ElevatedButton.styleFrom(
@@ -1062,6 +1088,178 @@ class _DailySelfieScreenState
           ),
         ),
       ],
+    );
+  }
+
+  Widget
+  _buildTodaysSelfie() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(
+        20,
+      ),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(
+              0xFF4CAF50,
+            ),
+            Color(
+              0xFF45A049,
+            ),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(
+          20,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: 0.1,
+            ),
+            blurRadius: 15,
+            offset: const Offset(
+              0,
+              5,
+            ),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.check_circle,
+                color: Colors.white,
+                size: 24,
+              ),
+              const SizedBox(
+                width: 12,
+              ),
+              const Text(
+                'Today\'s Selfie',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(
+                    alpha: 0.2,
+                  ),
+                  borderRadius: BorderRadius.circular(
+                    12,
+                  ),
+                ),
+                child: Text(
+                  'Expires at midnight',
+                  style: TextStyle(
+                    color: Colors.white.withValues(
+                      alpha: 0.9,
+                    ),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(
+            height: 16,
+          ),
+
+          // Selfie Image
+          ClipRRect(
+            borderRadius: BorderRadius.circular(
+              12,
+            ),
+            child: AspectRatio(
+              aspectRatio:
+                  3 /
+                  4, // Portrait aspect ratio for selfies
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(
+                    alpha: 0.1,
+                  ),
+                  borderRadius: BorderRadius.circular(
+                    12,
+                  ),
+                ),
+                child:
+                    _todaySelfieUrl !=
+                        null
+                    ? Image.network(
+                        ApiService.getImageUrl(
+                          _todaySelfieUrl!,
+                        ),
+                        fit: BoxFit.cover,
+                        errorBuilder:
+                            (
+                              context,
+                              error,
+                              stackTrace,
+                            ) {
+                              return Container(
+                                color: Colors.white.withValues(
+                                  alpha: 0.1,
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.image_not_supported,
+                                    color: Colors.white,
+                                    size: 48,
+                                  ),
+                                ),
+                              );
+                            },
+                      )
+                    : Container(
+                        color: Colors.white.withValues(
+                          alpha: 0.1,
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.camera_alt,
+                            color: Colors.white,
+                            size: 48,
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+          ),
+
+          const SizedBox(
+            height: 12,
+          ),
+
+          // Upload time
+          if (_todaySelfieTime !=
+              null)
+            Text(
+              'Uploaded $_todaySelfieTime',
+              style: TextStyle(
+                color: Colors.white.withValues(
+                  alpha: 0.8,
+                ),
+                fontSize: 12,
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

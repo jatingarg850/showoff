@@ -1,5 +1,6 @@
 const SYTEntry = require('../models/SYTEntry');
 const Vote = require('../models/Vote');
+const Like = require('../models/Like');
 const User = require('../models/User');
 const { awardCoins } = require('../utils/coinSystem');
 
@@ -27,7 +28,11 @@ exports.submitEntry = async (req, res) => {
   try {
     const { title, description, category, competitionType } = req.body;
 
-    if (!req.file) {
+    // Handle both single file and multiple files (video + thumbnail)
+    const videoFile = req.files?.video?.[0] || req.file;
+    const thumbnailFile = req.files?.thumbnail?.[0];
+
+    if (!videoFile) {
       return res.status(400).json({
         success: false,
         message: 'Please upload a video',
@@ -49,25 +54,37 @@ exports.submitEntry = async (req, res) => {
       });
     }
 
-    // Handle both S3 (location/key) and local storage (path)
+    // Handle video URL - both S3 (location/key) and local storage (path)
     let videoUrl;
-    if (req.file.key) {
+    if (videoFile.key) {
       // S3/Wasabi - construct correct public URL
       const region = process.env.WASABI_REGION || 'ap-southeast-1';
       const bucketName = process.env.WASABI_BUCKET_NAME;
-      // Use path-style URL that matches SSL certificate
-      videoUrl = `https://s3.${region}.wasabisys.com/${bucketName}/${req.file.key}`;
-    } else if (req.file.location) {
-      // Fallback to location if provided
-      videoUrl = req.file.location;
+      videoUrl = `https://s3.${region}.wasabisys.com/${bucketName}/${videoFile.key}`;
+    } else if (videoFile.location) {
+      videoUrl = videoFile.location;
     } else {
-      // Local storage - construct relative path
-      videoUrl = `/uploads/videos/${req.file.filename}`;
+      videoUrl = `/uploads/videos/${videoFile.filename}`;
+    }
+
+    // Handle thumbnail URL if provided
+    let thumbnailUrl = null;
+    if (thumbnailFile) {
+      if (thumbnailFile.key) {
+        const region = process.env.WASABI_REGION || 'ap-southeast-1';
+        const bucketName = process.env.WASABI_BUCKET_NAME;
+        thumbnailUrl = `https://s3.${region}.wasabisys.com/${bucketName}/${thumbnailFile.key}`;
+      } else if (thumbnailFile.location) {
+        thumbnailUrl = thumbnailFile.location;
+      } else {
+        thumbnailUrl = `/uploads/images/${thumbnailFile.filename}`;
+      }
     }
 
     const entry = await SYTEntry.create({
       user: req.user.id,
       videoUrl: videoUrl,
+      thumbnailUrl: thumbnailUrl,
       title,
       description,
       category,
@@ -142,18 +159,23 @@ exports.voteEntry = async (req, res) => {
       });
     }
 
-    // Check if user already voted today
-    const today = new Date().setHours(0, 0, 0, 0);
+    // Check if user already voted in the last 24 hours
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const existingVote = await Vote.findOne({
       user: req.user.id,
       sytEntry: entry._id,
-      voteDate: { $gte: today },
+      voteDate: { $gte: twentyFourHoursAgo },
     });
 
     if (existingVote) {
+      // Calculate time remaining until next vote
+      const nextVoteTime = new Date(existingVote.voteDate.getTime() + 24 * 60 * 60 * 1000);
+      const hoursRemaining = Math.ceil((nextVoteTime - Date.now()) / (60 * 60 * 1000));
+      
       return res.status(400).json({
         success: false,
-        message: 'You have already voted for this entry today',
+        message: `You can vote again in ${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''}`,
+        nextVoteTime: nextVoteTime.toISOString(),
       });
     }
 
@@ -213,6 +235,174 @@ exports.getLeaderboard = async (req, res) => {
       success: true,
       data: entries,
       period,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Toggle like on SYT entry
+// @route   POST /api/syt/:id/like
+// @access  Private
+exports.toggleLike = async (req, res) => {
+  try {
+    const entry = await SYTEntry.findById(req.params.id);
+    
+    if (!entry) {
+      return res.status(404).json({
+        success: false,
+        message: 'Entry not found',
+      });
+    }
+
+    // Check if user already liked this entry
+    const existingLike = await Like.findOne({
+      user: req.user.id,
+      sytEntry: entry._id,
+    });
+
+    let isLiked;
+    
+    if (existingLike) {
+      // Unlike
+      await Like.deleteOne({ _id: existingLike._id });
+      entry.likesCount = Math.max(0, entry.likesCount - 1);
+      isLiked = false;
+    } else {
+      // Like
+      await Like.create({
+        user: req.user.id,
+        sytEntry: entry._id,
+      });
+      entry.likesCount += 1;
+      isLiked = true;
+    }
+
+    await entry.save();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        isLiked,
+        likesCount: entry.likesCount,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Get SYT entry stats
+// @route   GET /api/syt/:id/stats
+// @access  Public (but returns user-specific data if authenticated)
+exports.getEntryStats = async (req, res) => {
+  try {
+    const entry = await SYTEntry.findById(req.params.id);
+    
+    if (!entry) {
+      return res.status(404).json({
+        success: false,
+        message: 'Entry not found',
+      });
+    }
+
+    const stats = {
+      likesCount: entry.likesCount || 0,
+      votesCount: entry.votesCount || 0,
+      commentsCount: entry.commentsCount || 0,
+      viewsCount: entry.viewsCount || 0,
+    };
+
+    // If user is authenticated, check their interactions
+    if (req.user) {
+      const Bookmark = require('../models/Bookmark');
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      
+      const [isLiked, recentVote, isBookmarked] = await Promise.all([
+        Like.exists({ user: req.user.id, sytEntry: entry._id }),
+        Vote.findOne({ 
+          user: req.user.id, 
+          sytEntry: entry._id,
+          voteDate: { $gte: twentyFourHoursAgo }
+        }),
+        Bookmark.exists({ user: req.user.id, sytEntry: entry._id }),
+      ]);
+      
+      stats.isLiked = !!isLiked;
+      stats.hasVoted = !!recentVote;
+      stats.isBookmarked = !!isBookmarked;
+      
+      // If they voted recently, include when they can vote again
+      if (recentVote) {
+        const nextVoteTime = new Date(recentVote.voteDate.getTime() + 24 * 60 * 60 * 1000);
+        stats.nextVoteTime = nextVoteTime.toISOString();
+        stats.hoursUntilNextVote = Math.ceil((nextVoteTime - Date.now()) / (60 * 60 * 1000));
+      }
+    } else {
+      stats.isLiked = false;
+      stats.hasVoted = false;
+      stats.isBookmarked = false;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: stats,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Toggle bookmark on SYT entry
+// @route   POST /api/syt/:id/bookmark
+// @access  Private
+exports.toggleBookmark = async (req, res) => {
+  try {
+    const Bookmark = require('../models/Bookmark');
+    const entry = await SYTEntry.findById(req.params.id);
+    
+    if (!entry) {
+      return res.status(404).json({
+        success: false,
+        message: 'Entry not found',
+      });
+    }
+
+    // Check if user already bookmarked this entry
+    const existingBookmark = await Bookmark.findOne({
+      user: req.user.id,
+      sytEntry: entry._id,
+    });
+
+    let isBookmarked;
+    
+    if (existingBookmark) {
+      // Remove bookmark
+      await Bookmark.deleteOne({ _id: existingBookmark._id });
+      isBookmarked = false;
+    } else {
+      // Add bookmark
+      await Bookmark.create({
+        user: req.user.id,
+        sytEntry: entry._id,
+      });
+      isBookmarked = true;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        isBookmarked,
+      },
     });
   } catch (error) {
     res.status(500).json({

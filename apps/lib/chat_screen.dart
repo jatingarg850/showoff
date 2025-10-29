@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'services/api_service.dart';
+import 'user_profile_screen.dart';
 
 class ChatScreen
     extends
@@ -13,6 +14,8 @@ class ChatScreen
   displayName;
   final bool
   isVerified;
+  final String?
+  profilePicture;
 
   const ChatScreen({
     super.key,
@@ -20,6 +23,7 @@ class ChatScreen
     required this.username,
     required this.displayName,
     this.isVerified = false,
+    this.profilePicture,
   });
 
   @override
@@ -59,6 +63,9 @@ class _ChatScreenState
   void
   initState() {
     super.initState();
+    print(
+      'ChatScreen profilePicture: ${widget.profilePicture}',
+    );
     _loadMessages();
     _startPolling();
   }
@@ -313,116 +320,134 @@ class _ChatScreenState
             context,
           ),
         ),
-        title: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(
-                      0xFF701CF5,
+        title: GestureDetector(
+          onTap: () {
+            // Navigate to user profile
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder:
+                    (
+                      context,
+                    ) => UserProfileScreen(
+                      userInfo: {
+                        '_id': widget.userId,
+                        'id': widget.userId,
+                        'username': widget.username,
+                        'displayName': widget.displayName,
+                        'isVerified': widget.isVerified,
+                        'profilePicture': widget.profilePicture,
+                      },
                     ),
-                    Color(
-                      0xFF3E98E4,
-                    ),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
               ),
-              child: const Icon(
-                Icons.person,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            const SizedBox(
-              width: 12,
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        widget.displayName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
+            );
+          },
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(
+                        0xFF701CF5,
                       ),
-                      if (widget.isVerified)
-                        const Padding(
-                          padding: EdgeInsets.only(
-                            left: 4,
+                      Color(
+                        0xFF3E98E4,
+                      ),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  image:
+                      widget.profilePicture !=
+                              null &&
+                          widget.profilePicture!.isNotEmpty
+                      ? DecorationImage(
+                          image: NetworkImage(
+                            widget.profilePicture!.startsWith(
+                                  'http',
+                                )
+                                ? widget.profilePicture!
+                                : ApiService.getImageUrl(
+                                    widget.profilePicture!,
+                                  ),
                           ),
-                          child: Icon(
-                            Icons.verified,
-                            size: 16,
-                            color: Color(
-                              0xFF701CF5,
+                          fit: BoxFit.cover,
+                          onError:
+                              (
+                                exception,
+                                stackTrace,
+                              ) {
+                                print(
+                                  'Error loading profile picture: $exception',
+                                );
+                                print(
+                                  'Profile picture URL: ${widget.profilePicture}',
+                                );
+                              },
+                        )
+                      : null,
+                ),
+                child:
+                    widget.profilePicture ==
+                            null ||
+                        widget.profilePicture!.isEmpty
+                    ? const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 20,
+                      )
+                    : null,
+              ),
+              const SizedBox(
+                width: 12,
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          widget.displayName,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        if (widget.isVerified)
+                          const Padding(
+                            padding: EdgeInsets.only(
+                              left: 4,
+                            ),
+                            child: Icon(
+                              Icons.verified,
+                              size: 16,
+                              color: Color(
+                                0xFF701CF5,
+                              ),
                             ),
                           ),
-                        ),
-                    ],
-                  ),
-                  Text(
-                    '@${widget.username}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
+                      ],
                     ),
-                  ),
-                ],
+                    Text(
+                      '@${widget.username}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.videocam,
-              color: Color(
-                0xFF701CF5,
-              ),
-            ),
-            onPressed: () {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Video call feature coming soon!',
-                  ),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(
-              Icons.call,
-              color: Color(
-                0xFF701CF5,
-              ),
-            ),
-            onPressed: () {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Voice call feature coming soon!',
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
+        actions: [],
       ),
       body: Column(
         children: [

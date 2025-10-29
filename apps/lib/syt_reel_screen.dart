@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:video_player/video_player.dart';
 import 'comments_screen.dart';
 import 'gift_screen.dart';
 import 'services/api_service.dart';
@@ -37,21 +38,15 @@ class _SYTReelScreenState
         >
     with
         TickerProviderStateMixin {
-  final PageController
-  _pageController = PageController();
+  late PageController
+  _pageController;
 
   late AnimationController
   _fadeController;
-  late AnimationController
-  _scaleController;
   late Animation<
     double
   >
   _fadeAnimation;
-  late Animation<
-    double
-  >
-  _scaleAnimation;
 
   int
   _currentIndex = 0;
@@ -72,6 +67,18 @@ class _SYTReelScreenState
     bool
   >
   _savedReels = {};
+  final Map<
+    int,
+    int?
+  >
+  _hoursUntilNextVote = {};
+
+  // Video controllers for each reel
+  final Map<
+    int,
+    VideoPlayerController?
+  >
+  _videoControllers = {};
 
   @override
   void
@@ -80,17 +87,15 @@ class _SYTReelScreenState
 
     _currentIndex = widget.initialIndex;
 
+    // Initialize PageController with initial page
+    _pageController = PageController(
+      initialPage: widget.initialIndex,
+    );
+
     // Initialize animation controllers
     _fadeController = AnimationController(
       duration: const Duration(
         milliseconds: 300,
-      ),
-      vsync: this,
-    );
-
-    _scaleController = AnimationController(
-      duration: const Duration(
-        milliseconds: 400,
       ),
       vsync: this,
     );
@@ -110,32 +115,140 @@ class _SYTReelScreenState
               ),
             );
 
-    _scaleAnimation =
-        Tween<
-              double
-            >(
-              begin: 0.8,
-              end: 1.0,
-            )
-            .animate(
-              CurvedAnimation(
-                parent: _scaleController,
-                curve: Curves.elasticOut,
-              ),
-            );
-
     // Start initial animations
     _fadeController.forward();
-    _scaleController.forward();
+
+    // Load real stats for entries
+    _loadEntriesStats();
+
+    // Initialize video for current page
+    _initializeVideoForIndex(
+      _currentIndex,
+    );
+  }
+
+  Future<
+    void
+  >
+  _loadEntriesStats() async {
+    print(
+      'Loading stats for entries...',
+    );
+    // Load stats for the current entry and nearby entries
+    for (
+      int i = 0;
+      i <
+          widget.competitions.length;
+      i++
+    ) {
+      if (i >=
+              _currentIndex -
+                  1 &&
+          i <=
+              _currentIndex +
+                  1) {
+        print(
+          'Loading stats for entry $i',
+        );
+        await _reloadEntryStats(
+          i,
+        );
+      }
+    }
   }
 
   @override
   void
   dispose() {
     _fadeController.dispose();
-    _scaleController.dispose();
     _pageController.dispose();
+    // Dispose all video controllers
+    for (final controller in _videoControllers.values) {
+      controller?.dispose();
+    }
     super.dispose();
+  }
+
+  Future<
+    void
+  >
+  _initializeVideoForIndex(
+    int index,
+  ) async {
+    if (index <
+            0 ||
+        index >=
+            widget.competitions.length) {
+      return;
+    }
+
+    final competition = widget.competitions[index];
+    final videoUrl = competition['videoUrl'];
+
+    if (videoUrl ==
+        null) {
+      return;
+    }
+
+    // Dispose previous controller if exists
+    if (_videoControllers[index] !=
+        null) {
+      await _videoControllers[index]!.pause();
+      return;
+    }
+
+    try {
+      final fullUrl = ApiService.getImageUrl(
+        videoUrl,
+      );
+      final controller = VideoPlayerController.networkUrl(
+        Uri.parse(
+          fullUrl,
+        ),
+      );
+
+      await controller.initialize();
+      controller.setLooping(
+        true,
+      );
+      await controller.play();
+
+      if (mounted) {
+        setState(
+          () {
+            _videoControllers[index] = controller;
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error initializing video: $e',
+      );
+    }
+  }
+
+  void
+  _pauseAllVideos() {
+    for (final controller in _videoControllers.values) {
+      controller?.pause();
+    }
+  }
+
+  void
+  _playVideoAtIndex(
+    int index,
+  ) {
+    _pauseAllVideos();
+    if (_videoControllers[index] !=
+        null) {
+      _videoControllers[index]!.play();
+    } else {
+      _initializeVideoForIndex(
+        index,
+      );
+    }
   }
 
   Future<
@@ -149,19 +262,9 @@ class _SYTReelScreenState
     reel,
     int index,
   ) async {
-    // Check if already voted
+    // Check if already voted - just return silently, the colored icon shows the state
     if (_votedReels[index] ==
         true) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'You have already voted for this entry!',
-          ),
-          backgroundColor: Colors.orange,
-        ),
-      );
       return;
     }
 
@@ -190,51 +293,197 @@ class _SYTReelScreenState
       );
 
       if (response['success']) {
+        print(
+          'Vote successful! Setting _votedReels[$index] = true',
+        );
         setState(
           () {
             _votedReels[index] = true;
+            // Update vote count
+            final currentVotes =
+                int.tryParse(
+                  widget.competitions[index]['likes'] ??
+                      '0',
+                ) ??
+                0;
+            widget.competitions[index]['likes'] =
+                (currentVotes +
+                        1)
+                    .toString();
+            print(
+              'Updated vote count to: ${widget.competitions[index]['likes']}',
+            );
+            print(
+              '_votedReels[$index] is now: ${_votedReels[index]}',
+            );
           },
         );
 
         HapticFeedback.mediumImpact();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Voted for ${reel['username']}! +1 coin to creator',
-            ),
-            backgroundColor: Colors.amber,
-            duration: const Duration(
-              seconds: 2,
-            ),
-          ),
-        );
+
+        // Don't reload stats immediately - the voted state is already set correctly
+        // Stats will be reloaded on next page change or app restart
       } else {
+        print(
+          'Vote failed: ${response['message']}',
+        );
+        // Vote failed (already voted) - reload stats to get accurate state
+        await _reloadEntryStats(
+          index,
+        );
+      }
+    } catch (
+      e
+    ) {
+      // Silently handle errors - the UI state shows whether voting is available
+      print(
+        'Vote error: $e',
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _toggleBookmark(
+    String entryId,
+    int index,
+  ) async {
+    try {
+      final response = await ApiService.toggleSYTBookmark(
+        entryId,
+      );
+      if (response['success'] &&
+          mounted) {
+        setState(
+          () {
+            _savedReels[index] = response['data']['isBookmarked'];
+          },
+        );
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(
           SnackBar(
             content: Text(
-              response['message'] ??
-                  'Failed to vote',
+              response['data']['isBookmarked']
+                  ? 'Saved!'
+                  : 'Removed from saved',
             ),
-            backgroundColor: Colors.orange,
+            duration: const Duration(
+              seconds: 1,
+            ),
           ),
         );
       }
     } catch (
       e
     ) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Error voting: $e',
+      print(
+        'Error toggling bookmark: $e',
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _shareEntry(
+    String entryId,
+    int index,
+  ) async {
+    try {
+      final response = await ApiService.sharePost(
+        entryId,
+      );
+      if (response['success'] &&
+          mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Shared!',
+            ),
+            duration: Duration(
+              seconds: 1,
+            ),
           ),
-          backgroundColor: Colors.red,
-        ),
+        );
+        await _reloadEntryStats(
+          index,
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error sharing: $e',
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _reloadEntryStats(
+    int index,
+  ) async {
+    try {
+      final reel = widget.competitions[index];
+      final entryId =
+          reel['_id'] ??
+          reel['entryId'];
+      if (entryId !=
+          null) {
+        final statsResponse = await ApiService.getSYTEntryStats(
+          entryId,
+        );
+        if (statsResponse['success'] &&
+            mounted) {
+          print(
+            'Stats loaded for entry $index:',
+          );
+          print(
+            '  hasVoted: ${statsResponse['data']['hasVoted']}',
+          );
+          print(
+            '  likesCount: ${statsResponse['data']['likesCount']}',
+          );
+          print(
+            '  hoursUntilNextVote: ${statsResponse['data']['hoursUntilNextVote']}',
+          );
+
+          setState(
+            () {
+              widget.competitions[index]['likes'] =
+                  statsResponse['data']['likesCount']?.toString() ??
+                  '0';
+              widget.competitions[index]['comments'] =
+                  statsResponse['data']['commentsCount']?.toString() ??
+                  '0';
+              _likedReels[index] =
+                  statsResponse['data']['isLiked'] ??
+                  false;
+              _votedReels[index] =
+                  statsResponse['data']['hasVoted'] ??
+                  false;
+              _savedReels[index] =
+                  statsResponse['data']['isBookmarked'] ??
+                  false;
+              _hoursUntilNextVote[index] = statsResponse['data']['hoursUntilNextVote'];
+
+              print(
+                '  _votedReels[$index] set to: ${_votedReels[index]}',
+              );
+            },
+          );
+        }
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error reloading stats: $e',
       );
     }
   }
@@ -251,32 +500,47 @@ class _SYTReelScreenState
     >
     competition,
   ) {
-    final likes =
-        competition['likes'] ??
-        '0';
-    final likesInt =
-        int.tryParse(
-          likes,
-        ) ??
-        0;
-
+    // Use real data from backend, not calculated values
     return {
-      'username': competition['username'],
+      'username':
+          competition['username'] ??
+          '@user',
       'description':
           competition['description'] ??
           (competition['title'] !=
                   null
               ? '${competition['title']} - ${competition['category']} 🎭'
               : 'Competing in ${competition['category']} - Show Your Talent! 🎭'),
-      'likes': likes,
-      'comments': '${likesInt ~/ 4}',
-      'shares': '${likesInt ~/ 10}',
-      'bookmarks': '${likesInt ~/ 20}',
+      'likes':
+          competition['likes'] ??
+          competition['votesCount']?.toString() ??
+          '0',
+      'comments':
+          competition['comments'] ??
+          competition['commentsCount']?.toString() ??
+          '0',
+      'shares':
+          competition['shares'] ??
+          competition['sharesCount']?.toString() ??
+          '0',
+      'bookmarks':
+          competition['bookmarks'] ??
+          competition['bookmarksCount']?.toString() ??
+          '0',
       'isAd': false,
       'duration': '00:30',
-      'category': competition['category'],
+      'category':
+          competition['category'] ??
+          'Other',
       'gradient': competition['gradient'],
-      'entryId': competition['entryId'],
+      'entryId':
+          competition['entryId'] ??
+          competition['_id'],
+      'user': competition['user'],
+      '_id':
+          competition['_id'] ??
+          competition['entryId'],
+      'userId': competition['user']?['_id'],
     };
   }
 
@@ -303,9 +567,25 @@ class _SYTReelScreenState
 
               // Trigger animations on page change
               _fadeController.reset();
-              _scaleController.reset();
               _fadeController.forward();
-              _scaleController.forward();
+
+              // Play video at current index
+              _playVideoAtIndex(
+                index,
+              );
+
+              // Load stats for nearby entries
+              _reloadEntryStats(
+                index,
+              );
+              if (index +
+                      1 <
+                  widget.competitions.length) {
+                _reloadEntryStats(
+                  index +
+                      1,
+                );
+              }
             },
         itemCount: widget.competitions.length,
         itemBuilder:
@@ -368,98 +648,98 @@ class _SYTReelScreenState
     reel,
     int index,
   ) {
+    final videoController = _videoControllers[index];
+    final hasVideo =
+        videoController !=
+            null &&
+        videoController.value.isInitialized;
+
     return Stack(
       children: [
-        // Animated background with competition gradient
-        AnimatedContainer(
-          duration: const Duration(
-            milliseconds: 500,
-          ),
-          curve: Curves.easeInOut,
-          width: double.infinity,
-          height: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors:
-                  reel['gradient']
-                      as List<
-                        Color
-                      >,
+        // Video player or gradient background
+        if (hasVideo)
+          SizedBox.expand(
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: videoController.value.size.width,
+                height: videoController.value.size.height,
+                child: VideoPlayer(
+                  videoController,
+                ),
+              ),
+            ),
+          )
+        else
+          // Animated background with competition gradient (fallback)
+          AnimatedContainer(
+            duration: const Duration(
+              milliseconds: 500,
+            ),
+            curve: Curves.easeInOut,
+            width: double.infinity,
+            height: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors:
+                    reel['gradient']
+                        as List<
+                          Color
+                        >,
+              ),
+            ),
+            child: Center(
+              child: const CircularProgressIndicator(
+                color: Colors.white,
+              ),
             ),
           ),
-          child: AnimatedBuilder(
-            animation: Listenable.merge(
-              [
-                _fadeAnimation,
-                _scaleAnimation,
-              ],
-            ),
-            builder:
-                (
-                  context,
-                  child,
-                ) {
-                  final isCurrentReel =
-                      index ==
-                      _currentIndex;
-                  return AnimatedScale(
-                    scale: isCurrentReel
-                        ? _scaleAnimation.value
-                        : 0.95,
-                    duration: const Duration(
-                      milliseconds: 400,
-                    ),
-                    curve: Curves.elasticOut,
-                    child: FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: Center(
-                        child:
-                            TweenAnimationBuilder<
-                              double
-                            >(
-                              duration: const Duration(
-                                milliseconds: 800,
-                              ),
-                              tween: Tween(
-                                begin: 0.0,
-                                end: 1.0,
-                              ),
-                              builder:
-                                  (
-                                    context,
-                                    value,
-                                    child,
-                                  ) {
-                                    return Transform.rotate(
-                                      angle:
-                                          (1 -
-                                              value) *
-                                          0.1,
-                                      child: Transform.scale(
-                                        scale:
-                                            0.7 +
-                                            (0.3 *
-                                                value),
-                                        child: Opacity(
-                                          opacity: value,
-                                          child: const Icon(
-                                            Icons.play_circle_outline,
-                                            color: Colors.white54,
-                                            size: 80,
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                            ),
-                      ),
-                    ),
-                  );
+
+        // Tap to play/pause
+        GestureDetector(
+          onTap: () {
+            if (hasVideo) {
+              setState(
+                () {
+                  if (videoController.value.isPlaying) {
+                    videoController.pause();
+                  } else {
+                    videoController.play();
+                  }
                 },
+              );
+            }
+          },
+          child: Container(
+            color: Colors.transparent,
+            width: double.infinity,
+            height: double.infinity,
           ),
         ),
+
+        // Play/Pause indicator
+        if (hasVideo &&
+            !videoController.value.isPlaying)
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(
+                20,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(
+                  alpha: 0.5,
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.play_arrow,
+                color: Colors.white,
+                size: 50,
+              ),
+            ),
+          ),
 
         // Top bar with SYT branding
         Positioned(
@@ -628,15 +908,35 @@ class _SYTReelScreenState
                                         true
                                     ? Colors.red
                                     : Colors.white,
-                                onTap: () {
-                                  setState(
-                                    () {
-                                      _likedReels[index] =
-                                          !(_likedReels[index] ??
-                                              false);
-                                    },
-                                  );
-                                  HapticFeedback.lightImpact();
+                                onTap: () async {
+                                  final entryId =
+                                      reel['_id'] ??
+                                      reel['entryId'];
+                                  if (entryId !=
+                                      null) {
+                                    try {
+                                      final response = await ApiService.toggleSYTLike(
+                                        entryId,
+                                      );
+                                      if (response['success'] &&
+                                          mounted) {
+                                        setState(
+                                          () {
+                                            _likedReels[index] = response['data']['isLiked'];
+                                            // Update the likes count in the reel data
+                                            widget.competitions[index]['likes'] = response['data']['likesCount'].toString();
+                                          },
+                                        );
+                                        HapticFeedback.lightImpact();
+                                      }
+                                    } catch (
+                                      e
+                                    ) {
+                                      print(
+                                        'Error toggling like: $e',
+                                      );
+                                    }
+                                  }
                                 },
                               ),
                               const SizedBox(
@@ -654,20 +954,31 @@ class _SYTReelScreenState
 
                               _buildActionButton(
                                 'assets/sidereel/comment.png',
-                                reel['comments'],
+                                reel['comments'] ??
+                                    '0',
                                 Colors.white,
-                                onTap: () {
-                                  showModalBottomSheet(
-                                    context: context,
-                                    isScrollControlled: true,
-                                    backgroundColor: Colors.transparent,
-                                    builder:
-                                        (
-                                          context,
-                                        ) => CommentsScreen(
-                                          postId: 'syt_entry_id',
-                                        ),
-                                  );
+                                onTap: () async {
+                                  final entryId =
+                                      reel['_id'] ??
+                                      reel['entryId'];
+                                  if (entryId !=
+                                      null) {
+                                    await showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: Colors.transparent,
+                                      builder:
+                                          (
+                                            context,
+                                          ) => CommentsScreen(
+                                            postId: entryId,
+                                          ),
+                                    );
+                                    // Reload entry stats after comments
+                                    _reloadEntryStats(
+                                      index,
+                                    );
+                                  }
                                 },
                               ),
                               const SizedBox(
@@ -676,19 +987,23 @@ class _SYTReelScreenState
 
                               _buildActionButton(
                                 'assets/sidereel/saved.png',
-                                reel['bookmarks'],
+                                reel['bookmarks'] ??
+                                    '0',
                                 _savedReels[index] ==
                                         true
                                     ? Colors.yellow
                                     : Colors.white,
-                                onTap: () {
-                                  setState(
-                                    () {
-                                      _savedReels[index] =
-                                          !(_savedReels[index] ??
-                                              false);
-                                    },
-                                  );
+                                onTap: () async {
+                                  final entryId =
+                                      reel['_id'] ??
+                                      reel['entryId'];
+                                  if (entryId !=
+                                      null) {
+                                    await _toggleBookmark(
+                                      entryId,
+                                      index,
+                                    );
+                                  }
                                 },
                               ),
                               const SizedBox(
@@ -697,27 +1012,50 @@ class _SYTReelScreenState
 
                               _buildActionButton(
                                 'assets/sidereel/share.png',
-                                reel['shares'],
+                                reel['shares'] ??
+                                    '0',
                                 Colors.white,
+                                onTap: () async {
+                                  final entryId =
+                                      reel['_id'] ??
+                                      reel['entryId'];
+                                  if (entryId !=
+                                      null) {
+                                    await _shareEntry(
+                                      entryId,
+                                      index,
+                                    );
+                                  }
+                                },
                               ),
                               const SizedBox(
                                 height: 20,
                               ),
 
                               GestureDetector(
-                                onTap: () {
-                                  showModalBottomSheet(
-                                    context: context,
-                                    isScrollControlled: true,
-                                    backgroundColor: Colors.transparent,
-                                    builder:
-                                        (
-                                          context,
-                                        ) => GiftScreen(
-                                          recipientId: 'user_id',
-                                          recipientName: 'User',
-                                        ),
-                                  );
+                                onTap: () async {
+                                  final userId =
+                                      reel['user']?['_id'] ??
+                                      reel['userId'];
+                                  final username =
+                                      reel['user']?['username'] ??
+                                      reel['username'] ??
+                                      'User';
+                                  if (userId !=
+                                      null) {
+                                    await showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: Colors.transparent,
+                                      builder:
+                                          (
+                                            context,
+                                          ) => GiftScreen(
+                                            recipientId: userId,
+                                            recipientName: username,
+                                          ),
+                                    );
+                                  }
                                 },
                                 child: Image.asset(
                                   'assets/sidereel/gift.png',
@@ -1065,15 +1403,12 @@ class _SYTReelScreenState
         true;
     final voteCount =
         int.tryParse(
-          reel['likes'].replaceAll(
-            'K',
-            '000',
-          ),
+          reel['likes'].toString(),
         ) ??
-        1000;
+        0;
     final displayVotes = hasVoted
-        ? '${(voteCount + 1) ~/ 1000}K'
-        : '${voteCount ~/ 1000}K';
+        ? '${voteCount + 1}'
+        : '$voteCount';
 
     return TweenAnimationBuilder<
       double
@@ -1143,9 +1478,9 @@ class _SYTReelScreenState
                                     0.2,
                                 child: Icon(
                                   hasVoted
-                                      ? Icons.how_to_vote
-                                      : Icons.how_to_vote_outlined,
-                                  size: 28,
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  size: 32,
                                   color: hasVoted
                                       ? Colors.amber
                                       : Colors.white,

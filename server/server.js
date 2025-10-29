@@ -48,6 +48,7 @@ app.use('/api/chat', require('./routes/chatRoutes'));
 app.use('/api/groups', require('./routes/groupRoutes'));
 app.use('/api/syt', require('./routes/sytRoutes'));
 app.use('/api/dailyselfie', require('./routes/dailySelfieRoutes'));
+app.use('/api/achievements', require('./routes/achievements'));
 app.use('/api/coins', require('./routes/coinRoutes'));
 app.use('/api/withdrawal', require('./routes/withdrawalRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
@@ -77,6 +78,7 @@ app.get('/', (req, res) => {
       follow: '/api/follow',
       syt: '/api/syt',
       dailyselfie: '/api/dailyselfie',
+      achievements: '/api/achievements',
       coins: '/api/coins',
       withdrawal: '/api/withdrawal',
     },

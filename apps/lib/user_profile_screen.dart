@@ -63,8 +63,10 @@ class _UserProfileScreenState
     try {
       // Load user profile
       final profileResponse = await ApiService.getUserProfile(
-        widget.userInfo['username'],
+        widget.userInfo['username'] ??
+            widget.userInfo['_id'],
       );
+
       if (profileResponse['success']) {
         setState(
           () {
@@ -73,9 +75,13 @@ class _UserProfileScreenState
         );
 
         // Load user posts
+        final userId =
+            _userData!['_id'] ??
+            _userData!['id'];
         final postsResponse = await ApiService.getUserPosts(
-          _userData!['id'],
+          userId,
         );
+
         if (postsResponse['success']) {
           setState(
             () {
@@ -86,24 +92,42 @@ class _UserProfileScreenState
                       dynamic
                     >
                   >.from(
-                    postsResponse['data'],
+                    postsResponse['data'] ??
+                        [],
                   );
             },
           );
         }
 
-        // Check if following
-        final followResponse = await ApiService.checkFollowing(
-          _userData!['id'],
-        );
-        if (followResponse['success']) {
-          setState(
-            () {
-              isFollowing = followResponse['isFollowing'];
-              _isLoading = false;
-            },
+        // Check if following (optional - may fail if not implemented)
+        try {
+          final followResponse = await ApiService.checkFollowing(
+            userId,
+          );
+          if (followResponse['success']) {
+            setState(
+              () {
+                isFollowing =
+                    followResponse['isFollowing'] ??
+                    false;
+              },
+            );
+          }
+        } catch (
+          e
+        ) {
+          // Following check failed - use default value
+          print(
+            'Following check failed: $e',
           );
         }
+      } else {
+        // Profile load failed - use provided user info
+        setState(
+          () {
+            _userData = widget.userInfo;
+          },
+        );
       }
     } catch (
       e
@@ -111,10 +135,16 @@ class _UserProfileScreenState
       print(
         'Error loading profile: $e',
       );
+      // Use provided user info as fallback
+      setState(
+        () {
+          _userData = widget.userInfo;
+        },
+      );
+    } finally {
       setState(
         () {
           _isLoading = false;
-          _userData = widget.userInfo;
         },
       );
     }
@@ -129,60 +159,81 @@ class _UserProfileScreenState
       return;
 
     try {
+      final userId =
+          _userData!['_id'] ??
+          _userData!['id'];
       final response = isFollowing
           ? await ApiService.unfollowUser(
-              _userData!['id'],
+              userId,
             )
           : await ApiService.followUser(
-              _userData!['id'],
+              userId,
             );
 
       if (response['success']) {
-        setState(
-          () {
-            isFollowing = !isFollowing;
-            if (isFollowing) {
-              _userData!['followersCount'] =
-                  (_userData!['followersCount'] ??
-                      0) +
-                  1;
-            } else {
-              _userData!['followersCount'] =
-                  (_userData!['followersCount'] ??
-                      0) -
-                  1;
-            }
-          },
-        );
+        if (mounted) {
+          setState(
+            () {
+              isFollowing = !isFollowing;
+              if (isFollowing) {
+                _userData!['followersCount'] =
+                    (_userData!['followersCount'] ??
+                        0) +
+                    1;
+              } else {
+                _userData!['followersCount'] =
+                    (_userData!['followersCount'] ??
+                        0) -
+                    1;
+              }
+            },
+          );
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
-          SnackBar(
-            content: Text(
-              isFollowing
-                  ? 'Now following ${_userData!['displayName']}'
-                  : 'Unfollowed ${_userData!['displayName']}',
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(
+            SnackBar(
+              content: Text(
+                isFollowing
+                    ? 'Now following ${_userData!['displayName'] ?? _userData!['username']}'
+                    : 'Unfollowed ${_userData!['displayName'] ?? _userData!['username']}',
+              ),
+              duration: const Duration(
+                seconds: 2,
+              ),
             ),
-            duration: const Duration(
-              seconds: 2,
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(
+            SnackBar(
+              content: Text(
+                response['message'] ??
+                    'Failed to update follow status',
+              ),
+              backgroundColor: Colors.orange,
             ),
-          ),
-        );
+          );
+        }
       }
     } catch (
       e
     ) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Error: $e',
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Follow feature not available',
+            ),
+            backgroundColor: Colors.orange,
           ),
-          backgroundColor: Colors.red,
-        ),
-      );
+        );
+      }
     }
   }
 
@@ -333,12 +384,31 @@ class _UserProfileScreenState
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
+                        image:
+                            (_userData?['profilePicture'] ??
+                                    widget.userInfo['profilePicture']) !=
+                                null
+                            ? DecorationImage(
+                                image: NetworkImage(
+                                  ApiService.getImageUrl(
+                                    _userData?['profilePicture'] ??
+                                        widget.userInfo['profilePicture'],
+                                  ),
+                                ),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
                       ),
-                      child: const Icon(
-                        Icons.person,
-                        color: Colors.white,
-                        size: 45,
-                      ),
+                      child:
+                          (_userData?['profilePicture'] ??
+                                  widget.userInfo['profilePicture']) ==
+                              null
+                          ? const Icon(
+                              Icons.person,
+                              color: Colors.white,
+                              size: 45,
+                            )
+                          : null,
                     ),
                     const SizedBox(
                       width: 40,
@@ -502,6 +572,9 @@ class _UserProfileScreenState
                                     isVerified:
                                         widget.userInfo['isVerified'] ??
                                         false,
+                                    profilePicture:
+                                        _userData?['profilePicture'] ??
+                                        widget.userInfo['profilePicture'],
                                   ),
                             ),
                           );
@@ -567,98 +640,7 @@ class _UserProfileScreenState
               padding: const EdgeInsets.symmetric(
                 horizontal: 20,
               ),
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                  childAspectRatio: 1,
-                ),
-                itemCount: userPosts.length,
-                itemBuilder:
-                    (
-                      context,
-                      index,
-                    ) {
-                      final post = userPosts[index];
-                      return GestureDetector(
-                        onTap: () {
-                          // Navigate to main screen with reel tab and specific post
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (
-                                    context,
-                                  ) => MainScreen(
-                                    initialIndex: 0,
-                                    initialPostId: post['_id'],
-                                  ),
-                            ),
-                          );
-                        },
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color:
-                                post['color'] ??
-                                Colors.grey[800],
-                            borderRadius: BorderRadius.circular(
-                              12,
-                            ),
-                            image:
-                                post['thumbnailUrl'] !=
-                                    null
-                                ? DecorationImage(
-                                    image: NetworkImage(
-                                      ApiService.getImageUrl(
-                                        post['thumbnailUrl'],
-                                      ),
-                                    ),
-                                    fit: BoxFit.cover,
-                                  )
-                                : null,
-                          ),
-                          child: Stack(
-                            children: [
-                              const Center(
-                                child: Icon(
-                                  Icons.play_arrow,
-                                  color: Colors.white,
-                                  size: 30,
-                                ),
-                              ),
-                              Positioned(
-                                bottom: 8,
-                                right: 8,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(
-                                      alpha: 0.7,
-                                    ),
-                                    borderRadius: BorderRadius.circular(
-                                      4,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    post['views'],
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-              ),
+              child: _buildTabContent(),
             ),
           ),
           const SizedBox(
@@ -754,6 +736,230 @@ class _UserProfileScreenState
     // Generate a random following count based on username
     final hash = widget.userInfo['username'].hashCode.abs();
     return '${(hash % 1000) + 100}';
+  }
+
+  Widget
+  _buildTabContent() {
+    switch (selectedTab) {
+      case 'Reels':
+        return _buildReelsGrid();
+      case 'SYT':
+        return _buildSYTGrid();
+      case 'Likes':
+        return _buildLikesGrid();
+      default:
+        return _buildReelsGrid();
+    }
+  }
+
+  Widget
+  _buildReelsGrid() {
+    if (_userPosts.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.video_library_outlined,
+              size: 64,
+              color: Colors.grey,
+            ),
+            SizedBox(
+              height: 16,
+            ),
+            Text(
+              'No reels yet',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            SizedBox(
+              height: 8,
+            ),
+            Text(
+              'When this user shares reels, they\'ll appear here',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 1,
+      ),
+      itemCount: _userPosts.length,
+      itemBuilder:
+          (
+            context,
+            index,
+          ) {
+            final post = _userPosts[index];
+            return GestureDetector(
+              onTap: () {
+                // Navigate to main screen with reel tab and specific post
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (
+                          context,
+                        ) => MainScreen(
+                          initialIndex: 0,
+                          initialPostId: post['_id'],
+                        ),
+                  ),
+                );
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color:
+                      post['color'] ??
+                      Colors.grey[800],
+                  borderRadius: BorderRadius.circular(
+                    12,
+                  ),
+                  image:
+                      post['thumbnailUrl'] !=
+                          null
+                      ? DecorationImage(
+                          image: NetworkImage(
+                            ApiService.getImageUrl(
+                              post['thumbnailUrl'],
+                            ),
+                          ),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: Stack(
+                  children: [
+                    const Center(
+                      child: Icon(
+                        Icons.play_arrow,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(
+                            alpha: 0.7,
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            4,
+                          ),
+                        ),
+                        child: Text(
+                          post['views']?.toString() ??
+                              '0',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+    );
+  }
+
+  Widget
+  _buildSYTGrid() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.emoji_events_outlined,
+            size: 64,
+            color: Colors.grey,
+          ),
+          SizedBox(
+            height: 16,
+          ),
+          Text(
+            'No SYT entries yet',
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          SizedBox(
+            height: 8,
+          ),
+          Text(
+            'Show Your Talent entries will appear here',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget
+  _buildLikesGrid() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.favorite_outline,
+            size: 64,
+            color: Colors.grey,
+          ),
+          SizedBox(
+            height: 16,
+          ),
+          Text(
+            'No liked posts yet',
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          SizedBox(
+            height: 8,
+          ),
+          Text(
+            'Posts this user likes will appear here',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
   }
 
   void

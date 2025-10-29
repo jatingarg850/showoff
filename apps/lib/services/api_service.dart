@@ -801,6 +801,7 @@ class ApiService {
   >
   submitSYTEntry({
     required File videoFile,
+    File? thumbnailFile,
     required String title,
     required String category,
     required String competitionType,
@@ -827,6 +828,21 @@ class ApiService {
         ),
       ),
     );
+
+    // Upload thumbnail if provided
+    if (thumbnailFile !=
+        null) {
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'thumbnail',
+          thumbnailFile.path,
+          contentType: http_parser.MediaType.parse(
+            'image/jpeg',
+          ),
+        ),
+      );
+    }
+
     request.fields['title'] = title;
     request.fields['category'] = category;
     request.fields['competitionType'] = competitionType;
@@ -888,6 +904,66 @@ class ApiService {
     final response = await http.post(
       Uri.parse(
         '$baseUrl/syt/$entryId/vote',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  toggleSYTLike(
+    String entryId,
+  ) async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/syt/$entryId/like',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  getSYTEntryStats(
+    String entryId,
+  ) async {
+    final response = await http.get(
+      Uri.parse(
+        '$baseUrl/syt/$entryId/stats',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  toggleSYTBookmark(
+    String entryId,
+  ) async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/syt/$entryId/bookmark',
       ),
       headers: await _getHeaders(),
     );
@@ -2036,6 +2112,61 @@ class ApiService {
     final response = await http.post(
       Uri.parse(
         '$baseUrl/spin-wheel/spin',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  // Achievement APIs
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  getUserAchievements() async {
+    final response = await http.get(
+      Uri.parse(
+        '$baseUrl/achievements',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  checkAndUnlockAchievements() async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/achievements/check',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  initializeAchievements() async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/achievements/init',
       ),
       headers: await _getHeaders(),
     );

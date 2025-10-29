@@ -3,7 +3,11 @@ import 'package:video_player/video_player.dart';
 import 'comments_screen.dart';
 import 'gift_screen.dart';
 import 'user_profile_screen.dart';
+import 'search_screen.dart';
+import 'messages_screen.dart';
+import 'notification_screen.dart';
 import 'services/api_service.dart';
+import 'services/storage_service.dart';
 import 'config/api_config.dart';
 
 class ReelScreen
@@ -43,6 +47,13 @@ class _ReelScreenState
   _isLoading = true;
   int
   _currentIndex = 0;
+  String?
+  _currentUserId;
+  final Map<
+    String,
+    bool
+  >
+  _followStatus = {};
 
   // Video controllers
   final Map<
@@ -60,7 +71,33 @@ class _ReelScreenState
   void
   initState() {
     super.initState();
+    _loadCurrentUser();
     _loadFeed();
+  }
+
+  Future<
+    void
+  >
+  _loadCurrentUser() async {
+    try {
+      final user = await StorageService.getUser();
+      if (user !=
+          null) {
+        setState(
+          () {
+            _currentUserId =
+                user['_id'] ??
+                user['id'];
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading current user: $e',
+      );
+    }
   }
 
   Future<
@@ -113,6 +150,19 @@ class _ReelScreenState
             _isLoading = false;
           },
         );
+
+        // Check follow status for each post
+        for (final post in posts) {
+          final userId =
+              post['user']?['_id'] ??
+              post['user']?['id'];
+          if (userId !=
+              null) {
+            _checkFollowStatus(
+              userId,
+            );
+          }
+        }
 
         // Find initial post index if provided
         int initialIndex = 0;
@@ -320,10 +370,10 @@ class _ReelScreenState
       );
       if (response['success'] &&
           mounted) {
-        setState(
-          () {
-            _posts[index]['likesCount'] = response['data']['likesCount'];
-          },
+        // Reload stats to get accurate counts
+        await _reloadPostStats(
+          postId,
+          index,
         );
       }
     } catch (
@@ -331,6 +381,42 @@ class _ReelScreenState
     ) {
       print(
         'Error toggling like: $e',
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _reloadPostStats(
+    String postId,
+    int index,
+  ) async {
+    try {
+      final statsResponse = await ApiService.getPostStats(
+        postId,
+      );
+      if (statsResponse['success'] &&
+          mounted) {
+        setState(
+          () {
+            if (_posts[index]['stats'] ==
+                null) {
+              _posts[index]['stats'] = {};
+            }
+            _posts[index]['stats'] = statsResponse['data'];
+            // Also update the post-level counts
+            _posts[index]['likesCount'] = statsResponse['data']['likesCount'];
+            _posts[index]['commentsCount'] = statsResponse['data']['commentsCount'];
+            _posts[index]['sharesCount'] = statsResponse['data']['sharesCount'];
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error reloading stats: $e',
       );
     }
   }
@@ -348,6 +434,11 @@ class _ReelScreenState
       );
       if (response['success'] &&
           mounted) {
+        // Reload stats to get accurate counts
+        await _reloadPostStats(
+          postId,
+          index,
+        );
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(
@@ -385,10 +476,10 @@ class _ReelScreenState
       );
       if (response['success'] &&
           mounted) {
-        setState(
-          () {
-            _posts[index]['sharesCount'] = response['data']['sharesCount'];
-          },
+        // Reload stats to get accurate counts
+        await _reloadPostStats(
+          postId,
+          index,
         );
         ScaffoldMessenger.of(
           context,
@@ -410,6 +501,138 @@ class _ReelScreenState
         'Error sharing post: $e',
       );
     }
+  }
+
+  Future<
+    void
+  >
+  _checkFollowStatus(
+    String userId,
+  ) async {
+    if (_currentUserId ==
+            null ||
+        userId ==
+            _currentUserId) {
+      return;
+    }
+
+    try {
+      final response = await ApiService.checkFollowing(
+        userId,
+      );
+      if (response['success'] &&
+          mounted) {
+        setState(
+          () {
+            _followStatus[userId] =
+                response['isFollowing'] ??
+                false;
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error checking follow status: $e',
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _toggleFollow(
+    String userId,
+  ) async {
+    if (_currentUserId ==
+            null ||
+        userId ==
+            _currentUserId) {
+      return;
+    }
+
+    try {
+      final isCurrentlyFollowing =
+          _followStatus[userId] ??
+          false;
+      final response = isCurrentlyFollowing
+          ? await ApiService.unfollowUser(
+              userId,
+            )
+          : await ApiService.followUser(
+              userId,
+            );
+
+      if (response['success'] &&
+          mounted) {
+        setState(
+          () {
+            _followStatus[userId] = !isCurrentlyFollowing;
+          },
+        );
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              isCurrentlyFollowing
+                  ? 'Unfollowed'
+                  : 'Following',
+            ),
+            duration: const Duration(
+              seconds: 1,
+            ),
+          ),
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error toggling follow: $e',
+      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Follow feature not available',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
+  bool
+  _shouldShowFollowButton(
+    Map<
+      String,
+      dynamic
+    >
+    user,
+  ) {
+    final userId =
+        user['_id'] ??
+        user['id'];
+
+    // Don't show if it's the current user's post
+    if (_currentUserId !=
+            null &&
+        userId ==
+            _currentUserId) {
+      return false;
+    }
+
+    // Don't show if already following
+    if (_followStatus[userId] ==
+        true) {
+      return false;
+    }
+
+    return true;
   }
 
   @override
@@ -566,7 +789,17 @@ class _ReelScreenState
                                       width: 24,
                                       height: 24,
                                     ),
-                                    onPressed: () {},
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (
+                                                context,
+                                              ) => SearchScreen(),
+                                        ),
+                                      );
+                                    },
                                   ),
                                   IconButton(
                                     icon: Image.asset(
@@ -574,7 +807,17 @@ class _ReelScreenState
                                       width: 24,
                                       height: 24,
                                     ),
-                                    onPressed: () {},
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (
+                                                context,
+                                              ) => MessagesScreen(),
+                                        ),
+                                      );
+                                    },
                                   ),
                                   IconButton(
                                     icon: Image.asset(
@@ -582,7 +825,17 @@ class _ReelScreenState
                                       width: 24,
                                       height: 24,
                                     ),
-                                    onPressed: () {},
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (
+                                                context,
+                                              ) => NotificationScreen(),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ],
                               ),
@@ -596,7 +849,7 @@ class _ReelScreenState
                   // Right Side Actions
                   Positioned(
                     right: 8,
-                    bottom: 140,
+                    bottom: 250,
                     child: Container(
                       decoration: BoxDecoration(
                         image: const DecorationImage(
@@ -611,14 +864,15 @@ class _ReelScreenState
                       ),
                       padding: const EdgeInsets.symmetric(
                         vertical: 20,
-                        horizontal: 12,
+                        horizontal: 16,
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _buildActionButton(
-                            'assets/sidereel/like.png',
-                            post['likesCount']?.toString() ??
+                          _buildLikeButton(
+                            stats['isLiked'] ??
+                                false,
+                            stats['likesCount']?.toString() ??
                                 '0',
                             () => _toggleLike(
                               post['_id'],
@@ -630,10 +884,10 @@ class _ReelScreenState
                           ),
                           _buildActionButton(
                             'assets/sidereel/comment.png',
-                            post['commentsCount']?.toString() ??
+                            stats['commentsCount']?.toString() ??
                                 '0',
-                            () {
-                              showModalBottomSheet(
+                            () async {
+                              await showModalBottomSheet(
                                 context: context,
                                 isScrollControlled: true,
                                 backgroundColor: Colors.transparent,
@@ -644,13 +898,19 @@ class _ReelScreenState
                                       postId: post['_id'],
                                     ),
                               );
+                              // Reload stats after comments modal closes
+                              await _reloadPostStats(
+                                post['_id'],
+                                index,
+                              );
                             },
                           ),
                           const SizedBox(
                             height: 24,
                           ),
-                          _buildActionButton(
-                            'assets/sidereel/saved.png',
+                          _buildBookmarkButton(
+                            stats['isBookmarked'] ??
+                                false,
                             stats['bookmarksCount']?.toString() ??
                                 '0',
                             () => _toggleBookmark(
@@ -663,7 +923,7 @@ class _ReelScreenState
                           ),
                           _buildActionButton(
                             'assets/sidereel/share.png',
-                            post['sharesCount']?.toString() ??
+                            stats['sharesCount']?.toString() ??
                                 '0',
                             () => _sharePost(
                               post['_id'],
@@ -676,8 +936,8 @@ class _ReelScreenState
                           _buildActionButton(
                             'assets/sidereel/gift.png',
                             '',
-                            () {
-                              showModalBottomSheet(
+                            () async {
+                              await showModalBottomSheet(
                                 context: context,
                                 isScrollControlled: true,
                                 backgroundColor: Colors.transparent,
@@ -692,6 +952,11 @@ class _ReelScreenState
                                           post['user']?['username'] ??
                                           'user',
                                     ),
+                              );
+                              // Reload stats after gift modal closes
+                              await _reloadPostStats(
+                                post['_id'],
+                                index,
                               );
                             },
                           ),
@@ -776,35 +1041,44 @@ class _ReelScreenState
                               const SizedBox(
                                 width: 12,
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(
-                                        0xFF701CF5,
+                              if (_shouldShowFollowButton(
+                                user,
+                              ))
+                                GestureDetector(
+                                  onTap: () => _toggleFollow(
+                                    user['_id'] ??
+                                        user['id'],
+                                  ),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(
+                                            0xFF701CF5,
+                                          ),
+                                          Color(
+                                            0xFF3E98E4,
+                                          ),
+                                        ],
                                       ),
-                                      Color(
-                                        0xFF3E98E4,
+                                      borderRadius: BorderRadius.circular(
+                                        20,
                                       ),
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(
-                                    20,
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Follow',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
+                                    ),
+                                    child: const Text(
+                                      'Follow',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
                             ],
                           ),
                         ),
@@ -878,6 +1152,82 @@ class _ReelScreenState
             imagePath,
             width: 28,
             height: 28,
+          ),
+          if (label.isNotEmpty) ...[
+            const SizedBox(
+              height: 2,
+            ),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget
+  _buildLikeButton(
+    bool isLiked,
+    String label,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isLiked
+                ? Icons.favorite
+                : Icons.favorite_border,
+            color: isLiked
+                ? Colors.red
+                : Colors.white,
+            size: 28,
+          ),
+          if (label.isNotEmpty) ...[
+            const SizedBox(
+              height: 2,
+            ),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget
+  _buildBookmarkButton(
+    bool isBookmarked,
+    String label,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isBookmarked
+                ? Icons.bookmark
+                : Icons.bookmark_border,
+            color: isBookmarked
+                ? Colors.yellow
+                : Colors.white,
+            size: 28,
           ),
           if (label.isNotEmpty) ...[
             const SizedBox(
