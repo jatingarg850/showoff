@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'spin_wheel_screen.dart';
-import 'add_money_screen.dart';
+import 'enhanced_add_money_screen.dart';
 import 'withdrawal_screen.dart';
 import 'transaction_history_screen.dart';
 import 'services/api_service.dart';
@@ -202,6 +202,14 @@ class _WalletScreenState
         return 'Withdrawal';
       case 'top_up':
         return 'Topped up Wallet';
+      case 'add_money':
+        return 'Money Added';
+      case 'purchase':
+        return 'Coin Purchase';
+      case 'upload_reward':
+        return 'Upload Reward';
+      case 'view_reward':
+        return 'View Reward';
       default:
         return type;
     }
@@ -362,16 +370,21 @@ class _WalletScreenState
                           ),
                         ),
                         GestureDetector(
-                          onTap: () {
-                            Navigator.push(
+                          onTap: () async {
+                            final result = await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder:
                                     (
                                       context,
-                                    ) => const AddMoneyScreen(),
+                                    ) => const EnhancedAddMoneyScreen(),
                               ),
                             );
+                            // Refresh balance if money was added
+                            if (result ==
+                                true) {
+                              _loadBalance();
+                            }
                           },
                           child: _buildActionButtonWithImage(
                             'assets/wallet_screen/add.png',

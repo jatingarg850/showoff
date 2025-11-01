@@ -50,6 +50,7 @@ app.use('/api/syt', require('./routes/sytRoutes'));
 app.use('/api/dailyselfie', require('./routes/dailySelfieRoutes'));
 app.use('/api/achievements', require('./routes/achievements'));
 app.use('/api/coins', require('./routes/coinRoutes'));
+app.use('/api/payments', require('./routes/paymentRoutes'));
 app.use('/api/withdrawal', require('./routes/withdrawalRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/cart', require('./routes/cartRoutes'));

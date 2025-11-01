@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'services/api_service.dart';
+import 'hall_of_fame_screen.dart';
 
 class LeaderboardScreen
     extends
@@ -542,15 +543,78 @@ class _LeaderboardScreenState
                 horizontal: 20,
               ),
               child: Row(
-                children: periods
-                    .map(
-                      (
-                        period,
-                      ) => _buildPeriodTab(
-                        period,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: periods
+                        .map(
+                          (
+                            period,
+                          ) => _buildPeriodTab(
+                            period,
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  // Hall of Fame Button
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (
+                                context,
+                              ) => const HallOfFameScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
                       ),
-                    )
-                    .toList(),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(
+                              0xFF701CF5,
+                            ),
+                            Color(
+                              0xFF3E98E4,
+                            ),
+                          ],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
+                        borderRadius: BorderRadius.circular(
+                          20,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.emoji_events,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                          const SizedBox(
+                            width: 4,
+                          ),
+                          const Text(
+                            'Hall of Fame',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
 

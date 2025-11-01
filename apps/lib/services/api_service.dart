@@ -1174,6 +1174,357 @@ class ApiService {
     );
   }
 
+  // Create coin purchase order
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  createCoinPurchaseOrder({
+    required String packageId,
+    required int amount,
+    required int coins,
+  }) async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/coins/create-purchase-order',
+      ),
+      headers: await _getHeaders(),
+      body: jsonEncode(
+        {
+          'packageId': packageId,
+          'amount': amount,
+          'coins': coins,
+        },
+      ),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  // Purchase coins after payment
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  purchaseCoins({
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+    required String packageId,
+  }) async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/coins/purchase',
+      ),
+      headers: await _getHeaders(),
+      body: jsonEncode(
+        {
+          'razorpayOrderId': razorpayOrderId,
+          'razorpayPaymentId': razorpayPaymentId,
+          'razorpaySignature': razorpaySignature,
+          'packageId': packageId,
+        },
+      ),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  // Create Stripe payment intent
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  createStripePaymentIntent({
+    required double amount,
+    String currency = 'usd',
+  }) async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/coins/create-stripe-intent',
+      ),
+      headers: await _getHeaders(),
+      body: jsonEncode(
+        {
+          'amount': amount,
+          'currency': currency,
+        },
+      ),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  // Confirm Stripe payment
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  confirmStripePayment({
+    required String paymentIntentId,
+  }) async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/coins/confirm-stripe-payment',
+      ),
+      headers: await _getHeaders(),
+      body: jsonEncode(
+        {
+          'paymentIntentId': paymentIntentId,
+        },
+      ),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  // Add money (generic endpoint)
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  addMoney({
+    required double amount,
+    required String gateway,
+    required Map<
+      String,
+      dynamic
+    >
+    paymentData,
+  }) async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/coins/add-money',
+      ),
+      headers: await _getHeaders(),
+      body: jsonEncode(
+        {
+          'amount': amount,
+          'gateway': gateway,
+          'paymentData': paymentData,
+        },
+      ),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  // Create Razorpay order for add money
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  createRazorpayOrderForAddMoney({
+    required double amount,
+  }) async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/coins/create-purchase-order',
+      ),
+      headers: await _getHeaders(),
+      body: jsonEncode(
+        {
+          'packageId': 'add_money',
+          'amount':
+              (amount *
+                      100)
+                  .round(), // Convert to paise
+          'coins':
+              (amount *
+                      120)
+                  .round(), // 1 INR = 1.2 coins
+        },
+      ),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  // Payment Card APIs
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  addPaymentCard({
+    required String cardNumber,
+    required String expiryMonth,
+    required String expiryYear,
+    required String cvv,
+    required String cardholderName,
+    bool isDefault = false,
+  }) async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/payments/cards',
+      ),
+      headers: await _getHeaders(),
+      body: jsonEncode(
+        {
+          'cardNumber': cardNumber,
+          'expiryMonth': expiryMonth,
+          'expiryYear': expiryYear,
+          'cvv': cvv,
+          'cardholderName': cardholderName,
+          'isDefault': isDefault,
+        },
+      ),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  getPaymentCards() async {
+    final response = await http.get(
+      Uri.parse(
+        '$baseUrl/payments/cards',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  deletePaymentCard(
+    String cardId,
+  ) async {
+    final response = await http.delete(
+      Uri.parse(
+        '$baseUrl/payments/cards/$cardId',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  setDefaultCard(
+    String cardId,
+  ) async {
+    final response = await http.put(
+      Uri.parse(
+        '$baseUrl/payments/cards/$cardId/default',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  updateBillingInfo({
+    String? fullName,
+    String? email,
+    String? phone,
+    String? address,
+    String? city,
+    String? state,
+    String? zipCode,
+    String? country,
+  }) async {
+    final response = await http.put(
+      Uri.parse(
+        '$baseUrl/payments/billing',
+      ),
+      headers: await _getHeaders(),
+      body: jsonEncode(
+        {
+          if (fullName !=
+              null)
+            'fullName': fullName,
+          if (email !=
+              null)
+            'email': email,
+          if (phone !=
+              null)
+            'phone': phone,
+          if (address !=
+              null)
+            'address': address,
+          if (city !=
+              null)
+            'city': city,
+          if (state !=
+              null)
+            'state': state,
+          if (zipCode !=
+              null)
+            'zipCode': zipCode,
+          if (country !=
+              null)
+            'country': country,
+        },
+      ),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  getBillingInfo() async {
+    final response = await http.get(
+      Uri.parse(
+        '$baseUrl/payments/billing',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
   // Withdrawal APIs
   static Future<
     Map<
@@ -2192,5 +2543,71 @@ class ApiService {
     return jsonDecode(
       response.body,
     );
+  }
+
+  // Get user's SYT entries
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  getUserSYTEntries(
+    String userId,
+  ) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '$baseUrl/syt/user/$userId',
+        ),
+        headers: await _getHeaders(),
+      );
+      return jsonDecode(
+        response.body,
+      );
+    } catch (
+      e
+    ) {
+      print(
+        'Error getting user SYT entries: $e',
+      );
+      return {
+        'success': false,
+        'message': 'Failed to load SYT entries',
+      };
+    }
+  }
+
+  // Get user's liked posts
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  getUserLikedPosts(
+    String userId,
+  ) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '$baseUrl/posts/user/$userId/liked',
+        ),
+        headers: await _getHeaders(),
+      );
+      return jsonDecode(
+        response.body,
+      );
+    } catch (
+      e
+    ) {
+      print(
+        'Error getting user liked posts: $e',
+      );
+      return {
+        'success': false,
+        'message': 'Failed to load liked posts',
+      };
+    }
   }
 }

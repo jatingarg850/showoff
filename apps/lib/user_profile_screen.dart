@@ -46,6 +46,20 @@ class _UserProfileScreenState
     >
   >
   _userPosts = [];
+  List<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  _userSYTPosts = [];
+  List<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  _userLikedPosts = [];
   bool
   _isLoading = true;
 
@@ -98,6 +112,48 @@ class _UserProfileScreenState
             },
           );
         }
+
+        // Load user SYT posts - get all entries and filter by user
+        final sytResponse = await ApiService.getSYTEntries();
+
+        if (sytResponse['success']) {
+          final allSYTEntries =
+              List<
+                Map<
+                  String,
+                  dynamic
+                >
+              >.from(
+                sytResponse['data'] ??
+                    [],
+              );
+          // Filter entries by this user
+          final userSYTEntries = allSYTEntries.where(
+            (
+              entry,
+            ) {
+              final entryUserId =
+                  entry['user']?['_id'] ??
+                  entry['user']?['id'];
+              return entryUserId ==
+                  userId;
+            },
+          ).toList();
+
+          setState(
+            () {
+              _userSYTPosts = userSYTEntries;
+            },
+          );
+        }
+
+        // Load user liked posts - for other users, we can't easily determine their likes
+        // This would require server-side support to get another user's liked posts
+        setState(
+          () {
+            _userLikedPosts = [];
+          },
+        );
 
         // Check if following (optional - may fail if not implemented)
         try {
@@ -888,77 +944,349 @@ class _UserProfileScreenState
 
   Widget
   _buildSYTGrid() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.emoji_events_outlined,
-            size: 64,
-            color: Colors.grey,
-          ),
-          SizedBox(
-            height: 16,
-          ),
-          Text(
-            'No SYT entries yet',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          SizedBox(
-            height: 8,
-          ),
-          Text(
-            'Show Your Talent entries will appear here',
-            style: TextStyle(
-              fontSize: 14,
+    if (_userSYTPosts.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.emoji_events_outlined,
+              size: 64,
               color: Colors.grey,
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+            SizedBox(
+              height: 16,
+            ),
+            Text(
+              'No SYT entries yet',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            SizedBox(
+              height: 8,
+            ),
+            Text(
+              'Show Your Talent entries will appear here',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 1,
       ),
+      itemCount: _userSYTPosts.length,
+      itemBuilder:
+          (
+            context,
+            index,
+          ) {
+            final sytPost = _userSYTPosts[index];
+            return GestureDetector(
+              onTap: () {
+                // Navigate to SYT screen with specific entry
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (
+                          context,
+                        ) => MainScreen(
+                          initialIndex: 1, // SYT tab
+                          initialPostId: sytPost['_id'],
+                        ),
+                  ),
+                );
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.purple[100],
+                  borderRadius: BorderRadius.circular(
+                    12,
+                  ),
+                  image:
+                      sytPost['thumbnailUrl'] !=
+                          null
+                      ? DecorationImage(
+                          image: NetworkImage(
+                            ApiService.getImageUrl(
+                              sytPost['thumbnailUrl'],
+                            ),
+                          ),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: Stack(
+                  children: [
+                    // SYT badge
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(
+                                0xFF701CF5,
+                              ),
+                              Color(
+                                0xFF3E98E4,
+                              ),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            8,
+                          ),
+                        ),
+                        child: const Text(
+                          'SYT',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Center(
+                      child: Icon(
+                        Icons.play_arrow,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                    ),
+                    // Vote count
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(
+                            0.7,
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            4,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.thumb_up,
+                              color: Colors.white,
+                              size: 10,
+                            ),
+                            const SizedBox(
+                              width: 2,
+                            ),
+                            Text(
+                              sytPost['votesCount']?.toString() ??
+                                  '0',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
     );
   }
 
   Widget
   _buildLikesGrid() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.favorite_outline,
-            size: 64,
-            color: Colors.grey,
-          ),
-          SizedBox(
-            height: 16,
-          ),
-          Text(
-            'No liked posts yet',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          SizedBox(
-            height: 8,
-          ),
-          Text(
-            'Posts this user likes will appear here',
-            style: TextStyle(
-              fontSize: 14,
+    if (_userLikedPosts.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.favorite_outline,
+              size: 64,
               color: Colors.grey,
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+            SizedBox(
+              height: 16,
+            ),
+            Text(
+              'No liked posts yet',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            SizedBox(
+              height: 8,
+            ),
+            Text(
+              'Posts this user likes will appear here',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 1,
       ),
+      itemCount: _userLikedPosts.length,
+      itemBuilder:
+          (
+            context,
+            index,
+          ) {
+            final likedPost = _userLikedPosts[index];
+            return GestureDetector(
+              onTap: () {
+                // Navigate to main screen with the liked post
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (
+                          context,
+                        ) => MainScreen(
+                          initialIndex: 0, // Reels tab
+                          initialPostId: likedPost['_id'],
+                        ),
+                  ),
+                );
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.pink[100],
+                  borderRadius: BorderRadius.circular(
+                    12,
+                  ),
+                  image:
+                      likedPost['thumbnailUrl'] !=
+                          null
+                      ? DecorationImage(
+                          image: NetworkImage(
+                            ApiService.getImageUrl(
+                              likedPost['thumbnailUrl'],
+                            ),
+                          ),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: Stack(
+                  children: [
+                    // Liked badge
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.pink,
+                          borderRadius: BorderRadius.circular(
+                            8,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.favorite,
+                          color: Colors.white,
+                          size: 12,
+                        ),
+                      ),
+                    ),
+                    const Center(
+                      child: Icon(
+                        Icons.play_arrow,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                    ),
+                    // Like count
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(
+                            0.7,
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            4,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.favorite,
+                              color: Colors.pink,
+                              size: 10,
+                            ),
+                            const SizedBox(
+                              width: 2,
+                            ),
+                            Text(
+                              likedPost['likesCount']?.toString() ??
+                                  '0',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
     );
   }
 

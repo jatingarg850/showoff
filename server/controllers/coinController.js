@@ -1,6 +1,14 @@
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const { awardCoins } = require('../utils/coinSystem');
+const Razorpay = require('razorpay');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const crypto = require('crypto');
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
 
 // @desc    Watch ad and earn coins
 // @route   POST /api/coins/watch-ad
@@ -233,6 +241,333 @@ exports.getBalance = async (req, res) => {
         withdrawableBalance: user.withdrawableBalance,
         totalCoinsEarned: user.totalCoinsEarned,
       },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Create coin purchase order
+// @route   POST /api/coins/create-purchase-order
+// @access  Private
+exports.createCoinPurchaseOrder = async (req, res) => {
+  try {
+    const { packageId, amount, coins } = req.body;
+
+    // Validate package
+    const coinPackages = {
+      'package_1': { coins: 100, price: 99 }, // ₹0.99
+      'package_2': { coins: 500, price: 499 }, // ₹4.99
+      'package_3': { coins: 1000, price: 999 }, // ₹9.99
+      'package_4': { coins: 2500, price: 1999 }, // ₹19.99
+      'package_5': { coins: 5000, price: 4999 }, // ₹49.99
+      'package_6': { coins: 10000, price: 9999 }, // ₹99.99
+      'add_money': { coins: coins || 0, price: amount || 0 }, // Dynamic for add money
+    };
+
+    const selectedPackage = coinPackages[packageId];
+    if (!selectedPackage) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid package selected',
+      });
+    }
+
+    // Create Razorpay order
+    const options = {
+      amount: selectedPackage.price, // amount in paise
+      currency: 'INR',
+      receipt: `coin_${req.user.id}_${Date.now()}`,
+      notes: {
+        userId: req.user.id,
+        packageId,
+        coins: selectedPackage.coins,
+      },
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        coins: selectedPackage.coins,
+        packageId,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Purchase coins after payment verification
+// @route   POST /api/coins/purchase
+// @access  Private
+exports.purchaseCoins = async (req, res) => {
+  try {
+    const { 
+      razorpayOrderId, 
+      razorpayPaymentId, 
+      razorpaySignature, 
+      packageId 
+    } = req.body;
+
+    // Verify payment signature
+    const sign = razorpayOrderId + '|' + razorpayPaymentId;
+    const expectedSign = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .update(sign.toString())
+      .digest('hex');
+
+    if (razorpaySignature !== expectedSign) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment signature',
+      });
+    }
+
+    // Get package details
+    const coinPackages = {
+      'package_1': { coins: 100, price: 99 },
+      'package_2': { coins: 500, price: 499 },
+      'package_3': { coins: 1000, price: 999 },
+      'package_4': { coins: 2500, price: 1999 },
+      'package_5': { coins: 5000, price: 4999 },
+      'package_6': { coins: 10000, price: 9999 },
+    };
+
+    const selectedPackage = coinPackages[packageId];
+    if (!selectedPackage) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid package',
+      });
+    }
+
+    // Award coins to user
+    await awardCoins(
+      req.user.id, 
+      selectedPackage.coins, 
+      'purchase', 
+      `Purchased ${selectedPackage.coins} coins for ₹${selectedPackage.price/100}`,
+      {
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
+        packageId,
+        amountPaid: selectedPackage.price,
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Coins purchased successfully',
+      coinsAdded: selectedPackage.coins,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Create Stripe payment intent
+// @route   POST /api/coins/create-stripe-intent
+// @access  Private
+exports.createStripePaymentIntent = async (req, res) => {
+  try {
+    const { amount, currency = 'usd' } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid amount',
+      });
+    }
+
+    // Create payment intent
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // Convert to cents
+      currency,
+      metadata: {
+        userId: req.user.id,
+        type: 'add_money',
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Confirm Stripe payment and add money
+// @route   POST /api/coins/confirm-stripe-payment
+// @access  Private
+exports.confirmStripePayment = async (req, res) => {
+  try {
+    const { paymentIntentId } = req.body;
+
+    // Retrieve payment intent from Stripe
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    if (paymentIntent.status !== 'succeeded') {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment not completed',
+      });
+    }
+
+    // Check if payment belongs to this user
+    if (paymentIntent.metadata.userId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized payment',
+      });
+    }
+
+    // Convert amount to coins (1 USD = 100 coins)
+    const amountInUSD = paymentIntent.amount / 100;
+    const coinsToAdd = Math.floor(amountInUSD * 100);
+
+    // Award coins to user
+    await awardCoins(
+      req.user.id,
+      coinsToAdd,
+      'purchase',
+      `Added money via Stripe: $${amountInUSD}`,
+      {
+        stripePaymentIntentId: paymentIntentId,
+        amountPaid: amountInUSD,
+        currency: paymentIntent.currency,
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Money added successfully',
+      coinsAdded: coinsToAdd,
+      amountPaid: amountInUSD,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Add money (generic endpoint for both gateways)
+// @route   POST /api/coins/add-money
+// @access  Private
+exports.addMoney = async (req, res) => {
+  try {
+    const { 
+      amount, 
+      gateway, 
+      paymentData 
+    } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid amount',
+      });
+    }
+
+    if (!gateway || !['stripe', 'razorpay'].includes(gateway)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment gateway',
+      });
+    }
+
+    let coinsToAdd = 0;
+    let description = '';
+    let transactionData = {};
+
+    if (gateway === 'stripe') {
+      // Handle Stripe payment
+      const { paymentIntentId } = paymentData;
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+      if (paymentIntent.status !== 'succeeded') {
+        return res.status(400).json({
+          success: false,
+          message: 'Payment not completed',
+        });
+      }
+
+      const amountInUSD = paymentIntent.amount / 100;
+      coinsToAdd = Math.floor(amountInUSD * 100); // 1 USD = 100 coins
+      description = `Added money via Stripe: $${amountInUSD}`;
+      transactionData = {
+        stripePaymentIntentId: paymentIntentId,
+        amountPaid: amountInUSD,
+        currency: paymentIntent.currency,
+      };
+    } else if (gateway === 'razorpay') {
+      // Handle Razorpay payment
+      const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = paymentData;
+      
+      // Verify payment signature
+      const sign = razorpayOrderId + '|' + razorpayPaymentId;
+      const expectedSign = crypto
+        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+        .update(sign.toString())
+        .digest('hex');
+
+      if (razorpaySignature !== expectedSign) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid payment signature',
+        });
+      }
+
+      const amountInINR = amount;
+      coinsToAdd = Math.floor(amountInINR * 1.2); // 1 INR = 1.2 coins
+      description = `Added money via Razorpay: ₹${amountInINR}`;
+      transactionData = {
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
+        amountPaid: amountInINR,
+        currency: 'INR',
+      };
+    }
+
+    // Award coins to user
+    await awardCoins(
+      req.user.id,
+      coinsToAdd,
+      'add_money',
+      description,
+      transactionData
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Money added successfully',
+      coinsAdded: coinsToAdd,
+      gateway,
     });
   } catch (error) {
     res.status(500).json({

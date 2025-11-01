@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'services/api_service.dart';
+import 'add_card_screen.dart';
+import 'coin_purchase_screen.dart';
 
 class PaymentSettingsScreen
     extends
@@ -20,13 +23,162 @@ class _PaymentSettingsScreenState
           PaymentSettingsScreen
         > {
   String
-  selectedPaymentMethod = 'visa';
+  selectedPaymentMethod = '';
+  List<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  _paymentCards = [];
+  Map<
+    String,
+    dynamic
+  >
+  _billingInfo = {};
+  List<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  _transactions = [];
+  bool
+  _isLoading = true;
+
+  @override
+  void
+  initState() {
+    super.initState();
+    _loadPaymentData();
+  }
+
+  Future<
+    void
+  >
+  _loadPaymentData() async {
+    setState(
+      () {
+        _isLoading = true;
+      },
+    );
+
+    try {
+      // Load payment cards
+      final cardsResponse = await ApiService.getPaymentCards();
+      if (cardsResponse['success']) {
+        _paymentCards =
+            List<
+              Map<
+                String,
+                dynamic
+              >
+            >.from(
+              cardsResponse['data'] ??
+                  [],
+            );
+        // Set default selected card
+        final defaultCard = _paymentCards.firstWhere(
+          (
+            card,
+          ) =>
+              card['isDefault'] ==
+              true,
+          orElse: () => _paymentCards.isNotEmpty
+              ? _paymentCards.first
+              : {},
+        );
+        if (defaultCard.isNotEmpty) {
+          selectedPaymentMethod = defaultCard['_id'];
+        }
+      }
+
+      // Load billing info
+      final billingResponse = await ApiService.getBillingInfo();
+      if (billingResponse['success']) {
+        _billingInfo =
+            billingResponse['data'] ??
+            {};
+      }
+
+      // Load transactions
+      final transactionsResponse = await ApiService.getTransactions();
+      if (transactionsResponse['success']) {
+        _transactions =
+            List<
+                  Map<
+                    String,
+                    dynamic
+                  >
+                >.from(
+                  transactionsResponse['data'] ??
+                      [],
+                )
+                .take(
+                  3,
+                )
+                .toList(); // Show only recent 3
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading payment data: $e',
+      );
+    } finally {
+      setState(
+        () {
+          _isLoading = false;
+        },
+      );
+    }
+  }
 
   @override
   Widget
   build(
     BuildContext context,
   ) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back,
+              color: Colors.black,
+            ),
+            onPressed: () => Navigator.pop(
+              context,
+            ),
+          ),
+          title: const Text(
+            'Payment Settings',
+            style: TextStyle(
+              color: Color(
+                0xFF8B5CF6,
+              ),
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(
+            valueColor:
+                AlwaysStoppedAnimation<
+                  Color
+                >(
+                  Color(
+                    0xFF8B5CF6,
+                  ),
+                ),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -59,6 +211,74 @@ class _PaymentSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Buy Coins Button
+            Container(
+              width: double.infinity,
+              height: 56,
+              margin: const EdgeInsets.only(
+                bottom: 24,
+              ),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(
+                      0xFF8B5CF6,
+                    ),
+                    Color(
+                      0xFF3B82F6,
+                    ),
+                  ],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                borderRadius: BorderRadius.circular(
+                  28,
+                ),
+              ),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (
+                            context,
+                          ) => const CoinPurchaseScreen(),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      28,
+                    ),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.monetization_on,
+                      color: Colors.white,
+                    ),
+                    SizedBox(
+                      width: 8,
+                    ),
+                    Text(
+                      'Buy Coins',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
             const Text(
               'Payment Methods',
               style: TextStyle(
@@ -72,41 +292,28 @@ class _PaymentSettingsScreenState
               height: 16,
             ),
 
-            _buildPaymentMethodCard(
-              'visa',
-              'Visa',
-              '**** **** **** 2143',
-              'Expires 12/26',
-              const Color(
-                0xFF1A1F71,
-              ),
-              Colors.white,
-            ),
-
-            _buildPaymentMethodCard(
-              'mastercard',
-              'Mastercard',
-              '**** **** **** 8765',
-              'Expires 08/27',
-              const Color.fromRGBO(
-                235,
-                0,
-                27,
-                1,
-              ),
-              Colors.white,
-            ),
-
-            _buildPaymentMethodCard(
-              'paypal',
-              'PayPal',
-              'user@example.com',
-              'Verified Account',
-              const Color(
-                0xFF0070BA,
-              ),
-              Colors.white,
-            ),
+            // Dynamic payment cards
+            ..._paymentCards
+                .map(
+                  (
+                    card,
+                  ) => _buildPaymentMethodCard(
+                    card['_id'],
+                    _getCardDisplayName(
+                      card['cardType'],
+                    ),
+                    '**** **** **** ${card['lastFourDigits']}',
+                    'Expires ${card['expiryMonth']}/${card['expiryYear'].toString().substring(2)}',
+                    _getCardColor(
+                      card['cardType'],
+                    ),
+                    Colors.white,
+                    onDelete: () => _deleteCard(
+                      card['_id'],
+                    ),
+                  ),
+                )
+                .toList(),
 
             const SizedBox(
               height: 16,
@@ -127,8 +334,20 @@ class _PaymentSettingsScreenState
                 ),
               ),
               child: ElevatedButton(
-                onPressed: () {
-                  _showAddPaymentMethodDialog();
+                onPressed: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (
+                            context,
+                          ) => const AddCardScreen(),
+                    ),
+                  );
+                  if (result ==
+                      true) {
+                    _loadPaymentData(); // Refresh data
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
@@ -186,37 +405,40 @@ class _PaymentSettingsScreenState
             _buildBillingInfoItem(
               Icons.person,
               'Full Name',
-              'John Doe',
-              () {
-                // Handle edit name
-              },
+              _billingInfo['fullName'] ??
+                  'Not set',
+              () => _editBillingInfo(
+                'fullName',
+              ),
             ),
 
             _buildBillingInfoItem(
               Icons.email,
               'Email Address',
-              'john.doe@example.com',
-              () {
-                // Handle edit email
-              },
+              _billingInfo['email'] ??
+                  'Not set',
+              () => _editBillingInfo(
+                'email',
+              ),
             ),
 
             _buildBillingInfoItem(
               Icons.location_on,
               'Billing Address',
-              '123 Main St, City, State 12345',
-              () {
-                // Handle edit address
-              },
+              _formatAddress(),
+              () => _editBillingInfo(
+                'address',
+              ),
             ),
 
             _buildBillingInfoItem(
               Icons.phone,
               'Phone Number',
-              '+1 (555) 123-4567',
-              () {
-                // Handle edit phone
-              },
+              _billingInfo['phone'] ??
+                  'Not set',
+              () => _editBillingInfo(
+                'phone',
+              ),
             ),
 
             const SizedBox(
@@ -236,26 +458,23 @@ class _PaymentSettingsScreenState
               height: 16,
             ),
 
-            _buildTransactionItem(
-              'Premium Subscription',
-              'Oct 15, 2025',
-              '\$9.99',
-              true,
-            ),
-
-            _buildTransactionItem(
-              'Coin Purchase',
-              'Oct 10, 2025',
-              '\$4.99',
-              true,
-            ),
-
-            _buildTransactionItem(
-              'Premium Subscription',
-              'Sep 15, 2025',
-              '\$9.99',
-              true,
-            ),
+            // Dynamic transactions
+            ..._transactions
+                .map(
+                  (
+                    transaction,
+                  ) => _buildTransactionItem(
+                    _getTransactionTitle(
+                      transaction['type'],
+                    ),
+                    _formatDate(
+                      transaction['createdAt'],
+                    ),
+                    '${transaction['amount'] > 0 ? '+' : ''}${transaction['amount']} coins',
+                    true,
+                  ),
+                )
+                .toList(),
 
             const SizedBox(
               height: 16,
@@ -298,6 +517,205 @@ class _PaymentSettingsScreenState
     );
   }
 
+  String
+  _getCardDisplayName(
+    String cardType,
+  ) {
+    switch (cardType) {
+      case 'visa':
+        return 'Visa';
+      case 'mastercard':
+        return 'Mastercard';
+      case 'amex':
+        return 'American Express';
+      case 'discover':
+        return 'Discover';
+      default:
+        return 'Card';
+    }
+  }
+
+  Color
+  _getCardColor(
+    String cardType,
+  ) {
+    switch (cardType) {
+      case 'visa':
+        return const Color(
+          0xFF1A1F71,
+        );
+      case 'mastercard':
+        return const Color(
+          0xFFEB001B,
+        );
+      case 'amex':
+        return const Color(
+          0xFF006FCF,
+        );
+      case 'discover':
+        return const Color(
+          0xFFFF6000,
+        );
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String
+  _formatAddress() {
+    final parts =
+        <
+          String
+        >[];
+    if (_billingInfo['address']?.isNotEmpty ==
+        true)
+      parts.add(
+        _billingInfo['address'],
+      );
+    if (_billingInfo['city']?.isNotEmpty ==
+        true)
+      parts.add(
+        _billingInfo['city'],
+      );
+    if (_billingInfo['state']?.isNotEmpty ==
+        true)
+      parts.add(
+        _billingInfo['state'],
+      );
+    if (_billingInfo['zipCode']?.isNotEmpty ==
+        true)
+      parts.add(
+        _billingInfo['zipCode'],
+      );
+    return parts.isEmpty
+        ? 'Not set'
+        : parts.join(
+            ', ',
+          );
+  }
+
+  String
+  _getTransactionTitle(
+    String type,
+  ) {
+    switch (type) {
+      case 'purchase':
+        return 'Coin Purchase';
+      case 'ad_watch':
+        return 'Ad Reward';
+      case 'spin_wheel':
+        return 'Spin Wheel';
+      case 'upload_reward':
+        return 'Upload Reward';
+      case 'view_reward':
+        return 'View Reward';
+      case 'gift_sent':
+        return 'Gift Sent';
+      case 'gift_received':
+        return 'Gift Received';
+      default:
+        return 'Transaction';
+    }
+  }
+
+  String
+  _formatDate(
+    String dateString,
+  ) {
+    try {
+      final date = DateTime.parse(
+        dateString,
+      );
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (
+      e
+    ) {
+      return dateString;
+    }
+  }
+
+  Future<
+    void
+  >
+  _deleteCard(
+    String cardId,
+  ) async {
+    try {
+      final response = await ApiService.deletePaymentCard(
+        cardId,
+      );
+      if (response['success']) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Card deleted successfully',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _loadPaymentData(); // Refresh data
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              response['message'] ??
+                  'Failed to delete card',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (
+      e
+    ) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error: $e',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void
+  _editBillingInfo(
+    String field,
+  ) {
+    // For now, show a simple dialog. In a real app, you'd have a proper form
+    showDialog(
+      context: context,
+      builder:
+          (
+            context,
+          ) => AlertDialog(
+            title: Text(
+              'Edit ${field.toUpperCase()}',
+            ),
+            content: const Text(
+              'Billing info editing will be implemented in a future update.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(
+                  context,
+                ),
+                child: const Text(
+                  'OK',
+                ),
+              ),
+            ],
+          ),
+    );
+  }
+
   Widget
   _buildPaymentMethodCard(
     String id,
@@ -305,8 +723,9 @@ class _PaymentSettingsScreenState
     String number,
     String expiry,
     Color bgColor,
-    Color textColor,
-  ) {
+    Color textColor, {
+    VoidCallback? onDelete,
+  }) {
     final isSelected =
         selectedPaymentMethod ==
         id;
@@ -396,13 +815,33 @@ class _PaymentSettingsScreenState
                   ],
                 ),
               ),
-              if (isSelected)
-                const Icon(
-                  Icons.check_circle,
-                  color: Color(
-                    0xFF8B5CF6,
-                  ),
-                ),
+              Row(
+                children: [
+                  if (isSelected)
+                    const Icon(
+                      Icons.check_circle,
+                      color: Color(
+                        0xFF8B5CF6,
+                      ),
+                    ),
+                  if (onDelete !=
+                      null) ...[
+                    const SizedBox(
+                      width: 8,
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.delete,
+                        color: Colors.red,
+                        size: 20,
+                      ),
+                      onPressed: onDelete,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ],
+              ),
             ],
           ),
         ),
@@ -593,47 +1032,6 @@ class _PaymentSettingsScreenState
           ),
         ],
       ),
-    );
-  }
-
-  void
-  _showAddPaymentMethodDialog() {
-    showDialog(
-      context: context,
-      builder:
-          (
-            BuildContext context,
-          ) {
-            return AlertDialog(
-              title: const Text(
-                'Add Payment Method',
-              ),
-              content: const Text(
-                'Choose a payment method to add to your account.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(
-                    context,
-                  ),
-                  child: const Text(
-                    'Cancel',
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(
-                      context,
-                    );
-                    // Handle add payment method
-                  },
-                  child: const Text(
-                    'Add Card',
-                  ),
-                ),
-              ],
-            );
-          },
     );
   }
 }

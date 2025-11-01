@@ -36,14 +36,126 @@ class _ProfileScreenState
     >
   >
   _posts = [];
+  List<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  _sytPosts = [];
+  List<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  _likedPosts = [];
   bool
   _isLoading = true;
+  String
+  selectedTab = 'Reels';
 
   @override
   void
   initState() {
     super.initState();
     _loadUserData();
+  }
+
+  Future<
+    void
+  >
+  _loadLikedPosts() async {
+    try {
+      print(
+        'Loading liked posts...',
+      );
+      // Get multiple pages of feed to find liked posts
+      List<
+        Map<
+          String,
+          dynamic
+        >
+      >
+      allLikedPosts = [];
+
+      for (
+        int page = 1;
+        page <=
+            5;
+        page++
+      ) {
+        // Check first 5 pages
+        final feedResponse = await ApiService.getFeed(
+          page: page,
+          limit: 20,
+        );
+        if (feedResponse['success']) {
+          final posts =
+              List<
+                Map<
+                  String,
+                  dynamic
+                >
+              >.from(
+                feedResponse['data'] ??
+                    [],
+              );
+
+          // Check each post's like status
+          for (final post in posts) {
+            try {
+              final statsResponse = await ApiService.getPostStats(
+                post['_id'],
+              );
+              if (statsResponse['success'] &&
+                  statsResponse['data']['isLiked'] ==
+                      true) {
+                allLikedPosts.add(
+                  post,
+                );
+                print(
+                  'Found liked post: ${post['_id']}',
+                );
+              }
+            } catch (
+              e
+            ) {
+              print(
+                'Error checking post stats for ${post['_id']}: $e',
+              );
+            }
+          }
+
+          if (posts.length <
+              20)
+            break; // No more posts
+        } else {
+          break;
+        }
+      }
+
+      setState(
+        () {
+          _likedPosts = allLikedPosts;
+        },
+      );
+
+      print(
+        'Total liked posts found: ${_likedPosts.length}',
+      );
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading liked posts: $e',
+      );
+      setState(
+        () {
+          _likedPosts = [];
+        },
+      );
+    }
   }
 
   Future<
@@ -85,6 +197,7 @@ class _ProfileScreenState
             authProvider.user!['id'] ??
             '';
         if (userId.isNotEmpty) {
+          // Load regular posts
           final response = await ApiService.getUserPosts(
             userId,
           );
@@ -101,14 +214,48 @@ class _ProfileScreenState
                       response['data'] ??
                           [],
                     );
-                _isLoading = false;
               },
             );
-          } else {
+          }
+
+          // Load SYT posts
+          final sytResponse = await ApiService.getSYTEntries();
+          if (sytResponse['success']) {
+            final allSYTEntries =
+                List<
+                  Map<
+                    String,
+                    dynamic
+                  >
+                >.from(
+                  sytResponse['data'] ??
+                      [],
+                );
+            final userSYTEntries = allSYTEntries.where(
+              (
+                entry,
+              ) {
+                final entryUserId =
+                    entry['user']?['_id'] ??
+                    entry['user']?['id'];
+                return entryUserId ==
+                    userId;
+              },
+            ).toList();
+
             setState(
-              () => _isLoading = false,
+              () {
+                _sytPosts = userSYTEntries;
+              },
             );
           }
+
+          // Load liked posts - get feed and filter liked ones
+          await _loadLikedPosts();
+
+          setState(
+            () => _isLoading = false,
+          );
         } else {
           setState(
             () => _isLoading = false,
@@ -505,21 +652,18 @@ class _ProfileScreenState
                                 children: [
                                   _buildTab(
                                     'Reels',
-                                    true,
                                   ),
                                   const SizedBox(
                                     width: 30,
                                   ),
                                   _buildTab(
                                     'SYT',
-                                    false,
                                   ),
                                   const SizedBox(
                                     width: 30,
                                   ),
                                   _buildTab(
                                     'Likes',
-                                    false,
                                   ),
                                 ],
                               ),
@@ -533,77 +677,7 @@ class _ProfileScreenState
                             padding: const EdgeInsets.symmetric(
                               horizontal: 20,
                             ),
-                            child: _posts.isEmpty
-                                ? const Center(
-                                    child: Text(
-                                      'No posts yet',
-                                      style: TextStyle(
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  )
-                                : GridView.builder(
-                                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 3,
-                                      crossAxisSpacing: 8,
-                                      mainAxisSpacing: 8,
-                                      childAspectRatio: 1,
-                                    ),
-                                    itemCount: _posts.length,
-                                    itemBuilder:
-                                        (
-                                          context,
-                                          index,
-                                        ) {
-                                          final post = _posts[index];
-                                          return GestureDetector(
-                                            onTap: () {
-                                              // Navigate to main screen with reel tab and specific post
-                                              Navigator.pushReplacement(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder:
-                                                      (
-                                                        context,
-                                                      ) => MainScreen(
-                                                        initialIndex: 0,
-                                                        initialPostId: post['_id'],
-                                                      ),
-                                                ),
-                                              );
-                                            },
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                color: _getGridItemColor(
-                                                  index,
-                                                ),
-                                                borderRadius: BorderRadius.circular(
-                                                  12,
-                                                ),
-                                                image:
-                                                    post['thumbnailUrl'] !=
-                                                        null
-                                                    ? DecorationImage(
-                                                        image: NetworkImage(
-                                                          ApiService.getImageUrl(
-                                                            post['thumbnailUrl'],
-                                                          ),
-                                                        ),
-                                                        fit: BoxFit.cover,
-                                                      )
-                                                    : null,
-                                              ),
-                                              child: const Center(
-                                                child: Icon(
-                                                  Icons.play_arrow,
-                                                  color: Colors.white,
-                                                  size: 30,
-                                                ),
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                  ),
+                            child: _buildTabContent(),
                           ),
                         ),
 
@@ -666,37 +740,510 @@ class _ProfileScreenState
   }
 
   Widget
-  _buildTab(
-    String title,
-    bool isActive,
-  ) {
-    return Column(
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: isActive
-                ? Colors.black
-                : Colors.grey,
-          ),
-        ),
-        const SizedBox(
-          height: 4,
-        ),
-        if (isActive)
-          Container(
-            width: 30,
-            height: 2,
-            decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(
-                1,
+  _buildTabContent() {
+    switch (selectedTab) {
+      case 'Reels':
+        return _buildReelsGrid();
+      case 'SYT':
+        return _buildSYTGrid();
+      case 'Likes':
+        return _buildLikesGrid();
+      default:
+        return _buildReelsGrid();
+    }
+  }
+
+  Widget
+  _buildReelsGrid() {
+    if (_posts.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.video_library_outlined,
+              size: 64,
+              color: Colors.grey,
+            ),
+            SizedBox(
+              height: 16,
+            ),
+            Text(
+              'No reels yet',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
               ),
             ),
+            SizedBox(
+              height: 8,
+            ),
+            Text(
+              'Your reels will appear here',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 1,
+      ),
+      itemCount: _posts.length,
+      itemBuilder:
+          (
+            context,
+            index,
+          ) {
+            final post = _posts[index];
+            return GestureDetector(
+              onTap: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (
+                          context,
+                        ) => MainScreen(
+                          initialIndex: 0,
+                          initialPostId: post['_id'],
+                        ),
+                  ),
+                );
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: _getGridItemColor(
+                    index,
+                  ),
+                  borderRadius: BorderRadius.circular(
+                    12,
+                  ),
+                  image:
+                      post['thumbnailUrl'] !=
+                          null
+                      ? DecorationImage(
+                          image: NetworkImage(
+                            ApiService.getImageUrl(
+                              post['thumbnailUrl'],
+                            ),
+                          ),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.play_arrow,
+                    color: Colors.white,
+                    size: 30,
+                  ),
+                ),
+              ),
+            );
+          },
+    );
+  }
+
+  Widget
+  _buildSYTGrid() {
+    if (_sytPosts.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.emoji_events_outlined,
+              size: 64,
+              color: Colors.grey,
+            ),
+            SizedBox(
+              height: 16,
+            ),
+            Text(
+              'No SYT entries yet',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            SizedBox(
+              height: 8,
+            ),
+            Text(
+              'Your Show Your Talent entries will appear here',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 1,
+      ),
+      itemCount: _sytPosts.length,
+      itemBuilder:
+          (
+            context,
+            index,
+          ) {
+            final sytPost = _sytPosts[index];
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (
+                          context,
+                        ) => MainScreen(
+                          initialIndex: 1, // SYT tab
+                          initialPostId: sytPost['_id'],
+                        ),
+                  ),
+                );
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.purple[100],
+                  borderRadius: BorderRadius.circular(
+                    12,
+                  ),
+                  image:
+                      sytPost['thumbnailUrl'] !=
+                          null
+                      ? DecorationImage(
+                          image: NetworkImage(
+                            ApiService.getImageUrl(
+                              sytPost['thumbnailUrl'],
+                            ),
+                          ),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: Stack(
+                  children: [
+                    // SYT badge
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(
+                                0xFF701CF5,
+                              ),
+                              Color(
+                                0xFF3E98E4,
+                              ),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            8,
+                          ),
+                        ),
+                        child: const Text(
+                          'SYT',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Center(
+                      child: Icon(
+                        Icons.play_arrow,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                    ),
+                    // Vote count
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(
+                            0.7,
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            4,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.thumb_up,
+                              color: Colors.white,
+                              size: 10,
+                            ),
+                            const SizedBox(
+                              width: 2,
+                            ),
+                            Text(
+                              sytPost['votesCount']?.toString() ??
+                                  '0',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+    );
+  }
+
+  Widget
+  _buildLikesGrid() {
+    if (_likedPosts.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.favorite_outline,
+              size: 64,
+              color: Colors.grey,
+            ),
+            SizedBox(
+              height: 16,
+            ),
+            Text(
+              'No liked posts yet',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            SizedBox(
+              height: 8,
+            ),
+            Text(
+              'Posts you like will appear here',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 1,
+      ),
+      itemCount: _likedPosts.length,
+      itemBuilder:
+          (
+            context,
+            index,
+          ) {
+            final likedPost = _likedPosts[index];
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (
+                          context,
+                        ) => MainScreen(
+                          initialIndex: 0, // Reels tab
+                          initialPostId: likedPost['_id'],
+                        ),
+                  ),
+                );
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.pink[100],
+                  borderRadius: BorderRadius.circular(
+                    12,
+                  ),
+                  image:
+                      likedPost['thumbnailUrl'] !=
+                          null
+                      ? DecorationImage(
+                          image: NetworkImage(
+                            ApiService.getImageUrl(
+                              likedPost['thumbnailUrl'],
+                            ),
+                          ),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: Stack(
+                  children: [
+                    // Liked badge
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.pink,
+                          borderRadius: BorderRadius.circular(
+                            8,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.favorite,
+                          color: Colors.white,
+                          size: 12,
+                        ),
+                      ),
+                    ),
+                    const Center(
+                      child: Icon(
+                        Icons.play_arrow,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                    ),
+                    // Like count
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(
+                            0.7,
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            4,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.favorite,
+                              color: Colors.pink,
+                              size: 10,
+                            ),
+                            const SizedBox(
+                              width: 2,
+                            ),
+                            Text(
+                              likedPost['likesCount']?.toString() ??
+                                  '0',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+    );
+  }
+
+  Widget
+  _buildTab(
+    String title,
+  ) {
+    final isActive =
+        selectedTab ==
+        title;
+    return GestureDetector(
+      onTap: () {
+        setState(
+          () {
+            selectedTab = title;
+          },
+        );
+      },
+      child: Column(
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: isActive
+                  ? Colors.black
+                  : Colors.grey,
+            ),
           ),
-      ],
+          const SizedBox(
+            height: 4,
+          ),
+          if (isActive)
+            Container(
+              width: 30,
+              height: 2,
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(
+                  1,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 

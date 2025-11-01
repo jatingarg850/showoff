@@ -221,6 +221,18 @@ const userSchema = new mongoose.Schema({
     default: 'USD',
   },
   
+  // Billing Information
+  billingInfo: {
+    fullName: String,
+    email: String,
+    phone: String,
+    address: String,
+    city: String,
+    state: String,
+    zipCode: String,
+    country: String,
+  },
+  
   // Timestamps
   lastLogin: {
     type: Date,
