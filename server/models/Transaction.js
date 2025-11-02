@@ -23,7 +23,8 @@ const transactionSchema = new mongoose.Schema({
       'withdrawal',
       'purchase',
       'subscription',
-      'profile_completion'
+      'profile_completion',
+      'add_money'  // Added for Razorpay add money functionality
     ],
     required: true,
   },

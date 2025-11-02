@@ -5,10 +5,21 @@ const Razorpay = require('razorpay');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const crypto = require('crypto');
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// Initialize Razorpay
+let razorpay;
+try {
+  if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+    razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+    console.log('✅ Razorpay initialized successfully');
+  } else {
+    console.log('⚠️ Razorpay credentials not found in environment variables');
+  }
+} catch (error) {
+  console.error('❌ Error initializing Razorpay:', error);
+}
 
 // @desc    Watch ad and earn coins
 // @route   POST /api/coins/watch-ad
@@ -255,7 +266,24 @@ exports.getBalance = async (req, res) => {
 // @access  Private
 exports.createCoinPurchaseOrder = async (req, res) => {
   try {
+    console.log('💰 Creating coin purchase order...');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('User ID:', req.user.id);
+    console.log('Request headers:', req.headers['content-type']);
+
     const { packageId, amount, coins } = req.body;
+    
+    // Log individual values
+    console.log('Parsed values:', { packageId, amount, coins });
+
+    // Validate required fields
+    if (!packageId) {
+      console.log('❌ Missing packageId');
+      return res.status(400).json({
+        success: false,
+        message: 'Package ID is required',
+      });
+    }
 
     // Validate package
     const coinPackages = {
@@ -270,25 +298,71 @@ exports.createCoinPurchaseOrder = async (req, res) => {
 
     const selectedPackage = coinPackages[packageId];
     if (!selectedPackage) {
+      console.log('❌ Invalid package selected:', packageId);
       return res.status(400).json({
         success: false,
         message: 'Invalid package selected',
       });
     }
 
+    console.log('✅ Selected package:', selectedPackage);
+
+    // Validate Razorpay configuration
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      console.log('❌ Razorpay credentials not configured');
+      return res.status(500).json({
+        success: false,
+        message: 'Payment gateway not configured',
+      });
+    }
+
+    // For add_money, validate amount
+    if (packageId === 'add_money') {
+      if (!amount || amount <= 0) {
+        console.log('❌ Invalid amount for add_money:', amount);
+        return res.status(400).json({
+          success: false,
+          message: 'Valid amount is required for adding money',
+        });
+      }
+      // Convert amount to paise and calculate coins
+      selectedPackage.price = Math.round(amount * 100); // Convert to paise
+      selectedPackage.coins = Math.round(amount * 1.2); // 1 INR = 1.2 coins
+      console.log('💰 Add money - Amount:', amount, 'Price in paise:', selectedPackage.price, 'Coins:', selectedPackage.coins);
+    }
+
     // Create Razorpay order
+    // Generate shorter receipt (max 40 chars)
+    const timestamp = Date.now().toString().slice(-8); // Last 8 digits
+    const userIdShort = req.user.id.slice(-8); // Last 8 chars of user ID
+    const receipt = `c_${userIdShort}_${timestamp}`; // Format: c_12345678_87654321 (max 21 chars)
+    
     const options = {
       amount: selectedPackage.price, // amount in paise
       currency: 'INR',
-      receipt: `coin_${req.user.id}_${Date.now()}`,
+      receipt: receipt,
       notes: {
         userId: req.user.id,
         packageId,
-        coins: selectedPackage.coins,
+        coins: selectedPackage.coins.toString(),
       },
     };
+    
+    console.log('📝 Receipt generated:', receipt, '(length:', receipt.length, ')');
+    
+    // Validate receipt length (Razorpay requirement: max 40 chars)
+    if (receipt.length > 40) {
+      console.log('❌ Receipt too long:', receipt.length, 'chars');
+      return res.status(500).json({
+        success: false,
+        message: 'Receipt generation error',
+      });
+    }
+
+    console.log('🔄 Creating Razorpay order with options:', options);
 
     const order = await razorpay.orders.create(options);
+    console.log('✅ Razorpay order created:', order.id);
 
     res.status(200).json({
       success: true,
@@ -301,9 +375,17 @@ exports.createCoinPurchaseOrder = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error('❌ Error creating coin purchase order:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      razorpayError: error.error || null,
+    });
+    
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message || 'Failed to create purchase order',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
     });
   }
 };
@@ -313,12 +395,22 @@ exports.createCoinPurchaseOrder = async (req, res) => {
 // @access  Private
 exports.purchaseCoins = async (req, res) => {
   try {
+    console.log('💳 Processing coin purchase...');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    
     const { 
       razorpayOrderId, 
       razorpayPaymentId, 
       razorpaySignature, 
-      packageId 
+      packageId,
+      amount, // For add_money
+      coins   // For add_money
     } = req.body;
+
+    console.log('🔐 Verifying payment signature...');
+    console.log('Order ID:', razorpayOrderId);
+    console.log('Payment ID:', razorpayPaymentId);
+    console.log('Signature:', razorpaySignature);
 
     // Verify payment signature
     const sign = razorpayOrderId + '|' + razorpayPaymentId;
@@ -327,12 +419,19 @@ exports.purchaseCoins = async (req, res) => {
       .update(sign.toString())
       .digest('hex');
 
+    console.log('Expected signature:', expectedSign);
+    console.log('Received signature:', razorpaySignature);
+    console.log('Signatures match:', razorpaySignature === expectedSign);
+
     if (razorpaySignature !== expectedSign) {
+      console.log('❌ Payment signature verification failed');
       return res.status(400).json({
         success: false,
         message: 'Invalid payment signature',
       });
     }
+
+    console.log('✅ Payment signature verified successfully');
 
     // Get package details
     const coinPackages = {
@@ -342,22 +441,42 @@ exports.purchaseCoins = async (req, res) => {
       'package_4': { coins: 2500, price: 1999 },
       'package_5': { coins: 5000, price: 4999 },
       'package_6': { coins: 10000, price: 9999 },
+      'add_money': { coins: coins || 0, price: amount || 0 }, // Dynamic for add money
     };
 
     const selectedPackage = coinPackages[packageId];
     if (!selectedPackage) {
+      console.log('❌ Invalid package:', packageId);
       return res.status(400).json({
         success: false,
         message: 'Invalid package',
       });
     }
 
+    console.log('📦 Selected package:', selectedPackage);
+
+    // For add_money, calculate coins from amount
+    if (packageId === 'add_money') {
+      if (!amount || amount <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid amount for add money',
+        });
+      }
+      selectedPackage.coins = Math.round(amount * 1.2); // 1 INR = 1.2 coins
+      selectedPackage.price = amount;
+      console.log('💰 Add money calculated - Amount:', amount, 'Coins:', selectedPackage.coins);
+    }
+
     // Award coins to user
+    console.log('🎁 Awarding coins to user...');
     await awardCoins(
       req.user.id, 
       selectedPackage.coins, 
-      'purchase', 
-      `Purchased ${selectedPackage.coins} coins for ₹${selectedPackage.price/100}`,
+      packageId === 'add_money' ? 'add_money' : 'purchase', 
+      packageId === 'add_money' 
+        ? `Added money: ₹${selectedPackage.price}` 
+        : `Purchased ${selectedPackage.coins} coins for ₹${selectedPackage.price/100}`,
       {
         razorpayOrderId,
         razorpayPaymentId,
@@ -367,12 +486,16 @@ exports.purchaseCoins = async (req, res) => {
       }
     );
 
+    console.log('✅ Coins awarded successfully');
+
     res.status(200).json({
       success: true,
-      message: 'Coins purchased successfully',
+      message: packageId === 'add_money' ? 'Money added successfully' : 'Coins purchased successfully',
       coinsAdded: selectedPackage.coins,
+      amountPaid: packageId === 'add_money' ? selectedPackage.price : selectedPackage.price / 100,
     });
   } catch (error) {
+    console.error('❌ Error in purchaseCoins:', error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -480,25 +603,46 @@ exports.confirmStripePayment = async (req, res) => {
 // @access  Private
 exports.addMoney = async (req, res) => {
   try {
+    console.log('💰 Add money endpoint called...');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('User ID:', req.user.id);
+    
     const { 
       amount, 
       gateway, 
-      paymentData 
+      paymentData,
+      // Also accept direct payment fields (for Flutter app compatibility)
+      razorpayOrderId,
+      razorpayPaymentId, 
+      razorpaySignature
     } = req.body;
 
+    console.log('Parsed values:', { amount, gateway, paymentData, razorpayOrderId, razorpayPaymentId, razorpaySignature });
+
     if (!amount || amount <= 0) {
+      console.log('❌ Invalid amount:', amount);
       return res.status(400).json({
         success: false,
         message: 'Invalid amount',
       });
     }
 
-    if (!gateway || !['stripe', 'razorpay'].includes(gateway)) {
+    // Auto-detect gateway if not provided but payment data is available
+    let detectedGateway = gateway;
+    if (!detectedGateway && (razorpayOrderId || paymentData?.razorpayOrderId)) {
+      detectedGateway = 'razorpay';
+      console.log('🔍 Auto-detected gateway: razorpay');
+    }
+
+    if (!detectedGateway || !['stripe', 'razorpay'].includes(detectedGateway)) {
+      console.log('❌ Invalid gateway:', detectedGateway);
       return res.status(400).json({
         success: false,
-        message: 'Invalid payment gateway',
+        message: 'Invalid payment gateway. Please specify "stripe" or "razorpay"',
       });
     }
+
+    console.log('✅ Basic validation passed, gateway:', detectedGateway);
 
     let coinsToAdd = 0;
     let description = '';
@@ -524,34 +668,103 @@ exports.addMoney = async (req, res) => {
         amountPaid: amountInUSD,
         currency: paymentIntent.currency,
       };
-    } else if (gateway === 'razorpay') {
-      // Handle Razorpay payment
-      const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = paymentData;
+    } else if (detectedGateway === 'razorpay') {
+      // Handle Razorpay payment - support both formats
+      let orderIdValue, paymentIdValue, signatureValue;
+      
+      if (paymentData) {
+        // Format 1: Nested in paymentData
+        orderIdValue = paymentData.razorpayOrderId;
+        paymentIdValue = paymentData.razorpayPaymentId;
+        signatureValue = paymentData.razorpaySignature;
+      } else {
+        // Format 2: Direct fields (Flutter app format)
+        orderIdValue = razorpayOrderId;
+        paymentIdValue = razorpayPaymentId;
+        signatureValue = razorpaySignature;
+      }
+      
+      console.log('🔐 Razorpay payment verification...');
+      console.log('Order ID:', orderIdValue);
+      console.log('Payment ID:', paymentIdValue);
+      console.log('Signature:', signatureValue);
+      
+      if (!orderIdValue || !paymentIdValue || !signatureValue) {
+        console.log('❌ Missing Razorpay payment data');
+        return res.status(400).json({
+          success: false,
+          message: 'Missing Razorpay payment data (orderId, paymentId, signature)',
+        });
+      }
       
       // Verify payment signature
-      const sign = razorpayOrderId + '|' + razorpayPaymentId;
+      const sign = orderIdValue + '|' + paymentIdValue;
       const expectedSign = crypto
         .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
         .update(sign.toString())
         .digest('hex');
 
-      if (razorpaySignature !== expectedSign) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid payment signature',
-        });
+      console.log('Expected signature:', expectedSign);
+      console.log('Received signature:', signatureValue);
+      console.log('Signatures match:', signatureValue === expectedSign);
+
+      // Check if this is a demo/test payment
+      const isDemoPayment = paymentIdValue.includes('demo') || 
+                           signatureValue === 'demo_signature' ||
+                           paymentIdValue.startsWith('pay_demo_');
+      
+      console.log('Is demo payment:', isDemoPayment);
+
+      if (isDemoPayment) {
+        // Handle demo payments in development
+        if (process.env.NODE_ENV === 'development') {
+          console.log('⚠️ Demo payment detected - allowing in development mode');
+        } else {
+          console.log('❌ Demo payments not allowed in production');
+          return res.status(400).json({
+            success: false,
+            message: 'Demo payments not allowed in production',
+          });
+        }
+      } else {
+        // Verify real payment signature
+        if (signatureValue !== expectedSign) {
+          console.log('❌ Payment signature verification failed');
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid payment signature',
+          });
+        }
       }
 
+      console.log('✅ Payment signature verified successfully');
+
       const amountInINR = amount;
+      
+      // Validate amount (should match the order amount)
+      if (!isDemoPayment) {
+        // For real payments, you might want to fetch the order from Razorpay to verify amount
+        // For now, we'll trust the amount from the request
+        console.log('💰 Real payment - Amount:', amountInINR);
+      } else {
+        console.log('🧪 Demo payment - Amount:', amountInINR);
+      }
+      
       coinsToAdd = Math.floor(amountInINR * 1.2); // 1 INR = 1.2 coins
-      description = `Added money via Razorpay: ₹${amountInINR}`;
+      description = isDemoPayment 
+        ? `Demo payment: ₹${amountInINR}` 
+        : `Added money via Razorpay: ₹${amountInINR}`;
+      
       transactionData = {
-        razorpayOrderId,
-        razorpayPaymentId,
-        razorpaySignature,
+        razorpayOrderId: orderIdValue,
+        razorpayPaymentId: paymentIdValue,
+        razorpaySignature: signatureValue,
         amountPaid: amountInINR,
         currency: 'INR',
+        isDemoPayment: isDemoPayment,
       };
+      
+      console.log('💰 Razorpay payment processed - Amount:', amountInINR, 'Coins:', coinsToAdd, 'Demo:', isDemoPayment);
     }
 
     // Award coins to user
@@ -563,12 +776,17 @@ exports.addMoney = async (req, res) => {
       transactionData
     );
 
+    console.log('🎁 Awarding coins to user...');
+    
     res.status(200).json({
       success: true,
       message: 'Money added successfully',
       coinsAdded: coinsToAdd,
-      gateway,
+      gateway: detectedGateway,
+      amountPaid: amount,
     });
+    
+    console.log('✅ Money added successfully - Coins:', coinsToAdd);
   } catch (error) {
     res.status(500).json({
       success: false,

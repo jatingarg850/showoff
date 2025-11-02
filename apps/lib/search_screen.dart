@@ -413,24 +413,44 @@ class _SearchScreenState
               height: 50,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(
-                      0xFF701CF5,
-                    ),
-                    Color(
-                      0xFF3E98E4,
-                    ),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                gradient:
+                    user['profilePicture'] ==
+                        null
+                    ? const LinearGradient(
+                        colors: [
+                          Color(
+                            0xFF701CF5,
+                          ),
+                          Color(
+                            0xFF3E98E4,
+                          ),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : null,
+                image:
+                    user['profilePicture'] !=
+                        null
+                    ? DecorationImage(
+                        image: NetworkImage(
+                          ApiService.getImageUrl(
+                            user['profilePicture'],
+                          ),
+                        ),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
               ),
-              child: const Icon(
-                Icons.person,
-                color: Colors.white,
-                size: 24,
-              ),
+              child:
+                  user['profilePicture'] ==
+                      null
+                  ? const Icon(
+                      Icons.person,
+                      color: Colors.white,
+                      size: 24,
+                    )
+                  : null,
             ),
             const SizedBox(
               width: 12,
@@ -444,7 +464,9 @@ class _SearchScreenState
                   Row(
                     children: [
                       Text(
-                        user['displayName'],
+                        user['displayName'] ??
+                            user['username'] ??
+                            'Unknown User',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -470,7 +492,7 @@ class _SearchScreenState
                     height: 2,
                   ),
                   Text(
-                    '@${user['username']}',
+                    '@${user['username'] ?? 'unknown'}',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[600],
@@ -480,7 +502,8 @@ class _SearchScreenState
                     height: 4,
                   ),
                   Text(
-                    user['bio'],
+                    user['bio'] ??
+                        'No bio available',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[500],
@@ -492,7 +515,7 @@ class _SearchScreenState
                     height: 4,
                   ),
                   Text(
-                    '${user['followers']} followers',
+                    '${user['followersCount'] ?? user['followers'] ?? 0} followers',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[500],

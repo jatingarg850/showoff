@@ -1334,23 +1334,26 @@ class ApiService {
   createRazorpayOrderForAddMoney({
     required double amount,
   }) async {
+    final requestBody = {
+      'packageId': 'add_money',
+      'amount': amount, // Send amount in rupees, backend will convert to paise
+      'coins':
+          (amount *
+                  1.2)
+              .round(), // 1 INR = 1.2 coins
+    };
+
+    print(
+      '🌐 API Service DEBUG - Sending to backend: $requestBody',
+    );
+
     final response = await http.post(
       Uri.parse(
         '$baseUrl/coins/create-purchase-order',
       ),
       headers: await _getHeaders(),
       body: jsonEncode(
-        {
-          'packageId': 'add_money',
-          'amount':
-              (amount *
-                      100)
-                  .round(), // Convert to paise
-          'coins':
-              (amount *
-                      120)
-                  .round(), // 1 INR = 1.2 coins
-        },
+        requestBody,
       ),
     );
     return jsonDecode(
@@ -2305,23 +2308,56 @@ class ApiService {
     required String name,
     required String description,
     required String category,
-    String? coverImage,
+    File? bannerImage,
+    File? logoImage,
   }) async {
-    final response = await http.post(
+    final request = http.MultipartRequest(
+      'POST',
       Uri.parse(
         '$baseUrl/groups',
       ),
-      headers: await _getHeaders(),
-      body: jsonEncode(
-        {
-          'name': name,
-          'description': description,
-          'category': category,
-          if (coverImage !=
-              null)
-            'coverImage': coverImage,
-        },
-      ),
+    );
+
+    request.headers.addAll(
+      await _getMultipartHeaders(),
+    );
+
+    // Add text fields
+    request.fields['name'] = name;
+    request.fields['description'] = description;
+    request.fields['category'] = category;
+
+    // Add banner image if provided
+    if (bannerImage !=
+        null) {
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'banner',
+          bannerImage.path,
+          contentType: http_parser.MediaType.parse(
+            'image/jpeg',
+          ),
+        ),
+      );
+    }
+
+    // Add logo image if provided
+    if (logoImage !=
+        null) {
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'logo',
+          logoImage.path,
+          contentType: http_parser.MediaType.parse(
+            'image/jpeg',
+          ),
+        ),
+      );
+    }
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(
+      streamedResponse,
     );
     return jsonDecode(
       response.body,
@@ -2340,6 +2376,26 @@ class ApiService {
     final response = await http.post(
       Uri.parse(
         '$baseUrl/groups/$groupId/join',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  checkGroupMembership(
+    String groupId,
+  ) async {
+    final response = await http.get(
+      Uri.parse(
+        '$baseUrl/groups/$groupId/membership',
       ),
       headers: await _getHeaders(),
     );
@@ -2609,5 +2665,146 @@ class ApiService {
         'message': 'Failed to load liked posts',
       };
     }
+  }
+
+  // Notification APIs
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  getNotifications({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final response = await http.get(
+      Uri.parse(
+        '$baseUrl/notifications?page=$page&limit=$limit',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  getUnreadNotificationCount() async {
+    final response = await http.get(
+      Uri.parse(
+        '$baseUrl/notifications/unread-count',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  markNotificationAsRead(
+    String notificationId,
+  ) async {
+    final response = await http.put(
+      Uri.parse(
+        '$baseUrl/notifications/$notificationId/read',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  markAllNotificationsAsRead() async {
+    final response = await http.put(
+      Uri.parse(
+        '$baseUrl/notifications/mark-all-read',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  deleteNotification(
+    String notificationId,
+  ) async {
+    final response = await http.delete(
+      Uri.parse(
+        '$baseUrl/notifications/$notificationId',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  updateNotificationSettings({
+    bool? push,
+    bool? email,
+    bool? sms,
+    Map<
+      String,
+      bool
+    >?
+    types,
+  }) async {
+    final response = await http.put(
+      Uri.parse(
+        '$baseUrl/notifications/settings',
+      ),
+      headers: await _getHeaders(),
+      body: jsonEncode(
+        {
+          if (push !=
+              null)
+            'push': push,
+          if (email !=
+              null)
+            'email': email,
+          if (sms !=
+              null)
+            'sms': sms,
+          if (types !=
+              null)
+            'types': types,
+        },
+      ),
+    );
+    return jsonDecode(
+      response.body,
+    );
   }
 }

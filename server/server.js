@@ -5,10 +5,22 @@ const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const http = require('http');
+const socketIo = require('socket.io');
+const jwt = require('jsonwebtoken');
 const connectDatabase = require('./config/database');
 
 // Initialize express app
 const app = express();
+const server = http.createServer(app);
+
+// Initialize Socket.IO
+const io = socketIo(server, {
+  cors: {
+    origin: "*", // In production, specify your client URL
+    methods: ["GET", "POST"]
+  }
+});
 
 // Connect to database
 connectDatabase();
@@ -38,6 +50,114 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
+// WebSocket Authentication Middleware
+const authenticateSocket = async (socket, next) => {
+  try {
+    const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return next(new Error('No token provided'));
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const User = require('./models/User');
+    const user = await User.findById(decoded.id).select('-password');
+    
+    if (!user) {
+      return next(new Error('User not found'));
+    }
+
+    socket.userId = user._id.toString();
+    socket.user = user;
+    next();
+  } catch (error) {
+    next(new Error('Invalid token'));
+  }
+};
+
+// WebSocket Connection Handling
+io.use(authenticateSocket);
+
+io.on('connection', (socket) => {
+  console.log(`✅ User ${socket.user.username} connected via WebSocket`);
+  
+  // Join user-specific room
+  socket.join(`user_${socket.userId}`);
+  
+  // Register connection
+  const { registerUserConnection, unregisterUserConnection } = require('./utils/pushNotifications');
+  registerUserConnection(socket.userId, socket.id);
+  
+  // Handle user status updates
+  socket.on('updateStatus', (status) => {
+    socket.broadcast.emit('userStatusUpdate', {
+      userId: socket.userId,
+      status,
+      timestamp: new Date().toISOString()
+    });
+  });
+  
+  // Handle typing indicators
+  socket.on('typing', (data) => {
+    socket.to(`user_${data.recipientId}`).emit('userTyping', {
+      userId: socket.userId,
+      isTyping: data.isTyping
+    });
+  });
+  
+  // Handle notification acknowledgment
+  socket.on('notificationRead', async (notificationId) => {
+    try {
+      const Notification = require('./models/Notification');
+      await Notification.findByIdAndUpdate(notificationId, {
+        isRead: true,
+        readAt: new Date()
+      });
+      
+      // Send updated unread count
+      const unreadCount = await Notification.countDocuments({
+        recipient: socket.userId,
+        isRead: false
+      });
+      
+      socket.emit('unreadCountUpdate', { unreadCount });
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  });
+  
+  // Handle disconnect
+  socket.on('disconnect', () => {
+    console.log(`❌ User ${socket.user.username} disconnected`);
+    unregisterUserConnection(socket.userId);
+    
+    // Broadcast user offline status
+    socket.broadcast.emit('userStatusUpdate', {
+      userId: socket.userId,
+      status: 'offline',
+      timestamp: new Date().toISOString()
+    });
+  });
+  
+  // Send initial unread count
+  socket.on('getUnreadCount', async () => {
+    try {
+      const Notification = require('./models/Notification');
+      const unreadCount = await Notification.countDocuments({
+        recipient: socket.userId,
+        isRead: false
+      });
+      
+      socket.emit('unreadCountUpdate', { unreadCount });
+    } catch (error) {
+      console.error('Error getting unread count:', error);
+    }
+  });
+});
+
+// Make io available to other modules
+module.exports.io = io;
+
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
@@ -56,13 +176,19 @@ app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/cart', require('./routes/cartRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/spin-wheel', require('./routes/spinWheelRoutes'));
+app.use('/api/notifications', require('./routes/notificationRoutes'));
 
 // Health check
 app.get('/health', (req, res) => {
+  const { getActiveConnectionsCount } = require('./utils/pushNotifications');
   res.status(200).json({
     success: true,
     message: 'Server is running',
     timestamp: new Date().toISOString(),
+    websocket: {
+      enabled: true,
+      activeConnections: getActiveConnectionsCount(),
+    },
   });
 });
 
@@ -105,7 +231,7 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, async () => {
+server.listen(PORT, async () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
@@ -113,6 +239,7 @@ app.listen(PORT, async () => {
 ║                                                           ║
 ║   Server running on port ${PORT}                          ║  
 ║   Environment: ${process.env.NODE_ENV || 'development'}   ║       
+║   WebSocket: ✅ Enabled                                   ║
 ║                                                           ║
 ║   API Documentation: http://localhost:${PORT}/            ║  
 ║   Health Check: http://localhost:${PORT}/health           ║ 

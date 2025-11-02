@@ -4,9 +4,13 @@ import 'splash_screen.dart';
 import 'onboarding_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/profile_provider.dart';
+import 'providers/notification_provider.dart';
+import 'services/notification_service.dart';
 
 void
-main() {
+main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
   runApp(
     MultiProvider(
       providers: [
@@ -21,6 +25,12 @@ main() {
               (
                 _,
               ) => ProfileProvider(),
+        ),
+        ChangeNotifierProvider(
+          create:
+              (
+                _,
+              ) => NotificationProvider(),
         ),
       ],
       child: const MyApp(),

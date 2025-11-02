@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'services/api_service.dart';
+import 'services/razorpay_service.dart';
 
 class EnhancedAddMoneyScreen
     extends
@@ -25,7 +26,7 @@ class _EnhancedAddMoneyScreenState
   String
   _selectedAmount = '';
   String
-  _selectedGateway = 'stripe'; // Default to Stripe
+  _selectedGateway = 'razorpay'; // Default to Razorpay
   bool
   _isLoading = false;
 
@@ -33,17 +34,66 @@ class _EnhancedAddMoneyScreenState
     String
   >
   _quickAmounts = [
-    '20',
-    '50',
     '100',
-    '200',
+    '500',
+    '1000',
+    '2000',
   ];
+
+  @override
+  void
+  initState() {
+    super.initState();
+    _initializeRazorpay();
+  }
 
   @override
   void
   dispose() {
     _amountController.dispose();
+    RazorpayService.instance.clearCallbacks();
     super.dispose();
+  }
+
+  void
+  _initializeRazorpay() {
+    RazorpayService.instance.initialize();
+    RazorpayService.instance.setCallbacks(
+      onSuccess:
+          (
+            message,
+          ) {
+            setState(
+              () {
+                _isLoading = false;
+              },
+            );
+            _showSuccessDialog(
+              message,
+            );
+          },
+      onError:
+          (
+            error,
+          ) {
+            setState(
+              () {
+                _isLoading = false;
+              },
+            );
+            _showErrorDialog(
+              error,
+            );
+          },
+      onExternalWallet:
+          (
+            message,
+          ) {
+            print(
+              'External wallet: $message',
+            );
+          },
+    );
   }
 
   void
@@ -83,6 +133,22 @@ class _EnhancedAddMoneyScreenState
       return;
     }
 
+    if (amount <
+        10) {
+      _showError(
+        'Minimum amount is ₹10',
+      );
+      return;
+    }
+
+    if (amount >
+        100000) {
+      _showError(
+        'Maximum amount is ₹1,00,000',
+      );
+      return;
+    }
+
     setState(
       () {
         _isLoading = true;
@@ -103,14 +169,13 @@ class _EnhancedAddMoneyScreenState
     } catch (
       e
     ) {
-      _showError(
-        'Payment failed: $e',
-      );
-    } finally {
       setState(
         () {
           _isLoading = false;
         },
+      );
+      _showError(
+        'Payment failed: $e',
       );
     }
   }
@@ -152,10 +217,8 @@ class _EnhancedAddMoneyScreenState
     );
 
     if (confirmResponse['success']) {
-      _showSuccess(
-        confirmResponse['coinsAdded'],
-        amount,
-        'Stripe',
+      _showSuccessDialog(
+        'Payment successful! ${confirmResponse['coinsAdded']} coins added to your account.',
       );
     } else {
       throw Exception(
@@ -171,56 +234,147 @@ class _EnhancedAddMoneyScreenState
   _processRazorpayPayment(
     double amount,
   ) async {
-    // Create Razorpay order
-    final orderResponse = await ApiService.createRazorpayOrderForAddMoney(
-      amount: amount,
-    );
-
-    if (!orderResponse['success']) {
-      throw Exception(
-        orderResponse['message'] ??
-            'Failed to create order',
+    try {
+      print(
+        '🚀 Starting Razorpay payment for amount: ₹$amount',
       );
-    }
 
-    // In a real app, you would integrate with Razorpay SDK here
-    // For demo purposes, we'll simulate a successful payment
-    await Future.delayed(
-      const Duration(
-        seconds: 2,
-      ),
-    );
-
-    // Simulate successful payment
-    final confirmResponse = await ApiService.addMoney(
-      amount: amount,
-      gateway: 'razorpay',
-      paymentData: {
-        'razorpayOrderId': orderResponse['data']['orderId'],
-        'razorpayPaymentId': 'pay_demo_${DateTime.now().millisecondsSinceEpoch}',
-        'razorpaySignature': 'demo_signature',
-      },
-    );
-
-    if (confirmResponse['success']) {
-      _showSuccess(
-        confirmResponse['coinsAdded'],
-        amount,
-        'Razorpay',
+      // Create order on backend
+      final orderResponse = await ApiService.createRazorpayOrderForAddMoney(
+        amount: amount,
       );
-    } else {
-      throw Exception(
-        confirmResponse['message'] ??
-            'Payment confirmation failed',
+
+      if (!orderResponse['success']) {
+        throw Exception(
+          orderResponse['message'] ??
+              'Failed to create order',
+        );
+      }
+
+      final orderId = orderResponse['data']['orderId'];
+      final orderAmountInPaise = orderResponse['data']['amount']; // Backend returns amount in paise
+      final orderAmountInRupees =
+          orderAmountInPaise /
+          100; // Convert for display only
+
+      print(
+        '📊 DEBUG - User entered: ₹$amount',
+      );
+      print(
+        '📊 DEBUG - Backend returned amount in paise: $orderAmountInPaise',
+      );
+      print(
+        '📊 DEBUG - Converted to rupees for display: ₹$orderAmountInRupees',
+      );
+      print(
+        '📊 DEBUG - Sending to Razorpay: $orderAmountInPaise paise',
+      );
+      print(
+        '✅ Order created: $orderId for ₹$orderAmountInRupees',
+      );
+
+      // Start Razorpay payment
+      await RazorpayService.instance.startPayment(
+        orderId: orderId,
+        amount: orderAmountInPaise.toDouble(), // Send amount in paise to RazorpayService
+        description: 'Add ₹${amount.toStringAsFixed(0)} to ShowOff.life wallet',
+        userEmail: 'user@showoff.life', // You can get this from user profile
+        userPhone: '9999999999', // You can get this from user profile
+      );
+
+      // Note: Payment success/failure will be handled by RazorpayService callbacks
+      // The _isLoading state will be updated in the callbacks
+    } catch (
+      e
+    ) {
+      setState(
+        () {
+          _isLoading = false;
+        },
+      );
+      print(
+        '❌ Razorpay payment error: $e',
+      );
+      _showError(
+        'Failed to start payment: $e',
       );
     }
   }
 
   void
-  _showSuccess(
-    int coins,
-    double amount,
-    String gateway,
+  _showSuccessDialog(
+    String message,
+  ) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (
+            context,
+          ) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  color: Colors.green,
+                ),
+                SizedBox(
+                  width: 8,
+                ),
+                Text(
+                  'Payment Successful',
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.account_balance_wallet,
+                  size: 64,
+                  color: Color(
+                    0xFF8B5CF6,
+                  ),
+                ),
+                SizedBox(
+                  height: 16,
+                ),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(
+                    context,
+                  ); // Close dialog
+                  Navigator.pop(
+                    context,
+                  ); // Go back to previous screen
+                },
+                child: const Text(
+                  'Continue',
+                  style: TextStyle(
+                    color: Color(
+                      0xFF8B5CF6,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+    );
+  }
+
+  void
+  _showErrorDialog(
+    String message,
   ) {
     showDialog(
       context: context,
@@ -228,51 +382,28 @@ class _EnhancedAddMoneyScreenState
           (
             context,
           ) => AlertDialog(
-            title: const Row(
+            title: Row(
               children: [
                 Icon(
-                  Icons.check_circle,
-                  color: Colors.green,
-                  size: 28,
+                  Icons.error,
+                  color: Colors.red,
                 ),
                 SizedBox(
                   width: 8,
                 ),
                 Text(
-                  'Success!',
+                  'Payment Failed',
                 ),
               ],
             ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Payment successful via $gateway',
-                ),
-                const SizedBox(
-                  height: 8,
-                ),
-                Text(
-                  'Amount: ${_selectedGateway == 'stripe' ? '\$' : '₹'}${amount.toStringAsFixed(2)}',
-                ),
-                Text(
-                  'Coins added: $coins',
-                ),
-              ],
+            content: Text(
+              message,
             ),
             actions: [
               TextButton(
-                onPressed: () {
-                  Navigator.of(
-                    context,
-                  ).pop();
-                  Navigator.of(
-                    context,
-                  ).pop(
-                    true,
-                  ); // Return true to indicate success
-                },
+                onPressed: () => Navigator.pop(
+                  context,
+                ),
                 child: const Text(
                   'OK',
                 ),
@@ -383,8 +514,8 @@ class _EnhancedAddMoneyScreenState
                                   'stripe'
                               ? const Color(
                                   0xFF8B5CF6,
-                                ).withOpacity(
-                                  0.1,
+                                ).withValues(
+                                  alpha: 0.1,
                                 )
                               : Colors.grey[100],
                           borderRadius: BorderRadius.circular(
@@ -478,8 +609,8 @@ class _EnhancedAddMoneyScreenState
                                   'razorpay'
                               ? const Color(
                                   0xFF8B5CF6,
-                                ).withOpacity(
-                                  0.1,
+                                ).withValues(
+                                  alpha: 0.1,
                                 )
                               : Colors.grey[100],
                           borderRadius: BorderRadius.circular(
@@ -646,8 +777,8 @@ class _EnhancedAddMoneyScreenState
                               color: isSelected
                                   ? const Color(
                                       0xFF8B5CF6,
-                                    ).withOpacity(
-                                      0.1,
+                                    ).withValues(
+                                      alpha: 0.1,
                                     )
                                   : Colors.grey[100],
                               borderRadius: BorderRadius.circular(
@@ -739,9 +870,15 @@ class _EnhancedAddMoneyScreenState
                       ? null
                       : _processPayment,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(
-                      0xFF8B5CF6,
-                    ),
+                    backgroundColor:
+                        _selectedGateway ==
+                            'razorpay'
+                        ? const Color(
+                            0xFF3395FF,
+                          )
+                        : const Color(
+                            0xFF8B5CF6,
+                          ),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       vertical: 18,
@@ -751,28 +888,60 @@ class _EnhancedAddMoneyScreenState
                         30,
                       ),
                     ),
-                    elevation: 0,
+                    elevation: 2,
                   ),
                   child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<
-                                  Color
-                                >(
-                                  Colors.white,
-                                ),
-                          ),
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<
+                                      Color
+                                    >(
+                                      Colors.white,
+                                    ),
+                              ),
+                            ),
+                            const SizedBox(
+                              width: 12,
+                            ),
+                            Text(
+                              'Processing Payment...',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         )
-                      : Text(
-                          'Add Money via ${_selectedGateway == 'stripe' ? 'Stripe' : 'Razorpay'}',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (_selectedGateway ==
+                                'razorpay') ...[
+                              Icon(
+                                Icons.payment,
+                                size: 20,
+                              ),
+                              const SizedBox(
+                                width: 8,
+                              ),
+                            ],
+                            Text(
+                              _amountController.text.isNotEmpty
+                                  ? 'Pay ₹${_amountController.text} via ${_selectedGateway == 'razorpay' ? 'Razorpay' : 'Stripe'}'
+                                  : 'Enter Amount to Continue',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                 ),
               ),

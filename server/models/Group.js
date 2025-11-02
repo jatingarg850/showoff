@@ -18,6 +18,12 @@ const groupSchema = new mongoose.Schema({
   coverImage: {
     type: String,
   },
+  bannerImage: {
+    type: String,
+  },
+  logoImage: {
+    type: String,
+  },
   creator: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

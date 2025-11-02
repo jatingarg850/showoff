@@ -349,10 +349,14 @@ class _AchievementsScreenState
     nextAchievement,
   ) {
     final remaining =
-        nextAchievement['requiredStreak'] -
+        (nextAchievement['requiredStreak']
+                as int? ??
+            0) -
         _currentStreak;
     final progress =
-        nextAchievement['progress'] ??
+        (nextAchievement['progress']
+                as num?)
+            ?.toDouble() ??
         0.0;
 
     return Container(

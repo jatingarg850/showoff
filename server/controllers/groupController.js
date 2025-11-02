@@ -7,24 +7,61 @@ const User = require('../models/User');
 // @access  Private
 exports.createGroup = async (req, res) => {
   try {
-    const { name, description, category, coverImage } = req.body;
+    const { name, description, category } = req.body;
+    
+    console.log('📝 Creating group with data:', { name, description, category });
+    console.log('📁 Files received:', req.files);
+
+    let bannerImage = null;
+    let logoImage = null;
+
+    // Handle uploaded files
+    if (req.files) {
+      if (req.files.banner && req.files.banner[0]) {
+        const bannerFile = req.files.banner[0];
+        if (process.env.WASABI_BUCKET_NAME && bannerFile.location) {
+          // S3/Wasabi URL
+          bannerImage = bannerFile.location;
+        } else {
+          // Local file path
+          bannerImage = `/uploads/images/${bannerFile.filename}`;
+        }
+        console.log('🖼️ Banner image uploaded:', bannerImage);
+      }
+
+      if (req.files.logo && req.files.logo[0]) {
+        const logoFile = req.files.logo[0];
+        if (process.env.WASABI_BUCKET_NAME && logoFile.location) {
+          // S3/Wasabi URL
+          logoImage = logoFile.location;
+        } else {
+          // Local file path
+          logoImage = `/uploads/images/${logoFile.filename}`;
+        }
+        console.log('🏷️ Logo image uploaded:', logoImage);
+      }
+    }
 
     const group = await Group.create({
       name,
       description,
       category,
-      coverImage,
+      bannerImage,
+      logoImage,
       creator: req.user.id,
       members: [req.user.id], // Creator is automatically a member
     });
 
     await group.populate('creator', 'username displayName profilePicture');
 
+    console.log('✅ Group created successfully:', group._id);
+
     res.status(201).json({
       success: true,
       data: group,
     });
   } catch (error) {
+    console.error('❌ Error creating group:', error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -291,6 +328,39 @@ exports.getMyGroups = async (req, res) => {
     res.status(200).json({
       success: true,
       data: groups,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Check if user is member of group
+// @route   GET /api/groups/:id/membership
+// @access  Private
+exports.checkMembership = async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+
+    if (!group) {
+      return res.status(404).json({
+        success: false,
+        message: 'Group not found',
+      });
+    }
+
+    const isMember = group.members.includes(req.user.id);
+    const isCreator = group.creator.toString() === req.user.id;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        isMember,
+        isCreator,
+        membersCount: group.membersCount,
+      },
     });
   } catch (error) {
     res.status(500).json({

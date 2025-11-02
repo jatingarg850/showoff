@@ -204,6 +204,25 @@ exports.toggleLike = async (req, res) => {
         await post.save();
       }
 
+      // Create notification for post owner (if not liking own post)
+      console.log('🔍 Checking notification eligibility:');
+      console.log('  Post owner ID:', post.user.toString());
+      console.log('  Liker ID:', req.user.id);
+      console.log('  Same user?', post.user.toString() === req.user.id);
+      
+      if (post.user.toString() !== req.user.id) {
+        try {
+          console.log('✅ Creating like notification...');
+          const { createLikeNotification } = require('../utils/notificationHelper');
+          await createLikeNotification(post._id, req.user.id, post.user);
+          console.log('✅ Like notification created successfully');
+        } catch (notificationError) {
+          console.error('❌ Error creating like notification:', notificationError);
+        }
+      } else {
+        console.log('⚠️ Skipping notification - user liked own post');
+      }
+
       res.status(200).json({
         success: true,
         liked: true,
@@ -244,6 +263,25 @@ exports.addComment = async (req, res) => {
     await post.save();
 
     await comment.populate('user', 'username displayName profilePicture isVerified');
+
+    // Create notification for post owner (if not commenting on own post)
+    console.log('🔍 Checking comment notification eligibility:');
+    console.log('  Post owner ID:', post.user.toString());
+    console.log('  Commenter ID:', req.user.id);
+    console.log('  Same user?', post.user.toString() === req.user.id);
+    
+    if (post.user.toString() !== req.user.id) {
+      try {
+        console.log('✅ Creating comment notification...');
+        const { createCommentNotification } = require('../utils/notificationHelper');
+        await createCommentNotification(post._id, comment._id, req.user.id, post.user, text);
+        console.log('✅ Comment notification created successfully');
+      } catch (notificationError) {
+        console.error('❌ Error creating comment notification:', notificationError);
+      }
+    } else {
+      console.log('⚠️ Skipping notification - user commented on own post');
+    }
 
     res.status(201).json({
       success: true,

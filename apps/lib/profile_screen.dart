@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'settings_screen.dart';
-import 'community_screen.dart';
+import 'enhanced_community_screen.dart';
 import 'store_screen.dart';
 import 'achievements_screen.dart';
 import 'edit_profile_screen.dart';
@@ -630,7 +630,7 @@ class _ProfileScreenState
                                             builder:
                                                 (
                                                   context,
-                                                ) => const CommunityScreen(),
+                                                ) => const EnhancedCommunityScreen(),
                                           ),
                                         );
                                       },

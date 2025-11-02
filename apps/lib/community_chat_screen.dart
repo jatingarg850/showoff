@@ -41,8 +41,15 @@ class _CommunityChatScreenState
     >
   >
   _messages = [];
+  Map<
+    String,
+    dynamic
+  >?
+  _groupDetails;
   bool
   _isLoading = true;
+  bool
+  _isLoadingGroup = true;
   Timer?
   _pollTimer;
 
@@ -50,6 +57,7 @@ class _CommunityChatScreenState
   void
   initState() {
     super.initState();
+    _loadGroupDetails();
     _loadMessages();
     // Poll for new messages every 3 seconds
     _pollTimer = Timer.periodic(
@@ -64,6 +72,39 @@ class _CommunityChatScreenState
         );
       },
     );
+  }
+
+  Future<
+    void
+  >
+  _loadGroupDetails() async {
+    try {
+      final response = await ApiService.getGroup(
+        widget.groupId,
+      );
+      if (response['success'] &&
+          mounted) {
+        setState(
+          () {
+            _groupDetails = response['data'];
+            _isLoadingGroup = false;
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading group details: $e',
+      );
+      if (mounted) {
+        setState(
+          () {
+            _isLoadingGroup = false;
+          },
+        );
+      }
+    }
   }
 
   @override
@@ -232,56 +273,107 @@ class _CommunityChatScreenState
             context,
           ),
         ),
-        title: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.orange,
-                    Colors.yellow,
-                  ],
-                ),
-              ),
-              child: const Center(
-                child: Text(
-                  '👥',
-                  style: TextStyle(
-                    fontSize: 20,
+        title: _isLoadingGroup
+            ? Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.grey[300],
+                    ),
+                    child: const Icon(
+                      Icons.group,
+                      color: Colors.grey,
+                      size: 20,
+                    ),
                   ),
-                ),
+                  const SizedBox(
+                    width: 12,
+                  ),
+                  Text(
+                    widget.communityName,
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  // Community Logo
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.grey[300],
+                      image:
+                          _groupDetails?['logoImage'] !=
+                              null
+                          ? DecorationImage(
+                              image: NetworkImage(
+                                ApiService.getImageUrl(
+                                  _groupDetails!['logoImage'],
+                                ),
+                              ),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child:
+                        _groupDetails?['logoImage'] ==
+                            null
+                        ? const Icon(
+                            Icons.group,
+                            color: Colors.white,
+                            size: 20,
+                          )
+                        : null,
+                  ),
+                  const SizedBox(
+                    width: 12,
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _groupDetails?['name'] ??
+                              widget.communityName,
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          '${_groupDetails?['membersCount'] ?? 0} members',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(
-              width: 12,
-            ),
-            Text(
-              widget.communityName,
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
         actions: [
+          // Community info button
           IconButton(
             icon: const Icon(
-              Icons.call,
+              Icons.info_outline,
               color: Colors.black,
             ),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(
-              Icons.videocam,
-              color: Colors.black,
-            ),
-            onPressed: () {},
+            onPressed: () {
+              _showCommunityInfo();
+            },
           ),
         ],
       ),
@@ -379,8 +471,8 @@ class _CommunityChatScreenState
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(
-                    0.1,
+                  color: Colors.grey.withValues(
+                    alpha: 0.1,
                   ),
                   blurRadius: 10,
                   offset: const Offset(
@@ -567,6 +659,157 @@ class _CommunityChatScreenState
           ),
         ],
       ),
+    );
+  }
+
+  void
+  _showCommunityInfo() {
+    if (_groupDetails ==
+        null)
+      return;
+
+    showDialog(
+      context: context,
+      builder:
+          (
+            context,
+          ) => AlertDialog(
+            title: Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.grey[300],
+                    image:
+                        _groupDetails!['logoImage'] !=
+                            null
+                        ? DecorationImage(
+                            image: NetworkImage(
+                              ApiService.getImageUrl(
+                                _groupDetails!['logoImage'],
+                              ),
+                            ),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                  child:
+                      _groupDetails!['logoImage'] ==
+                          null
+                      ? const Icon(
+                          Icons.group,
+                          color: Colors.white,
+                          size: 24,
+                        )
+                      : null,
+                ),
+                const SizedBox(
+                  width: 12,
+                ),
+                Expanded(
+                  child: Text(
+                    _groupDetails!['name'] ??
+                        'Community',
+                    style: const TextStyle(
+                      fontSize: 18,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_groupDetails!['description'] !=
+                    null) ...[
+                  const Text(
+                    'Description:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(
+                    height: 4,
+                  ),
+                  Text(
+                    _groupDetails!['description'],
+                  ),
+                  const SizedBox(
+                    height: 16,
+                  ),
+                ],
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.people,
+                      size: 16,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(
+                      width: 4,
+                    ),
+                    Text(
+                      '${_groupDetails!['membersCount'] ?? 0} members',
+                    ),
+                  ],
+                ),
+                const SizedBox(
+                  height: 8,
+                ),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.category,
+                      size: 16,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(
+                      width: 4,
+                    ),
+                    Text(
+                      _groupDetails!['category'] ??
+                          'General',
+                    ),
+                  ],
+                ),
+                if (_groupDetails!['creator'] !=
+                    null) ...[
+                  const SizedBox(
+                    height: 8,
+                  ),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.person,
+                        size: 16,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(
+                        width: 4,
+                      ),
+                      Text(
+                        'Created by ${_groupDetails!['creator']['displayName'] ?? _groupDetails!['creator']['username'] ?? 'Unknown'}',
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(
+                  context,
+                ),
+                child: const Text(
+                  'Close',
+                ),
+              ),
+            ],
+          ),
     );
   }
 }
