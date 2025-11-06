@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Admin Panel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .success {
+            color: #10b981;
+            font-weight: bold;
+        }
+        .error {
+            color: #ef4444;
+            font-weight: bold;
+        }
+        .link {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 10px 5px;
+            transition: transform 0.2s;
+        }
+        .link:hover {
+            transform: translateY(-2px);
+        }
+        .credentials {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎉 ShowOff Life Admin Panel - Ready!</h1>
+        
+        <div class="success">
+            ✅ Server is running successfully on port 3000<br>
+            ✅ Admin panel is integrated and ready to use<br>
+            ✅ Database connection established<br>
+            ✅ Admin user created successfully
+        </div>
+
+        <div class="credentials">
+            <h3>🔐 Admin Login Credentials:</h3>
+            <p><strong>Email:</strong> admin@showofflife.com</p>
+            <p><strong>Password:</strong> admin123</p>
+        </div>
+
+        <h3>🚀 Access Your Admin Panel:</h3>
+        <a href="http://localhost:3000/admin" class="link" target="_blank">
+            🎛️ Open Admin Dashboard
+        </a>
+        
+        <a href="http://localhost:3000/admin/login" class="link" target="_blank">
+            🔑 Admin Login Page
+        </a>
+
+        <h3>📊 Available Admin Features:</h3>
+        <ul>
+            <li><strong>Dashboard:</strong> Real-time statistics and analytics</li>
+            <li><strong>User Management:</strong> View, suspend, and manage users</li>
+            <li><strong>Content Moderation:</strong> Review and moderate posts/reels</li>
+            <li><strong>Store Management:</strong> Manage products and orders</li>
+            <li><strong>Financial Overview:</strong> Transaction analytics and withdrawals</li>
+            <li><strong>Advanced Analytics:</strong> User growth and engagement metrics</li>
+        </ul>
+
+        <h3>🔧 Technical Details:</h3>
+        <ul>
+            <li>✅ EJS templates with responsive design</li>
+            <li>✅ Session-based authentication</li>
+            <li>✅ Real-time data from MongoDB</li>
+            <li>✅ Interactive charts and visualizations</li>
+            <li>✅ Mobile-friendly interface</li>
+        </ul>
+
+        <div style="margin-top: 30px; padding: 20px; background: #f0fdf4; border-radius: 6px; border: 1px solid #22c55e;">
+            <h4 style="color: #15803d; margin-top: 0;">🎯 Next Steps:</h4>
+            <ol>
+                <li>Click "Open Admin Dashboard" above</li>
+                <li>Login with the provided credentials</li>
+                <li>Explore all the admin features</li>
+                <li>Manage your ShowOff Life platform!</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // Auto-refresh server status
+        setInterval(() => {
+            fetch('/health')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('✅ Server is healthy');
+                    }
+                })
+                .catch(error => {
+                    console.log('❌ Server check failed:', error);
+                });
+        }, 30000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShowOff Life - User Management</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .admin-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 2rem 1.5rem;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .logo i {
+            font-size: 2rem;
+            color: #fbbf24;
+        }
+
+        .sidebar-menu {
+            padding: 1rem 0;
+            list-style: none;
+        }
+
+        .menu-item {
+            margin: 0.25rem 1rem;
+        }
+
+        .menu-item a {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.875rem 1rem;
+            color: #64748b;
+            text-decoration: none;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .menu-item a:hover,
+        .menu-item a.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            transform: translateX(4px);
+        }
+
+        .menu-item i {
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #1e293b;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .content-area {
+            padding: 2rem;
+        }
+
+        /* Tables */
+        .table-container {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 1rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .table-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .table-header h3 {
+            color: #1e293b;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            background: rgba(248, 250, 252, 0.8);
+            padding: 1rem 2rem;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .data-table td {
+            padding: 1rem 2rem;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .data-table tr:hover {
+            background: rgba(248, 250, 252, 0.5);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success { background: #10b981; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.75rem; }
+
+        /* Status Badges */
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-active { background: #dcfce7; color: #166534; }
+        .status-suspended { background: #fef3c7; color: #92400e; }
+        .status-banned { background: #fecaca; color: #991b1b; }
+        .status-verified { background: #dbeafe; color: #1e40af; }
+
+        /* User Profile */
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .user-info h4 {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .user-info p {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-crown"></i>
+                    <span>ShowOff Admin</span>
+                </div>
+            </div>
+            
+            <ul class="sidebar-menu">
+                <li class="menu-item">
+                    <a href="/admin">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="menu-item">
+                    <a href="/admin/users" class="active">
+                        <i class="fas fa-users"></i>
+                        <span>Users</span>
+                    </a>
+                </li>
+                <li class="menu-item">
+                    <a href="/admin/content">
+                        <i class="fas fa-video"></i>
+                        <span>Content</span>
+                    </a>
+                </li>
+                <li class="menu-item">
+                    <a href="/admin/store">
+                        <i class="fas fa-store"></i>
+                        <span>Store</span>
+                    </a>
+                </li>
+                <li class="menu-item">
+                    <a href="/admin/financial">
+                        <i class="fas fa-coins"></i>
+                        <span>Financial</span>
+                    </a>
+                </li>
+                <li class="menu-item">
+                    <a href="/admin/analytics">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>Analytics</span>
+                    </a>
+                </li>
+                <li class="menu-item">
+                    <a href="/admin/settings">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                </li>
+                <li class="menu-item">
+                    <a href="/admin/logout">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header">
+                <h1>User Management</h1>
+            </header>
+
+            <div class="content-area">
+                <!-- Page Header -->
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+    <div>
+        <h2 style="font-size: 1.875rem; font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;">User Management</h2>
+        <p style="color: #64748b;">Manage and moderate user accounts</p>
+    </div>
+    <div style="display: flex; gap: 1rem;">
+        <input type="text" id="user-search" placeholder="Search users..." style="padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; width: 250px;">
+        <select id="status-filter" style="padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 0.5rem;">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+            <option value="banned">Banned</option>
+        </select>
+    </div>
+</div>
+
+<!-- Users Table -->
+<div class="table-container">
+    <div class="table-header">
+        <h3>Users (<%= users.length %>)</h3>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Contact</th>
+                <th>Status</th>
+                <th>Verified</th>
+                <th>Coins</th>
+                <th>Joined</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% if (users && users.length > 0) { %>
+                <% users.forEach(user => { %>
+                    <tr>
+                        <td>
+                            <div class="user-profile">
+                                <img src="<%= user.profilePicture ? (user.profilePicture.startsWith('http') ? user.profilePicture : 'http://localhost:3000' + user.profilePicture) : 'https://via.placeholder.com/40' %>" alt="<%= user.displayName %>" class="user-avatar" onerror="this.src='https://via.placeholder.com/40'">
+                                <div class="user-info">
+                                    <h4><%= user.displayName %></h4>
+                                    <p>@<%= user.username %></p>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                <% if (user.email) { %>
+                                    <div style="font-size: 0.875rem;"><%= user.email %></div>
+                                <% } %>
+                                <% if (user.phone) { %>
+                                    <div style="font-size: 0.75rem; color: #64748b;"><%= user.phone %></div>
+                                <% } %>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="status-badge status-<%= user.accountStatus || 'active' %>">
+                                <%= (user.accountStatus || 'active').charAt(0).toUpperCase() + (user.accountStatus || 'active').slice(1) %>
+                            </span>
+                        </td>
+                        <td>
+                            <% if (user.isVerified) { %>
+                                <span class="status-badge status-verified">
+                                    <i class="fas fa-check-circle"></i> Verified
+                                </span>
+                            <% } else { %>
+                                <span style="color: #64748b; font-size: 0.875rem;">Unverified</span>
+                            <% } %>
+                        </td>
+                        <td>
+                            <div style="font-weight: 600; color: #f59e0b;">
+                                <i class="fas fa-coins"></i> <%= (user.coinBalance || 0).toLocaleString() %>
+                            </div>
+                            <div style="font-size: 0.75rem; color: #64748b;">
+                                Earned: <%= (user.totalCoinsEarned || 0).toLocaleString() %>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-size: 0.875rem;"><%= new Date(user.createdAt).toLocaleDateString() %></div>
+                            <div style="font-size: 0.75rem; color: #64748b;"><%= new Date(user.createdAt).toLocaleTimeString() %></div>
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
+                                <button class="btn btn-sm btn-primary" onclick="viewUser('<%= user._id %>')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <% if (!user.isVerified) { %>
+                                    <button class="btn btn-sm btn-success" onclick="verifyUser('<%= user._id %>', '<%= user.displayName %>')" title="Verify User">
+                                        <i class="fas fa-check-circle"></i>
+                                    </button>
+                                <% } else { %>
+                                    <button class="btn btn-sm btn-warning" onclick="unverifyUser('<%= user._id %>', '<%= user.displayName %>')" title="Remove Verification">
+                                        <i class="fas fa-times-circle"></i>
+                                    </button>
+                                <% } %>
+                                <button class="btn btn-sm" style="background: #f59e0b; color: white;" onclick="manageCoins('<%= user._id %>', '<%= user.displayName %>')" title="Manage Coins">
+                                    <i class="fas fa-coins"></i>
+                                </button>
+                                <% if (user.accountStatus !== 'suspended') { %>
+                                    <button class="btn btn-sm btn-warning" onclick="suspendUser('<%= user._id %>', '<%= user.displayName %>')" title="Suspend User">
+                                        <i class="fas fa-pause"></i>
+                                    </button>
+                                <% } else { %>
+                                    <button class="btn btn-sm btn-success" onclick="activateUser('<%= user._id %>', '<%= user.displayName %>')" title="Activate User">
+                                        <i class="fas fa-play"></i>
+                                    </button>
+                                <% } %>
+                                <button class="btn btn-sm btn-danger" onclick="deleteUser('<%= user._id %>', '<%= user.displayName %>')" title="Delete User">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                <% }) %>
+            <% } else { %>
+                <tr>
+                    <td colspan="7" class="loading">
+                        <i class="fas fa-users"></i>
+                        <p>No users found</p>
+                    </td>
+                </tr>
+            <% } %>
+        </tbody>
+    </table>
+</div>
+
+<!-- Pagination -->
+<% if (pagination && pagination.pages > 1) { %>
+    <div style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 2rem;">
+        <% for (let i = 1; i <= pagination.pages; i++) { %>
+            <a href="/admin/users?page=<%= i %>" class="btn <%= i === pagination.page ? 'btn-primary' : '' %>" style="<%= i === pagination.page ? '' : 'background: white; color: #64748b; border: 1px solid #e2e8f0;' %>">
+                <%= i %>
+            </a>
+        <% } %>
+    </div>
+<% } %>
+
+<!-- User Details Modal -->
+<div id="userModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 1rem; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
+        <div style="padding: 1.5rem; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between;">
+            <h3 style="font-size: 1.25rem; font-weight: 600;">User Details</h3>
+            <button onclick="closeModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+        </div>
+        <div id="userModalContent" style="padding: 1.5rem;">
+            <!-- Dynamic content will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<script>
+    function viewUser(userId) {
+        // In a real implementation, you would fetch user details via AJAX
+        document.getElementById('userModalContent').innerHTML = `
+            <div class="loading">
+                <i class="fas fa-spinner"></i>
+                <p>Loading user details...</p>
+            </div>
+        `;
+        document.getElementById('userModal').style.display = 'flex';
+        
+        // Simulate loading user data
+        setTimeout(() => {
+            document.getElementById('userModalContent').innerHTML = `
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <img src="https://via.placeholder.com/100" alt="User" style="width: 100px; height: 100px; border-radius: 50%; margin-bottom: 1rem;">
+                    <h3>User Details</h3>
+                    <p style="color: #64748b;">Detailed user information would be loaded here</p>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <strong>Account Status:</strong>
+                        <p>Active</p>
+                    </div>
+                    <div>
+                        <strong>Total Posts:</strong>
+                        <p>25 posts</p>
+                    </div>
+                    <div>
+                        <strong>Followers:</strong>
+                        <p>1,234</p>
+                    </div>
+                    <div>
+                        <strong>Following:</strong>
+                        <p>567</p>
+                    </div>
+                </div>
+            `;
+        }, 1000);
+    }
+
+    function suspendUser(userId, userName) {
+        if (confirmAction(`Are you sure you want to suspend ${userName}?`)) {
+            fetch(`/api/admin/users/${userId}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+                },
+                body: JSON.stringify({
+                    status: 'suspended',
+                    reason: 'Suspended by admin'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('User suspended successfully');
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
+        }
+    }
+
+    function activateUser(userId, userName) {
+        if (confirmAction(`Are you sure you want to activate ${userName}?`)) {
+            fetch(`/api/admin/users/${userId}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+                },
+                body: JSON.stringify({
+                    status: 'active',
+                    reason: 'Activated by admin'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('User activated successfully');
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
+        }
+    }
+
+    function verifyUser(userId, userName) {
+        if (confirmAction(`Are you sure you want to verify ${userName}?`)) {
+            fetch(`/api/admin/users/${userId}/verify`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+                },
+                body: JSON.stringify({
+                    isVerified: true
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('User verified successfully');
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
+        }
+    }
+
+    function unverifyUser(userId, userName) {
+        if (confirmAction(`Are you sure you want to remove verification from ${userName}?`)) {
+            fetch(`/api/admin/users/${userId}/verify`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+                },
+                body: JSON.stringify({
+                    isVerified: false
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('User verification removed successfully');
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
+        }
+    }
+
+    function manageCoins(userId, userName) {
+        const action = prompt(`Manage coins for ${userName}:\nEnter 'add' or 'subtract':`);
+        if (!action || (action !== 'add' && action !== 'subtract')) return;
+        
+        const amount = parseInt(prompt(`Enter amount to ${action}:`));
+        if (!amount || amount <= 0) return;
+        
+        const reason = prompt('Enter reason (optional):') || `Admin ${action} coins`;
+        
+        if (confirmAction(`${action === 'add' ? 'Add' : 'Subtract'} ${amount} coins ${action === 'add' ? 'to' : 'from'} ${userName}?`)) {
+            fetch(`/api/admin/users/${userId}/coins`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+                },
+                body: JSON.stringify({
+                    amount: amount,
+                    type: action,
+                    reason: reason
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`Coins ${action === 'add' ? 'added' : 'removed'} successfully`);
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
+        }
+    }
+
+    function deleteUser(userId, userName) {
+        if (confirmAction(`⚠️ WARNING: This will permanently delete ${userName} and ALL their content. This action cannot be undone!\n\nAre you absolutely sure?`)) {
+            const confirmation = prompt(`Type "DELETE" to confirm deletion of ${userName}:`);
+            if (confirmation === 'DELETE') {
+                fetch(`/api/admin/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('User deleted successfully');
+                        window.location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error.message);
+                });
+            }
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('userModal').style.display = 'none';
+    }
+
+    // Search and filter functionality
+    document.getElementById('user-search').addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const rows = document.querySelectorAll('tbody tr');
+        
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(searchTerm) ? '' : 'none';
+        });
+    });
+
+    document.getElementById('status-filter').addEventListener('change', function() {
+        const filterValue = this.value;
+        const rows = document.querySelectorAll('tbody tr');
+        
+        rows.forEach(row => {
+            if (!filterValue) {
+                row.style.display = '';
+            } else {
+                const statusBadge = row.querySelector('.status-badge');
+                if (statusBadge && statusBadge.textContent.toLowerCase().includes(filterValue)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            }
+        });
+    });
+</script>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

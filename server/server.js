@@ -25,9 +25,39 @@ const io = socketIo(server, {
 // Connect to database
 connectDatabase();
 
+// Session setup
+const session = require('express-session');
+app.use(session({
+  secret: process.env.JWT_SECRET || 'your-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+}));
+
+// View engine setup
+app.set('view engine', 'ejs');
+app.set('views', './views');
+
 // Middleware
-app.use(helmet());
-app.use(cors());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
+      imgSrc: ["'self'", "data:", "https:", "http:", "https://s3.ap-southeast-1.wasabisys.com", "https://via.placeholder.com"],
+      mediaSrc: ["'self'", "https:", "http:", "https://s3.ap-southeast-1.wasabisys.com"],
+      connectSrc: ["'self'", "https:", "http:", "ws:", "wss:"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: []
+    }
+  }
+}));
+app.use(cors({
+  origin: ['http://localhost:3000', 'https://s3.ap-southeast-1.wasabisys.com'],
+  credentials: true
+}));
 app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -177,6 +207,150 @@ app.use('/api/cart', require('./routes/cartRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/spin-wheel', require('./routes/spinWheelRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
+
+// Admin web interface routes
+app.use('/admin', require('./routes/adminWebRoutes'));
+
+// Serve admin panel static files (after authentication routes)
+app.use('/admin/assets', express.static('public/admin'));
+
+// Test admin panel page
+app.get('/test-admin', (req, res) => {
+  res.sendFile(__dirname + '/test-admin.html');
+});
+
+// Test media loading page
+app.get('/test-media', async (req, res) => {
+  try {
+    const Post = require('./models/Post');
+    const posts = await Post.find().limit(3).populate('user', 'username profilePicture');
+    
+    let html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Media Test</title>
+        <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            .media-item { margin: 20px 0; padding: 20px; border: 1px solid #ccc; }
+            video, img { max-width: 300px; max-height: 200px; }
+        </style>
+    </head>
+    <body>
+        <h1>Media Loading Test</h1>
+    `;
+    
+    posts.forEach((post, index) => {
+      html += `
+        <div class="media-item">
+          <h3>Post ${index + 1} (${post.type})</h3>
+          <p>URL: ${post.mediaUrl}</p>
+          ${post.type === 'video' ? 
+            `<video controls><source src="${post.mediaUrl}" type="video/mp4">Video not supported</video>` :
+            `<img src="${post.mediaUrl}" alt="Image" onerror="this.style.border='2px solid red'; this.alt='Failed to load'">`
+          }
+          <div>Status: <span id="status-${index}">Loading...</span></div>
+        </div>
+      `;
+    });
+    
+    html += `
+        <script>
+          // Test each media URL
+          ${posts.map((post, index) => `
+            fetch('${post.mediaUrl}', { method: 'HEAD' })
+              .then(response => {
+                document.getElementById('status-${index}').textContent = 
+                  response.ok ? 'Accessible ✅' : 'Failed ❌ (' + response.status + ')';
+              })
+              .catch(error => {
+                document.getElementById('status-${index}').textContent = 'Error ❌ (' + error.message + ')';
+              });
+          `).join('')}
+        </script>
+    </body>
+    </html>
+    `;
+    
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error: ' + error.message);
+  }
+});
+
+// Debug media URLs
+app.get('/debug-media', async (req, res) => {
+  try {
+    const Post = require('./models/Post');
+    const posts = await Post.find().sort({ createdAt: -1 }).limit(10).populate('user', 'username profilePicture');
+    const debugInfo = posts.map(post => ({
+      id: post._id,
+      type: post.type,
+      mediaUrl: post.mediaUrl,
+      fullUrl: post.mediaUrl.startsWith('http') ? post.mediaUrl : 'http://localhost:3000' + post.mediaUrl,
+      userProfile: post.user?.profilePicture,
+      userProfileFullUrl: post.user?.profilePicture ? (post.user.profilePicture.startsWith('http') ? post.user.profilePicture : 'http://localhost:3000' + post.user.profilePicture) : null
+    }));
+    res.json(debugInfo);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Media proxy endpoint to serve Wasabi media with proper CORS headers
+app.get('/media-proxy', async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url || !url.startsWith('https://s3.ap-southeast-1.wasabisys.com/')) {
+      return res.status(400).json({ error: 'Invalid URL' });
+    }
+
+    const https = require('https');
+    const { URL } = require('url');
+    const parsedUrl = new URL(url);
+
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    // Make request to Wasabi
+    const options = {
+      hostname: parsedUrl.hostname,
+      port: 443,
+      path: parsedUrl.pathname + parsedUrl.search,
+      method: 'GET',
+      headers: {
+        'User-Agent': 'ShowOff-Admin-Panel/1.0'
+      }
+    };
+
+    const proxyReq = https.request(options, (proxyRes) => {
+      // Set content type based on file extension
+      const contentType = proxyRes.headers['content-type'] || 
+        (url.includes('.mp4') ? 'video/mp4' : 
+         url.includes('.jpg') || url.includes('.jpeg') ? 'image/jpeg' :
+         url.includes('.png') ? 'image/png' : 'application/octet-stream');
+      
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Length', proxyRes.headers['content-length'] || '');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+
+      proxyRes.pipe(res);
+    });
+
+    proxyReq.on('error', (error) => {
+      console.error('Proxy request error:', error);
+      res.status(500).json({ error: 'Failed to fetch media' });
+    });
+
+    proxyReq.end();
+  } catch (error) {
+    console.error('Media proxy error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Health check
 app.get('/health', (req, res) => {

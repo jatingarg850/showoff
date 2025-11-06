@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShowOff Life - Admin Panel</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-crown"></i>
+                    <span>ShowOff Admin</span>
+                </div>
+            </div>
+            
+            <ul class="sidebar-menu">
+                <li class="menu-item active" data-page="dashboard">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </li>
+                <li class="menu-item" data-page="users">
+                    <i class="fas fa-users"></i>
+                    <span>Users</span>
+                </li>
+                <li class="menu-item" data-page="content">
+                    <i class="fas fa-video"></i>
+                    <span>Content</span>
+                </li>
+                <li class="menu-item" data-page="store">
+                    <i class="fas fa-store"></i>
+                    <span>Store</span>
+                </li>
+                <li class="menu-item" data-page="financial">
+                    <i class="fas fa-coins"></i>
+                    <span>Financial</span>
+                </li>
+                <li class="menu-item" data-page="analytics">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Analytics</span>
+                </li>
+                <li class="menu-item" data-page="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </li>
+            </ul>
+            
+            <div class="sidebar-footer">
+                <div class="admin-profile">
+                    <img src="https://via.placeholder.com/40" alt="Admin" class="admin-avatar">
+                    <div class="admin-info">
+                        <span class="admin-name">Admin User</span>
+                        <span class="admin-role">Super Admin</span>
+                    </div>
+                </div>
+                <button class="logout-btn" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <button class="sidebar-toggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 class="page-title">Dashboard</h1>
+                </div>
+                <div class="header-right">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Search...">
+                    </div>
+                    <div class="notifications">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge">3</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dashboard Content -->
+            <div class="content-area">
+                <div id="dashboard-page" class="page active">
+                    <!-- Stats Cards -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon users">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 id="total-users">Loading...</h3>
+                                <p>Total Users</p>
+                                <span class="stat-change positive" id="users-change">+12% this month</span>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon content">
+                                <i class="fas fa-video"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 id="total-posts">Loading...</h3>
+                                <p>Total Posts</p>
+                                <span class="stat-change positive" id="posts-change">+8% this week</span>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon revenue">
+                                <i class="fas fa-coins"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 id="total-coins">Loading...</h3>
+                                <p>Coins in Circulation</p>
+                                <span class="stat-change positive" id="coins-change">+15% this month</span>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon orders">
+                                <i class="fas fa-shopping-cart"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 id="total-orders">Loading...</h3>
+                                <p>Total Orders</p>
+                                <span class="stat-change negative" id="orders-change">-3% this week</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row -->
+                    <div class="charts-row">
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h3>Revenue Analytics</h3>
+                                <select class="chart-filter" onchange="updateRevenueChart(this.value)">
+                                    <option value="7">Last 7 days</option>
+                                    <option value="30" selected>Last 30 days</option>
+                                    <option value="90">Last 90 days</option>
+                                </select>
+                            </div>
+                            <canvas id="revenueChart"></canvas>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h3>Content Distribution</h3>
+                            </div>
+                            <canvas id="contentChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="activity-section">
+                        <div class="recent-users">
+                            <h3>Recent Users</h3>
+                            <div class="user-list" id="recent-users-list">
+                                <div class="loading">Loading recent users...</div>
+                            </div>
+                        </div>
+                        
+                        <div class="recent-posts">
+                            <h3>Recent Posts</h3>
+                            <div class="post-list" id="recent-posts-list">
+                                <div class="loading">Loading recent posts...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Page -->
+                <div id="users-page" class="page">
+                    <div class="page-header">
+                        <h2>User Management</h2>
+                        <div class="page-actions">
+                            <div class="search-filter">
+                                <input type="text" id="user-search" placeholder="Search users..." onkeyup="searchUsers()">
+                                <select id="user-status-filter" onchange="filterUsers()">
+                                    <option value="">All Status</option>
+                                    <option value="active">Active</option>
+                                    <option value="suspended">Suspended</option>
+                                    <option value="banned">Banned</option>
+                                </select>
+                                <select id="user-verified-filter" onchange="filterUsers()">
+                                    <option value="">All Users</option>
+                                    <option value="true">Verified</option>
+                                    <option value="false">Unverified</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Email</th>
+                                    <th>Status</th>
+                                    <th>Verified</th>
+                                    <th>Coins</th>
+                                    <th>Joined</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body">
+                                <tr><td colspan="7" class="loading">Loading users...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="pagination" id="users-pagination">
+                        <!-- Dynamic pagination -->
+                    </div>
+                </div>
+
+                <!-- Content Moderation Page -->
+                <div id="content-page" class="page">
+                    <div class="page-header">
+                        <h2>Content Moderation</h2>
+                        <div class="page-actions">
+                            <select id="content-type-filter" onchange="filterContent()">
+                                <option value="">All Content</option>
+                                <option value="reel">Reels</option>
+                                <option value="image">Images</option>
+                                <option value="video">Videos</option>
+                            </select>
+                            <select id="content-status-filter" onchange="filterContent()">
+                                <option value="">All Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="content-grid" id="content-grid">
+                        <div class="loading">Loading content...</div>
+                    </div>
+                </div>
+
+                <!-- Store Management Page -->
+                <div id="store-page" class="page">
+                    <div class="page-header">
+                        <h2>Store Management</h2>
+                        <div class="page-actions">
+                            <button class="btn btn-primary" onclick="showAddProductModal()">
+                                <i class="fas fa-plus"></i> Add Product
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="store-stats">
+                        <div class="stat-card">
+                            <h4>Total Products</h4>
+                            <span id="store-total-products">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Active Products</h4>
+                            <span id="store-active-products">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Total Orders</h4>
+                            <span id="store-total-orders">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Pending Orders</h4>
+                            <span id="store-pending-orders">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="products-grid" id="products-grid">
+                        <div class="loading">Loading products...</div>
+                    </div>
+                </div>
+
+                <!-- Financial Page -->
+                <div id="financial-page" class="page">
+                    <div class="page-header">
+                        <h2>Financial Management</h2>
+                    </div>
+                    
+                    <div class="financial-stats">
+                        <div class="financial-card">
+                            <h3>Coins in Circulation</h3>
+                            <div class="financial-value" id="coins-circulation">Loading...</div>
+                        </div>
+                        <div class="financial-card">
+                            <h3>Pending Withdrawals</h3>
+                            <div class="financial-value" id="pending-withdrawals">Loading...</div>
+                        </div>
+                        <div class="financial-card">
+                            <h3>Total Withdrawals</h3>
+                            <div class="financial-value" id="total-withdrawals">Loading...</div>
+                        </div>
+                    </div>
+                    
+                    <div class="withdrawal-requests">
+                        <h3>Withdrawal Requests</h3>
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Amount</th>
+                                        <th>Method</th>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="withdrawals-table-body">
+                                    <tr><td colspan="6" class="loading">Loading withdrawal requests...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Page -->
+                <div id="analytics-page" class="page">
+                    <div class="page-header">
+                        <h2>Analytics & Insights</h2>
+                    </div>
+                    
+                    <div class="analytics-grid">
+                        <div class="analytics-card">
+                            <h3>User Engagement</h3>
+                            <canvas id="engagementChart"></canvas>
+                        </div>
+                        <div class="analytics-card">
+                            <h3>Top Performers</h3>
+                            <div id="top-performers-list">
+                                <div class="loading">Loading top performers...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Page -->
+                <div id="settings-page" class="page">
+                    <div class="page-header">
+                        <h2>System Settings</h2>
+                    </div>
+                    
+                    <div class="settings-grid">
+                        <div class="settings-card">
+                            <h3>Coin System</h3>
+                            <div class="setting-item">
+                                <label>Upload Reward Coins</label>
+                                <input type="number" id="upload-reward" value="5">
+                            </div>
+                            <div class="setting-item">
+                                <label>Ad Watch Coins</label>
+                                <input type="number" id="ad-watch-coins" value="10">
+                            </div>
+                            <button class="btn btn-primary" onclick="updateCoinSettings()">Save Changes</button>
+                        </div>
+                        
+                        <div class="settings-card">
+                            <h3>Content Moderation</h3>
+                            <div class="setting-item">
+                                <label>Auto-approve verified users</label>
+                                <input type="checkbox" id="auto-approve-verified">
+                            </div>
+                            <div class="setting-item">
+                                <label>Require manual review for new users</label>
+                                <input type="checkbox" id="manual-review-new">
+                            </div>
+                            <button class="btn btn-primary" onclick="updateModerationSettings()">Save Changes</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="user-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>User Details</h3>
+                <button class="modal-close" onclick="closeModal('user-modal')">&times;</button>
+            </div>
+            <div class="modal-body" id="user-modal-body">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+
+    <div id="post-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Post Moderation</h3>
+                <button class="modal-close" onclick="closeModal('post-modal')">&times;</button>
+            </div>
+            <div class="modal-body" id="post-modal-body">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
