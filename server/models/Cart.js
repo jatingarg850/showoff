@@ -15,6 +15,8 @@ const cartItemSchema = new mongoose.Schema({
   size: String,
   color: String,
   price: Number, // Store price at time of adding to cart
+  paymentType: String, // 'coins' or 'upi'
+  coinPrice: Number, // Price in coins if paymentType is 'coins'
 });
 
 const cartSchema = new mongoose.Schema({

@@ -669,7 +669,10 @@ class _ProductDetailScreenState
                             ),
                           ),
                           Text(
-                            '\$${(_product!['price'] * quantity).toStringAsFixed(2)}',
+                            _getProductPrice(
+                              _product!,
+                              quantity,
+                            ),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
@@ -703,5 +706,30 @@ class _ProductDetailScreenState
         ],
       ),
     );
+  }
+
+  String
+  _getProductPrice(
+    Map<
+      String,
+      dynamic
+    >
+    product,
+    int quantity,
+  ) {
+    final paymentType =
+        product['paymentType'] ??
+        'upi';
+    if (paymentType ==
+        'coins') {
+      final coinPrice =
+          product['coinPrice'] ??
+          (product['price'] *
+                  10)
+              .ceil();
+      return '${coinPrice * quantity} coins';
+    } else {
+      return '\$${(product['price'] * quantity).toStringAsFixed(2)}';
+    }
   }
 }

@@ -182,13 +182,28 @@ async function populateProducts() {
     await Product.deleteMany({});
     console.log('Cleared existing products');
 
+    // Add payment types to products (50% coins, 50% UPI)
+    const productsWithPayment = products.map((product, index) => {
+      const paymentType = index % 2 === 0 ? 'coins' : 'upi';
+      const coinPrice = paymentType === 'coins' ? Math.ceil(product.price * 10) : null; // 1 USD = 10 coins
+      
+      return {
+        ...product,
+        paymentType,
+        coinPrice,
+      };
+    });
+
     // Insert new products
-    const createdProducts = await Product.insertMany(products);
+    const createdProducts = await Product.insertMany(productsWithPayment);
     console.log(`Created ${createdProducts.length} products`);
 
     console.log('\nSample products:');
-    createdProducts.slice(0, 3).forEach(product => {
-      console.log(`- ${product.name}: $${product.price} (${product.category})`);
+    createdProducts.slice(0, 5).forEach(product => {
+      const priceDisplay = product.paymentType === 'coins' 
+        ? `${product.coinPrice} coins` 
+        : `$${product.price}`;
+      console.log(`- ${product.name}: ${priceDisplay} (${product.category}) - Payment: ${product.paymentType}`);
     });
 
     process.exit(0);

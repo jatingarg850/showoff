@@ -18,7 +18,7 @@ exports.searchUsers = async (req, res) => {
     }
 
     const users = await User.find(query)
-      .select('username displayName profilePicture bio isVerified')
+      .select('username displayName profilePicture bio isVerified followersCount followingCount')
       .limit(50);
 
     res.status(200).json({

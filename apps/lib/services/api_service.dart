@@ -17,8 +17,9 @@ class ApiService {
   ) {
     if (path ==
             null ||
-        path.isEmpty)
+        path.isEmpty) {
       return '';
+    }
     if (path.startsWith(
           'http://',
         ) ||
@@ -2667,6 +2668,68 @@ class ApiService {
     }
   }
 
+  // Get categories with product counts
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  getCategories() async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '$baseUrl/products',
+        ),
+        headers: await _getHeaders(),
+      );
+
+      final data = jsonDecode(
+        response.body,
+      );
+      if (data['success']) {
+        final products =
+            List<
+              Map<
+                String,
+                dynamic
+              >
+            >.from(
+              data['data'],
+            );
+
+        // Count products by category
+        final categoryCount =
+            <
+              String,
+              int
+            >{};
+        for (final product in products) {
+          final category =
+              product['category'] ??
+              'other';
+          categoryCount[category] =
+              (categoryCount[category] ??
+                  0) +
+              1;
+        }
+
+        return {
+          'success': true,
+          'data': categoryCount,
+        };
+      }
+      return data;
+    } catch (
+      e
+    ) {
+      return {
+        'success': false,
+        'message': 'Error fetching categories: $e',
+      };
+    }
+  }
+
   // Notification APIs
   static Future<
     Map<
@@ -2800,6 +2863,58 @@ class ApiService {
           if (types !=
               null)
             'types': types,
+        },
+      ),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  // Checkout APIs
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  checkout() async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/cart/checkout',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  processPayment({
+    required String paymentMethod,
+    String? razorpayPaymentId,
+    String? razorpaySignature,
+  }) async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/cart/process-payment',
+      ),
+      headers: await _getHeaders(),
+      body: jsonEncode(
+        {
+          'paymentMethod': paymentMethod,
+          if (razorpayPaymentId !=
+              null)
+            'razorpayPaymentId': razorpayPaymentId,
+          if (razorpaySignature !=
+              null)
+            'razorpaySignature': razorpaySignature,
         },
       ),
     );

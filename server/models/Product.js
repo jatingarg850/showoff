@@ -49,6 +49,16 @@ const productSchema = new mongoose.Schema({
     enum: ['new', 'sale', 'hot', ''],
     default: '',
   },
+  paymentType: {
+    type: String,
+    enum: ['coins', 'upi'],
+    required: true,
+    default: 'upi',
+  },
+  coinPrice: {
+    type: Number,
+    // Price in coins when paymentType is 'coins'
+  },
   isActive: {
     type: Boolean,
     default: true,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'services/api_service.dart';
 
 class CartScreen
     extends
@@ -19,41 +20,95 @@ class _CartScreenState
         State<
           CartScreen
         > {
-  List<
-    CartItem
+  Map<
+    String,
+    dynamic
   >
-  cartItems = [
-    CartItem(
-      name: 'Modern light clothes',
-      description: 'Dress modern',
-      price: 212.99,
-      quantity: 4,
-      image: 'assets/cart/item1.jpg',
-    ),
-    CartItem(
-      name: 'Modern light clothes',
-      description: 'Dress modern',
-      price: 162.99,
-      quantity: 1,
-      image: 'assets/cart/item2.jpg',
-    ),
-  ];
+  _cart = {};
+  bool
+  _isLoading = true;
+  double
+  _totalUPI = 0;
+  int
+  _totalCoins = 0;
+
+  @override
+  void
+  initState() {
+    super.initState();
+    _loadCart();
+  }
+
+  Future<
+    void
+  >
+  _loadCart() async {
+    try {
+      final response = await ApiService.getCart();
+      if (response['success']) {
+        setState(
+          () {
+            _cart =
+                response['data'] ??
+                {};
+            _isLoading = false;
+          },
+        );
+        _calculateTotals();
+      }
+    } catch (
+      e
+    ) {
+      setState(
+        () {
+          _isLoading = false;
+        },
+      );
+    }
+  }
+
+  void
+  _calculateTotals() {
+    _totalUPI = 0;
+    _totalCoins = 0;
+
+    final items =
+        _cart['items']
+            as List? ??
+        [];
+    for (var item in items) {
+      final paymentType =
+          item['paymentType'] ??
+          'upi';
+      final quantity =
+          item['quantity'] ??
+          1;
+
+      if (paymentType ==
+          'coins') {
+        _totalCoins +=
+            ((item['coinPrice'] ??
+                        0) *
+                    quantity)
+                as int;
+      } else {
+        _totalUPI +=
+            (item['price'] ??
+                0) *
+            quantity;
+      }
+    }
+  }
 
   @override
   Widget
   build(
     BuildContext context,
   ) {
-    double totalAmount = cartItems.fold(
-      0,
-      (
-        sum,
-        item,
-      ) =>
-          sum +
-          (item.price *
-              item.quantity),
-    );
+    final items =
+        _cart['items']
+            as List? ??
+        [];
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -70,7 +125,7 @@ class _CartScreenState
           ),
         ),
         title: const Text(
-          'Store',
+          'Shopping Cart',
           style: TextStyle(
             color: Color(
               0xFF8B5CF6,
@@ -80,421 +135,200 @@ class _CartScreenState
           ),
         ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(
-                20,
-              ),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : items.isEmpty
+          ? const Center(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Cart Items
-                  ...cartItems.asMap().entries.map(
-                    (
-                      entry,
-                    ) {
-                      int index = entry.key;
-                      CartItem item = entry.value;
-                      return _buildCartItem(
-                        item,
-                        index,
-                      );
-                    },
+                  Icon(
+                    Icons.shopping_cart_outlined,
+                    size: 64,
+                    color: Colors.grey,
                   ),
-
-                  const SizedBox(
-                    height: 32,
-                  ),
-
-                  // Shipping Information
-                  const Text(
-                    'Shipping Information',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
-                  ),
-
-                  const SizedBox(
+                  SizedBox(
                     height: 16,
                   ),
-
-                  // Payment Method Card
-                  Container(
+                  Text(
+                    'Your cart is empty',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
                     padding: const EdgeInsets.all(
                       16,
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(
-                        12,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 24,
-                          decoration: BoxDecoration(
-                            color: const Color(
-                              0xFF1A1F71,
-                            ),
-                            borderRadius: BorderRadius.circular(
-                              4,
-                            ),
-                          ),
-                          child: const Center(
-                            child: Text(
-                              'VISA',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(
-                          width: 12,
-                        ),
-
-                        const Expanded(
-                          child: Text(
-                            '**** **** **** 2143',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.black,
-                            ),
-                          ),
-                        ),
-
-                        const Icon(
-                          Icons.keyboard_arrow_down,
-                          color: Colors.grey,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 200,
-                  ), // Space for summary
-                ],
-              ),
-            ),
-          ),
-
-          // Bottom Summary
-          Container(
-            padding: const EdgeInsets.all(
-              20,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withValues(
-                    alpha: 0.1,
-                  ),
-                  blurRadius: 10,
-                  offset: const Offset(
-                    0,
-                    -2,
+                    itemCount: items.length,
+                    itemBuilder:
+                        (
+                          context,
+                          index,
+                        ) {
+                          final item = items[index];
+                          return _buildCartItem(
+                            item,
+                          );
+                        },
                   ),
                 ),
+                _buildCheckoutSection(),
               ],
             ),
-            child: Column(
-              children: [
-                // Summary rows
-                _buildSummaryRow(
-                  'Total (9 items)',
-                  '\$${totalAmount.toStringAsFixed(2)}',
-                ),
-                const SizedBox(
-                  height: 8,
-                ),
-                _buildSummaryRow(
-                  'Shipping Fee',
-                  '\$0.00',
-                ),
-                const SizedBox(
-                  height: 8,
-                ),
-                _buildSummaryRow(
-                  'Discount',
-                  '\$0.00',
-                ),
-
-                const SizedBox(
-                  height: 16,
-                ),
-
-                const Divider(
-                  color: Colors.grey,
-                ),
-
-                const SizedBox(
-                  height: 16,
-                ),
-
-                // Sub Total
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Sub Total',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                      ),
-                    ),
-                    Text(
-                      '\$${totalAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(
-                  height: 24,
-                ),
-
-                // Pay Button
-                Container(
-                  width: double.infinity,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [
-                        Color(
-                          0xFF8B5CF6,
-                        ),
-                        Color(
-                          0xFF7C3AED,
-                        ),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(
-                      28,
-                    ),
-                  ),
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // Handle payment
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          28,
-                        ),
-                      ),
-                    ),
-                    child: const Text(
-                      'Pay',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 
   Widget
   _buildCartItem(
-    CartItem item,
-    int index,
+    Map<
+      String,
+      dynamic
+    >
+    item,
   ) {
+    final product =
+        item['product'] ??
+        {};
+    final paymentType =
+        item['paymentType'] ??
+        'upi';
+    final quantity =
+        item['quantity'] ??
+        1;
+
     return Container(
       margin: const EdgeInsets.only(
-        bottom: 20,
+        bottom: 16,
+      ),
+      padding: const EdgeInsets.all(
+        16,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(
+          12,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: 0.1,
+            ),
+            blurRadius: 8,
+            offset: const Offset(
+              0,
+              2,
+            ),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          // Product Image
           Container(
-            width: 80,
-            height: 80,
+            width: 60,
+            height: 60,
             decoration: BoxDecoration(
               color: Colors.grey[200],
               borderRadius: BorderRadius.circular(
-                12,
+                8,
               ),
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(
-                12,
-              ),
-              child: Container(
-                color: Colors.grey[300],
-                child: const Center(
-                  child: Icon(
-                    Icons.person,
-                    size: 30,
-                    color: Colors.grey,
-                  ),
-                ),
-              ),
+            child: const Icon(
+              Icons.shopping_bag,
+              color: Colors.grey,
             ),
           ),
-
           const SizedBox(
-            width: 16,
+            width: 12,
           ),
-
-          // Product Details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.name,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                            ),
-                          ),
-                          const SizedBox(
-                            height: 4,
-                          ),
-                          Text(
-                            item.description,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // More options
-                    const Icon(
-                      Icons.more_horiz,
-                      color: Colors.grey,
-                    ),
-                  ],
+                Text(
+                  product['name'] ??
+                      'Product',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-
                 const SizedBox(
-                  height: 12,
+                  height: 4,
                 ),
-
-                // Price and Quantity
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      '\$${item.price.toStringAsFixed(2)}',
+                      _getItemPrice(
+                        item,
+                      ),
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                        color: Color(
+                          0xFF8B5CF6,
+                        ),
                       ),
                     ),
-
-                    // Quantity Controls
-                    Row(
-                      children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: Colors.grey[300]!,
-                            ),
-                            borderRadius: BorderRadius.circular(
-                              8,
-                            ),
-                          ),
-                          child: IconButton(
-                            padding: EdgeInsets.zero,
-                            icon: const Icon(
-                              Icons.remove,
-                              size: 16,
-                            ),
-                            onPressed: () {
-                              if (item.quantity >
-                                  1) {
-                                setState(
-                                  () {
-                                    cartItems[index].quantity--;
-                                  },
-                                );
-                              }
-                            },
-                          ),
-                        ),
-
-                        Container(
-                          width: 40,
-                          height: 32,
-                          alignment: Alignment.center,
-                          child: Text(
-                            item.quantity.toString(),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: Colors.grey[300]!,
-                            ),
-                            borderRadius: BorderRadius.circular(
-                              8,
-                            ),
-                          ),
-                          child: IconButton(
-                            padding: EdgeInsets.zero,
-                            icon: const Icon(
-                              Icons.add,
-                              size: 16,
-                            ),
-                            onPressed: () {
-                              setState(
-                                () {
-                                  cartItems[index].quantity++;
-                                },
-                              );
-                            },
-                          ),
-                        ),
-                      ],
+                    const SizedBox(
+                      width: 8,
                     ),
+                    if (paymentType ==
+                        'coins')
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.amber,
+                          borderRadius: BorderRadius.circular(
+                            4,
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.monetization_on,
+                              size: 12,
+                              color: Colors.white,
+                            ),
+                            SizedBox(
+                              width: 2,
+                            ),
+                            Text(
+                              'COINS',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
+                ),
+                const SizedBox(
+                  height: 4,
+                ),
+                Text(
+                  'Quantity: $quantity',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
                 ),
               ],
             ),
@@ -505,50 +339,322 @@ class _CartScreenState
   }
 
   Widget
-  _buildSummaryRow(
-    String label,
-    String value,
-  ) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey[600],
+  _buildCheckoutSection() {
+    return Container(
+      padding: const EdgeInsets.all(
+        20,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: 0.1,
+            ),
+            blurRadius: 8,
+            offset: const Offset(
+              0,
+              -2,
+            ),
           ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
+        ],
+      ),
+      child: Column(
+        children: [
+          if (_totalCoins >
+              0) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.monetization_on,
+                      color: Colors.amber,
+                      size: 20,
+                    ),
+                    SizedBox(
+                      width: 8,
+                    ),
+                    Text(
+                      'Coin Payment:',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '$_totalCoins coins',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.amber,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(
+              height: 8,
+            ),
+          ],
+          if (_totalUPI >
+              0) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.payment,
+                      color: Color(
+                        0xFF8B5CF6,
+                      ),
+                      size: 20,
+                    ),
+                    SizedBox(
+                      width: 8,
+                    ),
+                    Text(
+                      'UPI Payment:',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '\$${_totalUPI.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(
+                      0xFF8B5CF6,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(
+              height: 16,
+            ),
+          ],
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _checkout,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(
+                  0xFF8B5CF6,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    25,
+                  ),
+                ),
+              ),
+              child: const Text(
+                'Proceed to Checkout',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
-}
 
-class CartItem {
-  final String
-  name;
-  final String
-  description;
-  final double
-  price;
-  int
-  quantity;
-  final String
-  image;
+  String
+  _getItemPrice(
+    Map<
+      String,
+      dynamic
+    >
+    item,
+  ) {
+    final paymentType =
+        item['paymentType'] ??
+        'upi';
+    final quantity =
+        item['quantity'] ??
+        1;
 
-  CartItem({
-    required this.name,
-    required this.description,
-    required this.price,
-    required this.quantity,
-    required this.image,
-  });
+    if (paymentType ==
+        'coins') {
+      final coinPrice =
+          (item['coinPrice'] ??
+              0) *
+          quantity;
+      return '$coinPrice coins';
+    } else {
+      final price =
+          (item['price'] ??
+              0) *
+          quantity;
+      return '\$${price.toStringAsFixed(2)}';
+    }
+  }
+
+  void
+  _checkout() async {
+    try {
+      final response = await ApiService.checkout();
+      if (response['success']) {
+        // Show checkout summary dialog
+        _showCheckoutDialog(
+          response['data'],
+        );
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              response['message'] ??
+                  'Checkout failed',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (
+      e
+    ) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error: $e',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void
+  _showCheckoutDialog(
+    Map<
+      String,
+      dynamic
+    >
+    checkoutData,
+  ) {
+    showDialog(
+      context: context,
+      builder:
+          (
+            context,
+          ) => AlertDialog(
+            title: const Text(
+              'Checkout Summary',
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (checkoutData['totalCoins'] >
+                    0) ...[
+                  Text(
+                    'Coins: ${checkoutData['totalCoins']} coins',
+                  ),
+                  Text(
+                    'Your Balance: ${checkoutData['userCoinBalance']} coins',
+                  ),
+                  const SizedBox(
+                    height: 8,
+                  ),
+                ],
+                if (checkoutData['totalUPI'] !=
+                    '0.00') ...[
+                  Text(
+                    'UPI Payment: \$${checkoutData['totalUPI']}',
+                  ),
+                  const SizedBox(
+                    height: 8,
+                  ),
+                ],
+                Text(
+                  checkoutData['canProceed']
+                      ? 'Ready to proceed with payment'
+                      : 'Insufficient coins',
+                  style: TextStyle(
+                    color: checkoutData['canProceed']
+                        ? Colors.green
+                        : Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(
+                  context,
+                ),
+                child: const Text(
+                  'Cancel',
+                ),
+              ),
+              if (checkoutData['canProceed'])
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(
+                      context,
+                    );
+                    _processPayment();
+                  },
+                  child: const Text(
+                    'Confirm Payment',
+                  ),
+                ),
+            ],
+          ),
+    );
+  }
+
+  void
+  _processPayment() async {
+    try {
+      final response = await ApiService.processPayment(
+        paymentMethod: 'mixed',
+        razorpayPaymentId: 'dummy_payment_id', // In real app, get from Razorpay
+      );
+
+      if (response['success']) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Payment successful!',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _loadCart(); // Refresh cart
+      }
+    } catch (
+      e
+    ) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Payment failed: $e',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 }

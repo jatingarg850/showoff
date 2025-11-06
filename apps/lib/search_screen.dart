@@ -44,7 +44,7 @@ class _SearchScreenState
   _isLoading = true;
   Timer?
   _debounce;
-  Set<
+  final Set<
     String
   >
   _followingUsers = {};
@@ -57,6 +57,37 @@ class _SearchScreenState
     _searchController.addListener(
       _onSearchChanged,
     );
+  }
+
+  @override
+  void
+  didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh follow status when returning to this screen
+    if (_allUsers.isNotEmpty) {
+      _refreshFollowStatus();
+    }
+  }
+
+  Future<
+    void
+  >
+  _refreshFollowStatus() async {
+    if (_allUsers.isEmpty) return;
+
+    // Clear current follow status and reload
+    _followingUsers.clear();
+    await _loadFollowStatus(
+      _allUsers,
+    );
+
+    if (mounted) {
+      setState(
+        () {
+          // Trigger rebuild with updated follow status
+        },
+      );
+    }
   }
 
   void
@@ -93,18 +124,35 @@ class _SearchScreenState
       );
 
       if (response['success']) {
+        final users =
+            List<
+              Map<
+                String,
+                dynamic
+              >
+            >.from(
+              response['data'] ??
+                  [],
+            );
+
+        // Debug: Print user data to see what fields are available
+        if (users.isNotEmpty) {
+          print(
+            '🔍 DEBUG - Sample user data: ${users.first}',
+          );
+          print(
+            '🔍 DEBUG - Available fields: ${users.first.keys.toList()}',
+          );
+        }
+
+        // Check follow status for each user
+        await _loadFollowStatus(
+          users,
+        );
+
         setState(
           () {
-            _allUsers =
-                List<
-                  Map<
-                    String,
-                    dynamic
-                  >
-                >.from(
-                  response['data'] ??
-                      [],
-                );
+            _allUsers = users;
             _searchResults = _allUsers;
             _isLoading = false;
           },
@@ -120,6 +168,57 @@ class _SearchScreenState
         () {
           _isLoading = false;
         },
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _loadFollowStatus(
+    List<
+      Map<
+        String,
+        dynamic
+      >
+    >
+    users,
+  ) async {
+    try {
+      // Check follow status for each user
+      for (final user in users) {
+        final userId =
+            user['_id'] ??
+            user['id'] ??
+            '';
+        if (userId.isNotEmpty) {
+          try {
+            final followResponse = await ApiService.checkFollowing(
+              userId,
+            );
+            if (followResponse['success'] ==
+                    true &&
+                followResponse['isFollowing'] ==
+                    true) {
+              _followingUsers.add(
+                userId,
+              );
+            }
+          } catch (
+            e
+          ) {
+            // Continue if individual follow check fails
+            print(
+              'Error checking follow status for user $userId: $e',
+            );
+          }
+        }
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading follow status: $e',
       );
     }
   }
@@ -173,27 +272,79 @@ class _SearchScreenState
   ) async {
     try {
       if (isFollowing) {
-        await ApiService.unfollowUser(
+        final response = await ApiService.unfollowUser(
           userId,
         );
-        setState(
-          () {
-            _followingUsers.remove(
-              userId,
+        if (response['success']) {
+          setState(
+            () {
+              _followingUsers.remove(
+                userId,
+              );
+            },
+          );
+
+          // Refresh user data to get updated followers count
+          await _refreshUserData();
+
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Unfollowed successfully',
+                ),
+                backgroundColor: Colors.green,
+                duration: Duration(
+                  seconds: 2,
+                ),
+              ),
             );
-          },
-        );
+          }
+        } else {
+          throw Exception(
+            response['message'] ??
+                'Failed to unfollow',
+          );
+        }
       } else {
-        await ApiService.followUser(
+        final response = await ApiService.followUser(
           userId,
         );
-        setState(
-          () {
-            _followingUsers.add(
-              userId,
+        if (response['success']) {
+          setState(
+            () {
+              _followingUsers.add(
+                userId,
+              );
+            },
+          );
+
+          // Refresh user data to get updated followers count
+          await _refreshUserData();
+
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Followed successfully',
+                ),
+                backgroundColor: Colors.green,
+                duration: Duration(
+                  seconds: 2,
+                ),
+              ),
             );
-          },
-        );
+          }
+        } else {
+          throw Exception(
+            response['message'] ??
+                'Failed to follow',
+          );
+        }
       }
     } catch (
       e
@@ -207,6 +358,9 @@ class _SearchScreenState
               'Error: ${e.toString()}',
             ),
             backgroundColor: Colors.red,
+            duration: const Duration(
+              seconds: 3,
+            ),
           ),
         );
       }
@@ -439,6 +593,13 @@ class _SearchScreenState
                           ),
                         ),
                         fit: BoxFit.cover,
+                        onError:
+                            (
+                              exception,
+                              stackTrace,
+                            ) {
+                              // Handle image loading errors silently
+                            },
                       )
                     : null,
               ),
@@ -515,7 +676,7 @@ class _SearchScreenState
                     height: 4,
                   ),
                   Text(
-                    '${user['followersCount'] ?? user['followers'] ?? 0} followers',
+                    '${_getFollowersCount(user)} followers',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[500],
@@ -553,23 +714,44 @@ class _SearchScreenState
                           end: Alignment.centerRight,
                         ),
                   color: isFollowing
-                      ? Colors.grey[300]
+                      ? Colors.grey[200]
+                      : null,
+                  border: isFollowing
+                      ? Border.all(
+                          color: Colors.grey[400]!,
+                          width: 1,
+                        )
                       : null,
                   borderRadius: BorderRadius.circular(
                     20,
                   ),
                 ),
-                child: Text(
-                  isFollowing
-                      ? 'Following'
-                      : 'Follow',
-                  style: TextStyle(
-                    color: isFollowing
-                        ? Colors.grey[700]
-                        : Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isFollowing)
+                      Icon(
+                        Icons.check,
+                        size: 14,
+                        color: Colors.grey[700],
+                      ),
+                    if (isFollowing)
+                      const SizedBox(
+                        width: 4,
+                      ),
+                    Text(
+                      isFollowing
+                          ? 'Following'
+                          : 'Follow',
+                      style: TextStyle(
+                        color: isFollowing
+                            ? Colors.grey[700]
+                            : Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -577,6 +759,128 @@ class _SearchScreenState
         ),
       ),
     );
+  }
+
+  int
+  _getFollowersCount(
+    Map<
+      String,
+      dynamic
+    >
+    user,
+  ) {
+    // Try different possible field names for followers count
+    final count =
+        user['followersCount'] ??
+        user['followers'] ??
+        user['followerCount'] ??
+        user['followersLength'] ??
+        0;
+
+    // Debug followers count if needed
+    // print('🔍 DEBUG - Followers count for ${user['username']}: $count');
+
+    // Handle different data types
+    if (count
+        is int) {
+      return count;
+    } else if (count
+        is double) {
+      return count.toInt();
+    } else if (count
+        is String) {
+      return int.tryParse(
+            count,
+          ) ??
+          0;
+    } else if (count
+        is List) {
+      return count.length;
+    }
+
+    return 0;
+  }
+
+  Future<
+    void
+  >
+  _refreshUserData() async {
+    // Refresh user data to get updated followers count
+    try {
+      final response = await ApiService.searchUsers(
+        '',
+      );
+      if (response['success']) {
+        final users =
+            List<
+              Map<
+                String,
+                dynamic
+              >
+            >.from(
+              response['data'] ??
+                  [],
+            );
+
+        // Update existing users with fresh data
+        for (
+          int i = 0;
+          i <
+              _allUsers.length;
+          i++
+        ) {
+          final currentUser = _allUsers[i];
+          final updatedUser = users.firstWhere(
+            (
+              u,
+            ) =>
+                (u['_id'] ??
+                    u['id']) ==
+                (currentUser['_id'] ??
+                    currentUser['id']),
+            orElse: () => currentUser,
+          );
+          _allUsers[i] = updatedUser;
+        }
+
+        // Update search results if they exist
+        if (_searchResults.isNotEmpty) {
+          for (
+            int i = 0;
+            i <
+                _searchResults.length;
+            i++
+          ) {
+            final currentUser = _searchResults[i];
+            final updatedUser = users.firstWhere(
+              (
+                u,
+              ) =>
+                  (u['_id'] ??
+                      u['id']) ==
+                  (currentUser['_id'] ??
+                      currentUser['id']),
+              orElse: () => currentUser,
+            );
+            _searchResults[i] = updatedUser;
+          }
+        }
+
+        if (mounted) {
+          setState(
+            () {
+              // Trigger rebuild with updated data
+            },
+          );
+        }
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error refreshing user data: $e',
+      );
+    }
   }
 
   @override
