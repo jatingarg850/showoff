@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShowOff Life - KYC Management</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <%- include('partials/admin-styles') %>
+</head>
+<body>
+    <div class="admin-container">
+        <%- include('partials/admin-sidebar', { currentPage: 'kyc' }) %>
+
+        <main class="main-content">
+            <%- include('partials/admin-header', { pageTitle: 'KYC Management' }) %>
+
+            <div class="content-area">
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-value"><%= statusCounts.pending || 0 %></div>
+                        <div class="stat-label">Pending Review</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-value"><%= statusCounts.approved || 0 %></div>
+                        <div class="stat-label">Approved</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <div class="stat-value"><%= statusCounts.rejected || 0 %></div>
+                        <div class="stat-label">Rejected</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                            <i class="fas fa-redo"></i>
+                        </div>
+                        <div class="stat-value"><%= statusCounts.resubmit_required || 0 %></div>
+                        <div class="stat-label">Resubmit Required</div>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="filter-bar">
+                    <div class="filter-group">
+                        <label>Status:</label>
+                        <select id="statusFilter" onchange="filterByStatus(this.value)">
+                            <option value="all" <%= currentStatus === 'all' ? 'selected' : '' %>>All</option>
+                            <option value="pending" <%= currentStatus === 'pending' ? 'selected' : '' %>>Pending</option>
+                            <option value="under_review" <%= currentStatus === 'under_review' ? 'selected' : '' %>>Under Review</option>
+                            <option value="approved" <%= currentStatus === 'approved' ? 'selected' : '' %>>Approved</option>
+                            <option value="rejected" <%= currentStatus === 'rejected' ? 'selected' : '' %>>Rejected</option>
+                            <option value="resubmit_required" <%= currentStatus === 'resubmit_required' ? 'selected' : '' %>>Resubmit Required</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- KYC Applications Table -->
+                <div class="table-container">
+                    <div class="table-header">
+                        <h3>KYC Applications (<%= kycs.length %>)</h3>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Full Name</th>
+                                <th>Document Type</th>
+                                <th>Submitted</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (kycs && kycs.length > 0) { %>
+                                <% kycs.forEach(kyc => { %>
+                                    <tr>
+                                        <td>
+                                            <div class="user-profile">
+                                                <img src="<%= kyc.user.profilePicture ? (kyc.user.profilePicture.startsWith('http') ? kyc.user.profilePicture : 'http://localhost:3000' + kyc.user.profilePicture) : 'https://via.placeholder.com/40' %>" alt="<%= kyc.user.displayName %>" class="user-avatar" onerror="this.src='https://via.placeholder.com/40'">
+                                                <div class="user-info">
+                                                    <h4><%= kyc.user.displayName %></h4>
+                                                    <p>@<%= kyc.user.username %></p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td><%= kyc.fullName %></td>
+                                        <td><span class="badge"><%= kyc.documentType.toUpperCase() %></span></td>
+                                        <td>
+                                            <div><%= new Date(kyc.submittedAt).toLocaleDateString() %></div>
+                                            <div style="font-size: 0.75rem; color: #64748b;"><%= new Date(kyc.submittedAt).toLocaleTimeString() %></div>
+                                        </td>
+                                        <td>
+                                            <span class="status-badge status-<%= kyc.status %>">
+                                                <%= kyc.status.replace('_', ' ').toUpperCase() %>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div style="display: flex; gap: 0.25rem;">
+                                                <button class="btn btn-sm btn-primary" onclick="viewKYC('<%= kyc._id %>')" title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <% if (kyc.status === 'pending' || kyc.status === 'under_review') { %>
+                                                    <button class="btn btn-sm btn-success" onclick="approveKYC('<%= kyc._id %>')" title="Approve">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-danger" onclick="rejectKYC('<%= kyc._id %>')" title="Reject">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                <% } %>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            <% } else { %>
+                                <tr>
+                                    <td colspan="6" class="loading">
+                                        <i class="fas fa-inbox"></i>
+                                        <p>No KYC applications found</p>
+                                    </td>
+                                </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <% if (pagination && pagination.pages > 1) { %>
+                    <div style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 2rem;">
+                        <% for (let i = 1; i <= pagination.pages; i++) { %>
+                            <a href="/admin/kyc?status=<%= currentStatus %>&page=<%= i %>" class="btn <%= i === pagination.page ? 'btn-primary' : '' %>" style="<%= i === pagination.page ? '' : 'background: white; color: #64748b; border: 1px solid #e2e8f0;' %>">
+                                <%= i %>
+                            </a>
+                        <% } %>
+                    </div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+
+    <!-- KYC Details Modal -->
+    <div id="kycModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3>KYC Application Details</h3>
+                <button onclick="closeModal()" class="close-btn">&times;</button>
+            </div>
+            <div id="kycModalContent" class="modal-body">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function filterByStatus(status) {
+            window.location.href = `/admin/kyc?status=${status}`;
+        }
+
+        function viewKYC(kycId) {
+            document.getElementById('kycModalContent').innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div>';
+            document.getElementById('kycModal').style.display = 'flex';
+            
+            fetch(`/api/kyc/admin/${kycId}`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayKYCDetails(data.data);
+                } else {
+                    alert('Error loading KYC details');
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
+        }
+
+        function displayKYCDetails(kyc) {
+            const html = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <div>
+                        <h4>Personal Information</h4>
+                        <div class="info-group">
+                            <label>Full Name:</label>
+                            <p>${kyc.fullName}</p>
+                        </div>
+                        <div class="info-group">
+                            <label>Date of Birth:</label>
+                            <p>${new Date(kyc.dateOfBirth).toLocaleDateString()}</p>
+                        </div>
+                        <div class="info-group">
+                            <label>Gender:</label>
+                            <p>${kyc.gender}</p>
+                        </div>
+                        <div class="info-group">
+                            <label>Address:</label>
+                            <p>${kyc.address.street}, ${kyc.address.city}, ${kyc.address.state}, ${kyc.address.country} - ${kyc.address.zipCode}</p>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4>Document Information</h4>
+                        <div class="info-group">
+                            <label>Document Type:</label>
+                            <p>${kyc.documentType.toUpperCase()}</p>
+                        </div>
+                        <div class="info-group">
+                            <label>Document Number:</label>
+                            <p>${kyc.documentNumber}</p>
+                        </div>
+                        ${kyc.bankDetails ? `
+                            <h4 style="margin-top: 1rem;">Bank Details</h4>
+                            <div class="info-group">
+                                <label>Account Holder:</label>
+                                <p>${kyc.bankDetails.accountHolderName}</p>
+                            </div>
+                            <div class="info-group">
+                                <label>Account Number:</label>
+                                <p>${kyc.bankDetails.accountNumber}</p>
+                            </div>
+                            <div class="info-group">
+                                <label>IFSC Code:</label>
+                                <p>${kyc.bankDetails.ifscCode}</p>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <div style="margin-top: 2rem;">
+                    <h4>Documents</h4>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1rem;">
+                        <div>
+                            <label>Document Front:</label>
+                            <img src="${kyc.documentFrontImage}" style="width: 100%; border-radius: 0.5rem; margin-top: 0.5rem;" onclick="window.open(this.src)">
+                        </div>
+                        ${kyc.documentBackImage ? `
+                            <div>
+                                <label>Document Back:</label>
+                                <img src="${kyc.documentBackImage}" style="width: 100%; border-radius: 0.5rem; margin-top: 0.5rem;" onclick="window.open(this.src)">
+                            </div>
+                        ` : ''}
+                        <div>
+                            <label>Selfie:</label>
+                            <img src="${kyc.selfieImage}" style="width: 100%; border-radius: 0.5rem; margin-top: 0.5rem;" onclick="window.open(this.src)">
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                    ${kyc.status === 'pending' || kyc.status === 'under_review' ? `
+                        <button class="btn btn-success" onclick="approveKYC('${kyc._id}')">
+                            <i class="fas fa-check"></i> Approve
+                        </button>
+                        <button class="btn btn-danger" onclick="rejectKYC('${kyc._id}')">
+                            <i class="fas fa-times"></i> Reject
+                        </button>
+                    ` : ''}
+                    <button class="btn" onclick="closeModal()">Close</button>
+                </div>
+            `;
+            document.getElementById('kycModalContent').innerHTML = html;
+        }
+
+        function approveKYC(kycId) {
+            const notes = prompt('Enter admin notes (optional):');
+            if (confirm('Are you sure you want to approve this KYC application?')) {
+                fetch(`/api/kyc/admin/${kycId}/approve`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+                    },
+                    body: JSON.stringify({ adminNotes: notes })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('KYC approved successfully');
+                        window.location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error.message);
+                });
+            }
+        }
+
+        function rejectKYC(kycId) {
+            const reason = prompt('Enter rejection reason:');
+            if (!reason) return;
+            
+            const notes = prompt('Enter admin notes (optional):');
+            
+            if (confirm('Are you sure you want to reject this KYC application?')) {
+                fetch(`/api/kyc/admin/${kycId}/reject`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+                    },
+                    body: JSON.stringify({ rejectionReason: reason, adminNotes: notes })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('KYC rejected');
+                        window.location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error.message);
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('kycModal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

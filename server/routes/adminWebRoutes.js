@@ -395,4 +395,221 @@ router.get('/settings', checkAdminWeb, async (req, res) => {
   }
 });
 
+// KYC Management
+router.get('/kyc', checkAdminWeb, async (req, res) => {
+  try {
+    const { status = 'pending', page = 1, limit = 20 } = req.query;
+    
+    const KYC = require('../models/KYC');
+    
+    let query = {};
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    const kycs = await KYC.find(query)
+      .populate('user', 'username displayName email profilePicture')
+      .sort({ submittedAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await KYC.countDocuments(query);
+
+    // Get counts by status
+    const statusCounts = await KYC.aggregate([
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]);
+
+    const counts = statusCounts.reduce((acc, item) => {
+      acc[item._id] = item.count;
+      return acc;
+    }, {});
+
+    res.render('admin/kyc', {
+      currentPage: 'kyc',
+      pageTitle: 'KYC Management',
+      kycs,
+      statusCounts: counts,
+      currentStatus: status,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('KYC page error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// Fraud Dashboard
+router.get('/fraud', checkAdminWeb, async (req, res) => {
+  try {
+    const FraudLog = require('../models/FraudLog');
+    const UserSession = require('../models/UserSession');
+    
+    const { period = '7' } = req.query;
+    const daysAgo = new Date(Date.now() - parseInt(period) * 24 * 60 * 60 * 1000);
+
+    // Get fraud statistics
+    const totalIncidents = await FraudLog.countDocuments({
+      createdAt: { $gte: daysAgo }
+    });
+
+    const pendingReviews = await FraudLog.countDocuments({
+      status: 'pending'
+    });
+
+    const highRiskUsers = await User.countDocuments({
+      riskScore: { $gte: 50 }
+    });
+
+    // Recent incidents
+    const recentIncidents = await FraudLog.find({
+      createdAt: { $gte: daysAgo }
+    })
+      .populate('user', 'username displayName profilePicture')
+      .sort({ createdAt: -1 })
+      .limit(20);
+
+    // Incidents by type
+    const incidentsByType = await FraudLog.aggregate([
+      { $match: { createdAt: { $gte: daysAgo } } },
+      { $group: { _id: '$fraudType', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    // Incidents by severity
+    const incidentsBySeverity = await FraudLog.aggregate([
+      { $match: { createdAt: { $gte: daysAgo } } },
+      { $group: { _id: '$severity', count: { $sum: 1 } } }
+    ]);
+
+    res.render('admin/fraud', {
+      currentPage: 'fraud',
+      pageTitle: 'Fraud Detection',
+      stats: {
+        totalIncidents,
+        pendingReviews,
+        highRiskUsers
+      },
+      recentIncidents,
+      incidentsByType,
+      incidentsBySeverity,
+      period
+    });
+  } catch (error) {
+    console.error('Fraud page error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// Withdrawals Management
+router.get('/withdrawals', checkAdminWeb, async (req, res) => {
+  try {
+    const Withdrawal = require('../models/Withdrawal');
+    
+    const { status = 'pending', page = 1, limit = 20 } = req.query;
+    
+    let query = {};
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    const withdrawals = await Withdrawal.find(query)
+      .populate('user', 'username displayName email profilePicture coinBalance')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Withdrawal.countDocuments(query);
+
+    // Get counts by status
+    const statusCounts = await Withdrawal.aggregate([
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]);
+
+    const counts = statusCounts.reduce((acc, item) => {
+      acc[item._id] = item.count;
+      return acc;
+    }, {});
+
+    // Get total amounts
+    const totalAmounts = await Withdrawal.aggregate([
+      { $match: { status: 'completed' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+
+    res.render('admin/withdrawals', {
+      currentPage: 'withdrawals',
+      pageTitle: 'Withdrawal Management',
+      withdrawals,
+      statusCounts: counts,
+      currentStatus: status,
+      totalPaid: totalAmounts[0]?.total || 0,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Withdrawals page error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// Subscriptions Management
+router.get('/subscriptions', checkAdminWeb, async (req, res) => {
+  try {
+    const { SubscriptionPlan, UserSubscription } = require('../models/Subscription');
+    
+    const plans = await SubscriptionPlan.find().sort({ displayOrder: 1 });
+    
+    // Get subscriber counts
+    const subscriberCounts = await UserSubscription.aggregate([
+      { $match: { status: 'active' } },
+      { $group: { _id: '$plan', count: { $sum: 1 } } }
+    ]);
+
+    const plansWithCounts = plans.map(plan => ({
+      ...plan.toObject(),
+      subscriberCount: subscriberCounts.find(s => s._id.equals(plan._id))?.count || 0
+    }));
+
+    // Recent subscriptions
+    const recentSubscriptions = await UserSubscription.find()
+      .populate('user', 'username displayName profilePicture')
+      .populate('plan', 'name tier')
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    // Revenue stats
+    const revenueStats = await UserSubscription.aggregate([
+      { $match: { status: 'active' } },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: '$amountPaid' },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    res.render('admin/subscriptions', {
+      currentPage: 'subscriptions',
+      pageTitle: 'Subscription Management',
+      plans: plansWithCounts,
+      recentSubscriptions,
+      stats: revenueStats[0] || { totalRevenue: 0, count: 0 }
+    });
+  } catch (error) {
+    console.error('Subscriptions page error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
 module.exports = router;

@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShowOff Life - Subscription Management</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <%- include('partials/admin-styles') %>
+</head>
+<body>
+    <div class="admin-container">
+        <%- include('partials/admin-sidebar', { currentPage: 'subscriptions' }) %>
+
+        <main class="main-content">
+            <%- include('partials/admin-header', { pageTitle: 'Subscription Management' }) %>
+
+            <div class="content-area">
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-value"><%= stats.count || 0 %></div>
+                        <div class="stat-label">Active Subscribers</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                        <div class="stat-value">₹<%= ((stats.totalRevenue || 0) / 100).toLocaleString() %></div>
+                        <div class="stat-label">Total Revenue</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                            <i class="fas fa-layer-group"></i>
+                        </div>
+                        <div class="stat-value"><%= plans.length %></div>
+                        <div class="stat-label">Subscription Plans</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stat-value">₹<%= plans.length > 0 ? ((stats.totalRevenue || 0) / stats.count / 100).toFixed(0) : 0 %></div>
+                        <div class="stat-label">Avg Revenue/User</div>
+                    </div>
+                </div>
+
+                <!-- Subscription Plans -->
+                <div class="table-container">
+                    <div class="table-header">
+                        <h3>Subscription Plans</h3>
+                        <button class="btn btn-primary" onclick="createPlan()">
+                            <i class="fas fa-plus"></i> Create Plan
+                        </button>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; padding: 1.5rem;">
+                        <% if (plans && plans.length > 0) { %>
+                            <% plans.forEach(plan => { %>
+                                <div class="plan-card" style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 2px solid <%= plan.tier === 'premium' ? '#f59e0b' : plan.tier === 'vip' ? '#8b5cf6' : '#3b82f6' %>;">
+                                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                                        <div>
+                                            <h3 style="margin: 0; color: #1e293b; font-size: 1.25rem;"><%= plan.name %></h3>
+                                            <span class="badge" style="background: <%= plan.tier === 'premium' ? '#f59e0b' : plan.tier === 'vip' ? '#8b5cf6' : '#3b82f6' %>; color: white; margin-top: 0.5rem;">
+                                                <%= plan.tier.toUpperCase() %>
+                                            </span>
+                                        </div>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <button class="btn btn-sm btn-primary" onclick="editPlan('<%= plan._id %>')" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-danger" onclick="deletePlan('<%= plan._id %>')" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="margin: 1.5rem 0;">
+                                        <div style="font-size: 2rem; font-weight: 700; color: #1e293b;">
+                                            ₹<%= (plan.price / 100).toLocaleString() %>
+                                            <span style="font-size: 1rem; font-weight: 400; color: #64748b;">/<%= plan.duration %> days</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="margin: 1rem 0; padding: 1rem; background: #f8fafc; border-radius: 8px;">
+                                        <div style="font-size: 0.875rem; color: #64748b; margin-bottom: 0.5rem;">Features:</div>
+                                        <ul style="margin: 0; padding-left: 1.25rem; color: #475569;">
+                                            <% plan.features.forEach(feature => { %>
+                                                <li style="margin: 0.25rem 0;"><%= feature %></li>
+                                            <% }) %>
+                                        </ul>
+                                    </div>
+                                    
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0;">
+                                        <div>
+                                            <div style="font-size: 0.75rem; color: #64748b;">Subscribers</div>
+                                            <div style="font-size: 1.25rem; font-weight: 600; color: #1e293b;">
+                                                <i class="fas fa-users"></i> <%= plan.subscriberCount || 0 %>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span class="status-badge status-<%= plan.isActive ? 'active' : 'inactive' %>">
+                                                <%= plan.isActive ? 'ACTIVE' : 'INACTIVE' %>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            <% }) %>
+                        <% } else { %>
+                            <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; color: #64748b;">
+                                <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                                <p>No subscription plans found</p>
+                                <button class="btn btn-primary" onclick="createPlan()" style="margin-top: 1rem;">
+                                    <i class="fas fa-plus"></i> Create Your First Plan
+                                </button>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+
+                <!-- Recent Subscriptions -->
+                <div class="table-container" style="margin-top: 2rem;">
+                    <div class="table-header">
+                        <h3>Recent Subscriptions</h3>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Plan</th>
+                                <th>Amount</th>
+                                <th>Start Date</th>
+                                <th>End Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (recentSubscriptions && recentSubscriptions.length > 0) { %>
+                                <% recentSubscriptions.forEach(sub => { %>
+                                    <tr>
+                                        <td>
+                                            <div class="user-profile">
+                                                <img src="<%= sub.user.profilePicture ? (sub.user.profilePicture.startsWith('http') ? sub.user.profilePicture : 'http://localhost:3000' + sub.user.profilePicture) : 'https://via.placeholder.com/40' %>" alt="<%= sub.user.displayName %>" class="user-avatar" onerror="this.src='https://via.placeholder.com/40'">
+                                                <div class="user-info">
+                                                    <h4><%= sub.user.displayName %></h4>
+                                                    <p>@<%= sub.user.username %></p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div style="font-weight: 600;"><%= sub.plan.name %></div>
+                                            <span class="badge" style="background: <%= sub.plan.tier === 'premium' ? '#f59e0b' : sub.plan.tier === 'vip' ? '#8b5cf6' : '#3b82f6' %>; color: white;">
+                                                <%= sub.plan.tier.toUpperCase() %>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div style="font-weight: 600; color: #10b981;">
+                                                ₹<%= (sub.amountPaid / 100).toLocaleString() %>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div><%= new Date(sub.startDate).toLocaleDateString() %></div>
+                                        </td>
+                                        <td>
+                                            <div><%= new Date(sub.endDate).toLocaleDateString() %></div>
+                                        </td>
+                                        <td>
+                                            <span class="status-badge status-<%= sub.status %>">
+                                                <%= sub.status.toUpperCase() %>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div style="display: flex; gap: 0.25rem;">
+                                                <button class="btn btn-sm btn-primary" onclick="viewSubscription('<%= sub._id %>')" title="View">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <% if (sub.status === 'active') { %>
+                                                    <button class="btn btn-sm btn-danger" onclick="cancelSubscription('<%= sub._id %>')" title="Cancel">
+                                                        <i class="fas fa-ban"></i>
+                                                    </button>
+                                                <% } %>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            <% } else { %>
+                                <tr>
+                                    <td colspan="7" class="loading">
+                                        <i class="fas fa-inbox"></i>
+                                        <p>No subscriptions found</p>
+                                    </td>
+                                </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Plan Modal -->
+    <div id="planModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="planModalTitle">Create Subscription Plan</h3>
+                <button onclick="closeModal()" class="close-btn">&times;</button>
+            </div>
+            <div id="planModalContent" class="modal-body">
+                <form id="planForm" onsubmit="savePlan(event)">
+                    <input type="hidden" id="planId" name="planId">
+                    
+                    <div class="form-group">
+                        <label>Plan Name *</label>
+                        <input type="text" id="planName" name="name" required class="form-control">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Tier *</label>
+                        <select id="planTier" name="tier" required class="form-control">
+                            <option value="basic">Basic</option>
+                            <option value="premium">Premium</option>
+                            <option value="vip">VIP</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Price (₹) *</label>
+                        <input type="number" id="planPrice" name="price" required class="form-control" min="0" step="0.01">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Duration (days) *</label>
+                        <input type="number" id="planDuration" name="duration" required class="form-control" min="1">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Features (one per line) *</label>
+                        <textarea id="planFeatures" name="features" required class="form-control" rows="5" placeholder="Feature 1&#10;Feature 2&#10;Feature 3"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="planActive" name="isActive" checked>
+                            Active
+                        </label>
+                    </div>
+                    
+                    <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Plan
+                        </button>
+                        <button type="button" class="btn" onclick="closeModal()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function createPlan() {
+            document.getElementById('planModalTitle').textContent = 'Create Subscription Plan';
+            document.getElementById('planForm').reset();
+            document.getElementById('planId').value = '';
+            document.getElementById('planModal').style.display = 'flex';
+        }
+
+        function editPlan(planId) {
+            document.getElementById('planModalTitle').textContent = 'Edit Subscription Plan';
+            document.getElementById('planModal').style.display = 'flex';
+            
+            fetch(`/api/subscription/admin/plans/${planId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const plan = data.data;
+                        document.getElementById('planId').value = plan._id;
+                        document.getElementById('planName').value = plan.name;
+                        document.getElementById('planTier').value = plan.tier;
+                        document.getElementById('planPrice').value = plan.price / 100;
+                        document.getElementById('planDuration').value = plan.duration;
+                        document.getElementById('planFeatures').value = plan.features.join('\n');
+                        document.getElementById('planActive').checked = plan.isActive;
+                    }
+                })
+                .catch(error => {
+                    alert('Error loading plan: ' + error.message);
+                });
+        }
+
+        function savePlan(event) {
+            event.preventDefault();
+            
+            const planId = document.getElementById('planId').value;
+            const formData = {
+                name: document.getElementById('planName').value,
+                tier: document.getElementById('planTier').value,
+                price: Math.round(parseFloat(document.getElementById('planPrice').value) * 100),
+                duration: parseInt(document.getElementById('planDuration').value),
+                features: document.getElementById('planFeatures').value.split('\n').filter(f => f.trim()),
+                isActive: document.getElementById('planActive').checked
+            };
+            
+            const url = planId ? `/api/subscription/admin/plans/${planId}` : '/api/subscription/admin/plans';
+            const method = planId ? 'PUT' : 'POST';
+            
+            fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(planId ? 'Plan updated successfully' : 'Plan created successfully');
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
+        }
+
+        function deletePlan(planId) {
+            if (confirm('Are you sure you want to delete this plan? This action cannot be undone.')) {
+                fetch(`/api/subscription/admin/plans/${planId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Plan deleted successfully');
+                        window.location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error.message);
+                });
+            }
+        }
+
+        function viewSubscription(subId) {
+            alert('View subscription details: ' + subId);
+        }
+
+        function cancelSubscription(subId) {
+            if (confirm('Are you sure you want to cancel this subscription?')) {
+                fetch(`/api/subscription/admin/subscriptions/${subId}/cancel`, {
+                    method: 'PUT'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Subscription cancelled successfully');
+                        window.location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error.message);
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('planModal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

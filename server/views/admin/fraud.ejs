@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShowOff Life - Fraud Detection</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <%- include('partials/admin-styles') %>
+</head>
+<body>
+    <div class="admin-container">
+        <%- include('partials/admin-sidebar', { currentPage: 'fraud' }) %>
+
+        <main class="main-content">
+            <%- include('partials/admin-header', { pageTitle: 'Fraud Detection' }) %>
+
+            <div class="content-area">
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="stat-value"><%= stats.totalIncidents %></div>
+                        <div class="stat-label">Total Incidents (Last <%= period %> days)</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-value"><%= stats.pendingReviews %></div>
+                        <div class="stat-label">Pending Reviews</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                            <i class="fas fa-user-shield"></i>
+                        </div>
+                        <div class="stat-value"><%= stats.highRiskUsers %></div>
+                        <div class="stat-label">High Risk Users</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stat-value"><%= incidentsByType.length %></div>
+                        <div class="stat-label">Fraud Types Detected</div>
+                    </div>
+                </div>
+
+                <!-- Period Filter -->
+                <div class="filter-bar">
+                    <div class="filter-group">
+                        <label>Time Period:</label>
+                        <select id="periodFilter" onchange="filterByPeriod(this.value)">
+                            <option value="7" <%= period === '7' ? 'selected' : '' %>>Last 7 Days</option>
+                            <option value="30" <%= period === '30' ? 'selected' : '' %>>Last 30 Days</option>
+                            <option value="90" <%= period === '90' ? 'selected' : '' %>>Last 90 Days</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Fraud Analytics -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                    <!-- Incidents by Type -->
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3>Incidents by Type</h3>
+                        </div>
+                        <div style="padding: 1.5rem;">
+                            <% if (incidentsByType && incidentsByType.length > 0) { %>
+                                <% incidentsByType.forEach(item => { %>
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; margin-bottom: 0.5rem; background: #f8fafc; border-radius: 8px;">
+                                        <div>
+                                            <div style="font-weight: 600; color: #1e293b; text-transform: capitalize;">
+                                                <%= item._id.replace(/_/g, ' ') %>
+                                            </div>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 1rem;">
+                                            <div style="font-size: 1.25rem; font-weight: 700; color: #ef4444;">
+                                                <%= item.count %>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <% }) %>
+                            <% } else { %>
+                                <div style="text-align: center; padding: 2rem; color: #64748b;">
+                                    <i class="fas fa-shield-alt" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+                                    <p>No fraud incidents detected</p>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+
+                    <!-- Incidents by Severity -->
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3>Incidents by Severity</h3>
+                        </div>
+                        <div style="padding: 1.5rem;">
+                            <% if (incidentsBySeverity && incidentsBySeverity.length > 0) { %>
+                                <% incidentsBySeverity.forEach(item => { %>
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; margin-bottom: 0.5rem; background: #f8fafc; border-radius: 8px;">
+                                        <div>
+                                            <span class="badge" style="background: <%= item._id === 'critical' ? '#dc2626' : item._id === 'high' ? '#f59e0b' : item._id === 'medium' ? '#3b82f6' : '#64748b' %>; color: white;">
+                                                <%= item._id.toUpperCase() %>
+                                            </span>
+                                        </div>
+                                        <div style="font-size: 1.25rem; font-weight: 700; color: #1e293b;">
+                                            <%= item.count %>
+                                        </div>
+                                    </div>
+                                <% }) %>
+                            <% } else { %>
+                                <div style="text-align: center; padding: 2rem; color: #64748b;">
+                                    <i class="fas fa-check-circle" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+                                    <p>No incidents to report</p>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Fraud Incidents -->
+                <div class="table-container">
+                    <div class="table-header">
+                        <h3>Recent Fraud Incidents</h3>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Fraud Type</th>
+                                <th>Severity</th>
+                                <th>Details</th>
+                                <th>Risk Score</th>
+                                <th>Detected</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (recentIncidents && recentIncidents.length > 0) { %>
+                                <% recentIncidents.forEach(incident => { %>
+                                    <tr>
+                                        <td>
+                                            <% if (incident.user) { %>
+                                                <div class="user-profile">
+                                                    <img src="<%= incident.user.profilePicture ? (incident.user.profilePicture.startsWith('http') ? incident.user.profilePicture : 'http://localhost:3000' + incident.user.profilePicture) : 'https://via.placeholder.com/40' %>" alt="<%= incident.user.displayName %>" class="user-avatar" onerror="this.src='https://via.placeholder.com/40'">
+                                                    <div class="user-info">
+                                                        <h4><%= incident.user.displayName %></h4>
+                                                        <p>@<%= incident.user.username %></p>
+                                                    </div>
+                                                </div>
+                                            <% } else { %>
+                                                <span style="color: #64748b;">Unknown User</span>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <div style="font-weight: 600; color: #1e293b; text-transform: capitalize;">
+                                                <%= incident.fraudType.replace(/_/g, ' ') %>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge" style="background: <%= incident.severity === 'critical' ? '#dc2626' : incident.severity === 'high' ? '#f59e0b' : incident.severity === 'medium' ? '#3b82f6' : '#64748b' %>; color: white;">
+                                                <%= incident.severity.toUpperCase() %>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div style="font-size: 0.875rem; color: #64748b; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                                <%= incident.details || 'No details available' %>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div style="font-weight: 600; color: <%= incident.riskScore >= 80 ? '#dc2626' : incident.riskScore >= 50 ? '#f59e0b' : '#10b981' %>;">
+                                                <%= incident.riskScore || 0 %>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div><%= new Date(incident.createdAt).toLocaleDateString() %></div>
+                                            <div style="font-size: 0.75rem; color: #64748b;"><%= new Date(incident.createdAt).toLocaleTimeString() %></div>
+                                        </td>
+                                        <td>
+                                            <span class="status-badge status-<%= incident.status || 'pending' %>">
+                                                <%= (incident.status || 'pending').toUpperCase() %>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div style="display: flex; gap: 0.25rem;">
+                                                <button class="btn btn-sm btn-primary" onclick="viewIncident('<%= incident._id %>')" title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <% if (incident.status === 'pending') { %>
+                                                    <button class="btn btn-sm btn-success" onclick="resolveIncident('<%= incident._id %>')" title="Resolve">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-danger" onclick="escalateIncident('<%= incident._id %>')" title="Escalate">
+                                                        <i class="fas fa-exclamation"></i>
+                                                    </button>
+                                                <% } %>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            <% } else { %>
+                                <tr>
+                                    <td colspan="8" class="loading">
+                                        <i class="fas fa-shield-alt"></i>
+                                        <p>No fraud incidents detected</p>
+                                    </td>
+                                </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Incident Details Modal -->
+    <div id="incidentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Fraud Incident Details</h3>
+                <button onclick="closeModal()" class="close-btn">&times;</button>
+            </div>
+            <div id="incidentModalContent" class="modal-body">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function filterByPeriod(period) {
+            window.location.href = `/admin/fraud?period=${period}`;
+        }
+
+        function viewIncident(incidentId) {
+            document.getElementById('incidentModalContent').innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div>';
+            document.getElementById('incidentModal').style.display = 'flex';
+            
+            fetch(`/api/fraud/${incidentId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayIncidentDetails(data.data);
+                    } else {
+                        alert('Error loading incident details');
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error.message);
+                    closeModal();
+                });
+        }
+
+        function displayIncidentDetails(incident) {
+            const html = `
+                <div class="info-group">
+                    <label>Fraud Type:</label>
+                    <p style="text-transform: capitalize;">${incident.fraudType.replace(/_/g, ' ')}</p>
+                </div>
+                <div class="info-group">
+                    <label>Severity:</label>
+                    <p><span class="badge" style="background: ${incident.severity === 'critical' ? '#dc2626' : incident.severity === 'high' ? '#f59e0b' : '#3b82f6'}; color: white;">${incident.severity.toUpperCase()}</span></p>
+                </div>
+                <div class="info-group">
+                    <label>Risk Score:</label>
+                    <p style="font-weight: 600; color: ${incident.riskScore >= 80 ? '#dc2626' : incident.riskScore >= 50 ? '#f59e0b' : '#10b981'};">${incident.riskScore || 0}</p>
+                </div>
+                <div class="info-group">
+                    <label>Details:</label>
+                    <p>${incident.details || 'No details available'}</p>
+                </div>
+                <div class="info-group">
+                    <label>Detected:</label>
+                    <p>${new Date(incident.createdAt).toLocaleString()}</p>
+                </div>
+                <div class="info-group">
+                    <label>Status:</label>
+                    <p><span class="status-badge status-${incident.status || 'pending'}">${(incident.status || 'pending').toUpperCase()}</span></p>
+                </div>
+                ${incident.metadata ? `
+                    <div class="info-group">
+                        <label>Additional Information:</label>
+                        <pre style="background: #f8fafc; padding: 1rem; border-radius: 8px; overflow-x: auto;">${JSON.stringify(incident.metadata, null, 2)}</pre>
+                    </div>
+                ` : ''}
+                ${incident.status === 'pending' ? `
+                    <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+                        <button class="btn btn-success" onclick="resolveIncident('${incident._id}')">
+                            <i class="fas fa-check"></i> Resolve
+                        </button>
+                        <button class="btn btn-danger" onclick="escalateIncident('${incident._id}')">
+                            <i class="fas fa-exclamation"></i> Escalate
+                        </button>
+                    </div>
+                ` : ''}
+            `;
+            document.getElementById('incidentModalContent').innerHTML = html;
+        }
+
+        function resolveIncident(incidentId) {
+            const notes = prompt('Enter resolution notes (optional):');
+            if (confirm('Mark this incident as resolved?')) {
+                fetch(`/api/fraud/${incidentId}/resolve`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ notes })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Incident resolved successfully');
+                        window.location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error.message);
+                });
+            }
+        }
+
+        function escalateIncident(incidentId) {
+            const reason = prompt('Enter escalation reason:');
+            if (!reason) return;
+            
+            if (confirm('Escalate this incident?')) {
+                fetch(`/api/fraud/${incidentId}/escalate`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ reason })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Incident escalated successfully');
+                        window.location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error.message);
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('incidentModal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

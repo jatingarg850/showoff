@@ -1,0 +1,70 @@
+╔══════════════════════════════════════════════════════════════╗
+║           SHOWIE AI Avatar Setup Instructions                ║
+╚══════════════════════════════════════════════════════════════╝
+
+📁 REQUIRED FILE:
+   Place your AI avatar image in this directory as: ai.jpg
+
+📋 FILE SPECIFICATIONS:
+   ✓ File Name: ai.jpg (exactly, lowercase)
+   ✓ Format: JPEG/JPG
+   ✓ Dimensions: 512x512 pixels (recommended) or higher
+   ✓ Aspect Ratio: 1:1 (square)
+   ✓ File Size: < 500KB (recommended)
+   ✓ Quality: High resolution, clear image
+
+🎨 IMAGE GUIDELINES:
+   ✓ Should represent a friendly AI assistant
+   ✓ Clear, recognizable face or icon
+   ✓ Good contrast and visibility
+   ✓ Professional appearance
+   ✓ Suitable for circular crop (will be shown in circle)
+
+📍 FILE LOCATION:
+   apps/assets/AI/ai.jpg
+
+🔧 AFTER ADDING IMAGE:
+   1. Ensure file is named exactly: ai.jpg
+   2. Run: flutter pub get (if needed)
+   3. Restart the app
+   4. Navigate to Talent Screen
+   5. Tap AI button to verify image loads
+
+⚠️ TROUBLESHOOTING:
+   - Image not showing? Check file name is exactly "ai.jpg"
+   - Still not working? Verify file is in apps/assets/AI/ directory
+   - Try hot restart: Press 'R' in terminal or restart app
+   - Check console for error messages
+
+💡 TEMPORARY SOLUTION:
+   If you don't have an image yet, the app will show a fallback:
+   - Purple gradient circle with robot icon
+   - This is perfectly fine for testing!
+
+🎯 RECOMMENDED IMAGES:
+   - Friendly robot face
+   - AI assistant avatar
+   - Mascot character
+   - Abstract AI representation
+   - Custom designed character
+
+📝 EXAMPLE SOURCES:
+   - Create custom avatar with AI image generators
+   - Design in Figma/Photoshop
+   - Use royalty-free avatar images
+   - Commission custom artwork
+
+✅ VERIFICATION:
+   After adding ai.jpg, you should see:
+   1. Avatar in app bar of AI Chat Screen
+   2. Avatar next to AI messages in chat
+   3. Circular crop with purple border
+
+═══════════════════════════════════════════════════════════════
+
+Need help? Check the main documentation:
+- AI_CHATBOT_GUIDE.md
+- SHOWIE_IMPLEMENTATION_SUMMARY.md
+- SHOWIE_QUICK_REFERENCE.md
+
+═══════════════════════════════════════════════════════════════

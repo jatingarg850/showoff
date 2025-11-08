@@ -252,6 +252,32 @@ const userSchema = new mongoose.Schema({
     default: false,
   },
   banReason: String,
+  accountStatus: {
+    type: String,
+    enum: ['active', 'suspended', 'banned'],
+    default: 'active'
+  },
+  
+  // Fraud Detection
+  riskScore: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100
+  },
+  coinsFrozen: {
+    type: Boolean,
+    default: false
+  },
+  freezeReason: String,
+  
+  // Admin tracking
+  statusUpdatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  statusUpdatedAt: Date,
+  statusReason: String,
   
 }, {
   timestamps: true,

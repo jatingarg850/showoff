@@ -5,6 +5,7 @@ import 'notification_screen.dart';
 import 'syt_reel_screen.dart';
 import 'camera_screen.dart';
 import 'services/api_service.dart';
+import 'ai_chat_screen.dart';
 
 class TalentScreen
     extends
@@ -265,6 +266,60 @@ class _TalentScreenState
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        // AI Chat Button - SHOWIE
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (
+                                      context,
+                                    ) => const AIChatScreen(),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(
+                                    0xFF701CF5,
+                                  ),
+                                  Color(
+                                    0xFF3E98E4,
+                                  ),
+                                ],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color:
+                                      const Color(
+                                        0xFF701CF5,
+                                      ).withOpacity(
+                                        0.3,
+                                      ),
+                                  blurRadius: 8,
+                                  offset: const Offset(
+                                    0,
+                                    2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.smart_toy,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(
+                          width: 12,
+                        ),
                         GestureDetector(
                           onTap: () {
                             Navigator.push(
