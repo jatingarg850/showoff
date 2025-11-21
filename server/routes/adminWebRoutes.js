@@ -562,6 +562,59 @@ router.get('/withdrawals', checkAdminWeb, async (req, res) => {
   }
 });
 
+// Talent/SYT Management
+router.get('/talent', checkAdminWeb, async (req, res) => {
+  try {
+    const SYTEntry = require('../models/SYTEntry');
+    
+    const { type, category } = req.query;
+    
+    let query = {};
+    if (type && type !== 'all') {
+      query.competitionType = type;
+    }
+    if (category && category !== 'all') {
+      query.category = category;
+    }
+
+    // Get all entries
+    const entries = await SYTEntry.find(query)
+      .populate('user', 'username displayName profilePicture isVerified')
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    // Get leaderboard (top entries by votes)
+    const leaderboard = await SYTEntry.find({ isActive: true })
+      .populate('user', 'username displayName profilePicture isVerified')
+      .sort({ votesCount: -1 })
+      .limit(10);
+
+    // Get stats
+    const totalEntries = await SYTEntry.countDocuments();
+    const weeklyEntries = await SYTEntry.countDocuments({ competitionType: 'weekly' });
+    const winners = await SYTEntry.countDocuments({ isWinner: true });
+    const totalCoinsAwarded = await SYTEntry.aggregate([
+      { $group: { _id: null, total: { $sum: '$prizeCoins' } } }
+    ]);
+
+    res.render('admin/talent', {
+      currentPage: 'talent',
+      pageTitle: 'Talent Management',
+      entries,
+      leaderboard,
+      stats: {
+        totalEntries,
+        weeklyEntries,
+        winners,
+        totalCoinsAwarded: totalCoinsAwarded[0]?.total || 0
+      }
+    });
+  } catch (error) {
+    console.error('Talent page error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
 // Subscriptions Management
 router.get('/subscriptions', checkAdminWeb, async (req, res) => {
   try {

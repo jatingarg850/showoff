@@ -327,7 +327,7 @@ exports.createCoinPurchaseOrder = async (req, res) => {
       }
       // Convert amount to paise and calculate coins
       selectedPackage.price = Math.round(amount * 100); // Convert to paise
-      selectedPackage.coins = Math.round(amount * 1.2); // 1 INR = 1.2 coins
+      selectedPackage.coins = Math.round(amount * 1); // 1 INR = 1 coin
       console.log('💰 Add money - Amount:', amount, 'Price in paise:', selectedPackage.price, 'Coins:', selectedPackage.coins);
     }
 
@@ -463,7 +463,7 @@ exports.purchaseCoins = async (req, res) => {
           message: 'Invalid amount for add money',
         });
       }
-      selectedPackage.coins = Math.round(amount * 1.2); // 1 INR = 1.2 coins
+      selectedPackage.coins = Math.round(amount * 1); // 1 INR = 1 coin
       selectedPackage.price = amount;
       console.log('💰 Add money calculated - Amount:', amount, 'Coins:', selectedPackage.coins);
     }
@@ -567,9 +567,9 @@ exports.confirmStripePayment = async (req, res) => {
       });
     }
 
-    // Convert amount to coins (1 USD = 100 coins)
+    // Convert amount to coins (1 USD = 83 coins, approximate INR rate)
     const amountInUSD = paymentIntent.amount / 100;
-    const coinsToAdd = Math.floor(amountInUSD * 100);
+    const coinsToAdd = Math.floor(amountInUSD * 83); // 1 USD ≈ 83 INR ≈ 83 coins
 
     // Award coins to user
     await awardCoins(
@@ -661,7 +661,7 @@ exports.addMoney = async (req, res) => {
       }
 
       const amountInUSD = paymentIntent.amount / 100;
-      coinsToAdd = Math.floor(amountInUSD * 100); // 1 USD = 100 coins
+      coinsToAdd = Math.floor(amountInUSD * 83); // 1 USD ≈ 83 INR ≈ 83 coins
       description = `Added money via Stripe: $${amountInUSD}`;
       transactionData = {
         stripePaymentIntentId: paymentIntentId,
@@ -750,7 +750,7 @@ exports.addMoney = async (req, res) => {
         console.log('🧪 Demo payment - Amount:', amountInINR);
       }
       
-      coinsToAdd = Math.floor(amountInINR * 1.2); // 1 INR = 1.2 coins
+      coinsToAdd = Math.floor(amountInINR * 1); // 1 INR = 1 coin
       description = isDemoPayment 
         ? `Demo payment: ₹${amountInINR}` 
         : `Added money via Razorpay: ₹${amountInINR}`;

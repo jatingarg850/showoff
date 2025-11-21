@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShowOff Life - Talent Management</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <%- include('partials/admin-styles') %>
+</head>
+<body>
+    <div class="admin-container">
+        <%- include('partials/admin-sidebar', { currentPage: 'talent' }) %>
+
+        <main class="main-content">
+            <%- include('partials/admin-header', { pageTitle: 'Talent Management' }) %>
+
+            <div class="content-area">
+                <!-- Stats Overview -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                        <div class="stat-value"><%= stats.totalEntries %></div>
+                        <div class="stat-label">Total Entries</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                                <i class="fas fa-calendar-week"></i>
+                            </div>
+                        </div>
+                        <div class="stat-value"><%= stats.weeklyEntries %></div>
+                        <div class="stat-label">This Week</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                                <i class="fas fa-trophy"></i>
+                            </div>
+                        </div>
+                        <div class="stat-value"><%= stats.winners %></div>
+                        <div class="stat-label">Winners Declared</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+                                <i class="fas fa-coins"></i>
+                            </div>
+                        </div>
+                        <div class="stat-value"><%= stats.totalCoinsAwarded %></div>
+                        <div class="stat-label">Coins Awarded</div>
+                    </div>
+                </div>
+
+                <!-- Competition Tabs -->
+                <div class="table-container">
+                    <div class="table-header">
+                        <h3>Competition Entries</h3>
+                        <div style="display: flex; gap: 1rem;">
+                            <select id="competitionFilter" onchange="filterCompetition()" style="padding: 0.5rem; border-radius: 0.5rem; border: 1px solid #d1d5db;">
+                                <option value="all">All Competitions</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="quarterly">Quarterly</option>
+                            </select>
+                            <select id="categoryFilter" onchange="filterCompetition()" style="padding: 0.5rem; border-radius: 0.5rem; border: 1px solid #d1d5db;">
+                                <option value="all">All Categories</option>
+                                <option value="singing">Singing</option>
+                                <option value="dancing">Dancing</option>
+                                <option value="comedy">Comedy</option>
+                                <option value="acting">Acting</option>
+                                <option value="music">Music</option>
+                                <option value="art">Art</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Entries Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; padding: 1.5rem;">
+                        <% if (entries && entries.length > 0) { %>
+                            <% entries.forEach(entry => { %>
+                                <div class="entry-card" data-type="<%= entry.competitionType %>" data-category="<%= entry.category %>">
+                                    <div style="position: relative;">
+                                        <video style="width: 100%; height: 200px; object-fit: cover; border-radius: 0.5rem 0.5rem 0 0;" 
+                                               poster="<%= entry.thumbnailUrl || '' %>">
+                                            <source src="<%= entry.videoUrl %>" type="video/mp4">
+                                        </video>
+                                        
+                                        <!-- Status Badge -->
+                                        <div style="position: absolute; top: 0.5rem; left: 0.5rem;">
+                                            <span class="status-badge <%= entry.isActive ? 'status-active' : 'status-suspended' %>">
+                                                <%= entry.isActive ? 'Active' : 'Inactive' %>
+                                            </span>
+                                        </div>
+                                        
+                                        <!-- Winner Badge -->
+                                        <% if (entry.isWinner) { %>
+                                            <div style="position: absolute; top: 0.5rem; right: 0.5rem;">
+                                                <span class="status-badge" style="background: #fbbf24; color: #78350f;">
+                                                    <i class="fas fa-trophy"></i> Winner #<%= entry.winnerPosition %>
+                                                </span>
+                                            </div>
+                                        <% } %>
+                                        
+                                        <!-- Competition Type -->
+                                        <div style="position: absolute; bottom: 0.5rem; left: 0.5rem;">
+                                            <span class="status-badge" style="background: #3b82f6; color: white;">
+                                                <%= entry.competitionType.toUpperCase() %>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="padding: 1rem;">
+                                        <h4 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem;"><%= entry.title %></h4>
+                                        <p style="font-size: 0.875rem; color: #64748b; margin-bottom: 0.75rem;"><%= entry.description || 'No description' %></p>
+                                        
+                                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                                            <img src="<%= entry.user?.profilePicture || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22%3E%3Crect fill=%22%23ddd%22 width=%2224%22 height=%2224%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-family=%22sans-serif%22 font-size=%2216%22%3E?%3C/text%3E%3C/svg%3E' %>" 
+                                                 style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">
+                                            <span style="font-size: 0.875rem; font-weight: 500;">@<%= entry.user?.username || 'Unknown' %></span>
+                                        </div>
+                                        
+                                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-bottom: 1rem; font-size: 0.75rem; color: #64748b;">
+                                            <div style="text-align: center;">
+                                                <i class="fas fa-vote-yea"></i> <%= entry.votesCount %>
+                                            </div>
+                                            <div style="text-align: center;">
+                                                <i class="fas fa-heart"></i> <%= entry.likesCount %>
+                                            </div>
+                                            <div style="text-align: center;">
+                                                <i class="fas fa-eye"></i> <%= entry.viewsCount %>
+                                            </div>
+                                            <div style="text-align: center;">
+                                                <i class="fas fa-coins"></i> <%= entry.coinsEarned %>
+                                            </div>
+                                        </div>
+                                        
+                                        <div style="display: flex; gap: 0.5rem;">
+                                            <button class="btn btn-sm btn-primary" onclick="viewEntry('<%= entry._id %>')">
+                                                <i class="fas fa-eye"></i> View
+                                            </button>
+                                            <button class="btn btn-sm <%= entry.isActive ? 'btn-warning' : 'btn-success' %>" 
+                                                    onclick="toggleEntry('<%= entry._id %>', <%= !entry.isActive %>)">
+                                                <i class="fas fa-<%= entry.isActive ? 'pause' : 'play' %>"></i>
+                                            </button>
+                                            <% if (!entry.isWinner) { %>
+                                                <button class="btn btn-sm" style="background: #fbbf24; color: white;" 
+                                                        onclick="declareWinner('<%= entry._id %>')">
+                                                    <i class="fas fa-trophy"></i>
+                                                </button>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                </div>
+                            <% }) %>
+                        <% } else { %>
+                            <div style="grid-column: 1 / -1;" class="loading">
+                                <i class="fas fa-star"></i>
+                                <p>No talent entries found</p>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+
+                <!-- Leaderboard -->
+                <div class="table-container">
+                    <div class="table-header">
+                        <h3>Current Leaderboard</h3>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>User</th>
+                                <th>Title</th>
+                                <th>Category</th>
+                                <th>Votes</th>
+                                <th>Likes</th>
+                                <th>Views</th>
+                                <th>Coins Earned</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (leaderboard && leaderboard.length > 0) { %>
+                                <% leaderboard.forEach((entry, index) => { %>
+                                    <tr>
+                                        <td>
+                                            <% if (index < 3) { %>
+                                                <span style="font-size: 1.5rem;">
+                                                    <%= index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉' %>
+                                                </span>
+                                            <% } else { %>
+                                                #<%= index + 1 %>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <div class="user-profile">
+                                                <img class="user-avatar" src="<%= entry.user?.profilePicture || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-family=%22sans-serif%22 font-size=%2224%22%3E?%3C/text%3E%3C/svg%3E' %>">
+                                                <div class="user-info">
+                                                    <h4>@<%= entry.user?.username || 'Unknown' %></h4>
+                                                    <p><%= entry.user?.displayName || '' %></p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td><%= entry.title %></td>
+                                        <td><span class="status-badge" style="background: #e0e7ff; color: #3730a3;"><%= entry.category %></span></td>
+                                        <td><%= entry.votesCount %></td>
+                                        <td><%= entry.likesCount %></td>
+                                        <td><%= entry.viewsCount %></td>
+                                        <td><%= entry.coinsEarned %></td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary" onclick="viewEntry('<%= entry._id %>')">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            <% } else { %>
+                                <tr>
+                                    <td colspan="9" style="text-align: center; padding: 2rem; color: #64748b;">
+                                        No entries in leaderboard
+                                    </td>
+                                </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function filterCompetition() {
+            const typeFilter = document.getElementById('competitionFilter').value;
+            const categoryFilter = document.getElementById('categoryFilter').value;
+            const cards = document.querySelectorAll('.entry-card');
+            
+            cards.forEach(card => {
+                const type = card.dataset.type;
+                const category = card.dataset.category;
+                
+                const typeMatch = typeFilter === 'all' || type === typeFilter;
+                const categoryMatch = categoryFilter === 'all' || category === categoryFilter;
+                
+                card.style.display = (typeMatch && categoryMatch) ? 'block' : 'none';
+            });
+        }
+
+        function viewEntry(entryId) {
+            window.open(`/api/syt/entries?id=${entryId}`, '_blank');
+        }
+
+        async function toggleEntry(entryId, activate) {
+            const action = activate ? 'activate' : 'deactivate';
+            if (confirm(`Are you sure you want to ${action} this entry?`)) {
+                try {
+                    const response = await fetch(`/api/admin/syt/${entryId}/toggle`, {
+                        method: 'PUT',
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        alert(result.message);
+                        window.location.reload();
+                    } else {
+                        alert('Error: ' + result.message);
+                    }
+                } catch (error) {
+                    alert('Failed to toggle entry status');
+                }
+            }
+        }
+
+        async function declareWinner(entryId) {
+            const position = prompt('Enter winner position (1, 2, or 3):');
+            if (position && ['1', '2', '3'].includes(position)) {
+                try {
+                    const response = await fetch(`/api/admin/syt/${entryId}/winner`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ position: parseInt(position) })
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        alert(result.message);
+                        window.location.reload();
+                    } else {
+                        alert('Error: ' + result.message);
+                    }
+                } catch (error) {
+                    alert('Failed to declare winner');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

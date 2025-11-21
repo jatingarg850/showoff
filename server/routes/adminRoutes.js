@@ -9,8 +9,23 @@ const {
 } = require('../controllers/adminController');
 const { protect, adminOnly } = require('../middleware/auth');
 
-// Simple middleware to check if user is admin via JWT
+// Middleware to check if user is admin via session or JWT
 const adminProtect = async (req, res, next) => {
+  console.log('🔐 Admin Protect Middleware');
+  console.log('  - Path:', req.path);
+  console.log('  - Method:', req.method);
+  console.log('  - Session ID:', req.sessionID);
+  console.log('  - Session Data:', req.session);
+  console.log('  - Has Authorization Header:', !!req.headers.authorization);
+  
+  // Check for session-based authentication first (for web admin panel)
+  if (req.session && req.session.isAdmin) {
+    console.log('✅ Admin authenticated via session');
+    req.user = { role: 'admin', id: 'admin' };
+    return next();
+  }
+
+  // Fallback to JWT authentication (for API calls)
   let token;
 
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
@@ -18,6 +33,7 @@ const adminProtect = async (req, res, next) => {
   }
 
   if (!token) {
+    console.log('❌ No session or JWT token found');
     return res.status(401).json({
       success: false,
       message: 'Not authorized to access this route',
@@ -83,5 +99,26 @@ router.put('/settings', require('../controllers/adminController').updateSystemSe
 
 // Financial Management
 router.get('/financial', getFinancialOverview);
+
+// Withdrawal Management
+router.get('/withdrawals', require('../controllers/adminController').getWithdrawals);
+router.get('/withdrawals/:id', require('../controllers/adminController').getWithdrawalDetails);
+router.put('/withdrawals/:id', require('../controllers/adminController').updateWithdrawalStatus);
+router.put('/withdrawals/:id/approve', require('../controllers/adminController').approveWithdrawal);
+router.put('/withdrawals/:id/reject', require('../controllers/adminController').rejectWithdrawal);
+
+// Product Management
+const upload = require('../middleware/upload');
+router.post('/products', require('../controllers/adminController').createProduct);
+router.put('/products/:id', require('../controllers/adminController').updateProduct);
+router.delete('/products/:id', require('../controllers/adminController').deleteProduct);
+router.put('/products/:id/toggle', require('../controllers/adminController').toggleProductStatus);
+router.post('/products/upload-images', upload.array('images', 5), require('../controllers/adminController').uploadProductImages);
+
+// SYT/Talent Management
+router.get('/syt', require('../controllers/adminController').getSYTEntries);
+router.put('/syt/:id/toggle', require('../controllers/adminController').toggleSYTEntry);
+router.put('/syt/:id/winner', require('../controllers/adminController').declareSYTWinner);
+router.delete('/syt/:id', require('../controllers/adminController').deleteSYTEntry);
 
 module.exports = router;

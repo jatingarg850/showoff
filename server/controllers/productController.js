@@ -118,10 +118,31 @@ exports.getPopularProducts = async (req, res) => {
 // @access  Public
 exports.getProductsByCategory = async (req, res) => {
   try {
-    const products = await Product.find({
-      category: req.params.category,
-      isActive: true,
-    });
+    const category = req.params.category;
+    let products;
+
+    // Handle special categories
+    if (category === 'new') {
+      // Get new products (created in last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      products = await Product.find({
+        isActive: true,
+        createdAt: { $gte: thirtyDaysAgo }
+      }).sort({ createdAt: -1 });
+    } else if (category === 'popular') {
+      // Get popular products (sorted by views or purchases)
+      products = await Product.find({
+        isActive: true
+      }).sort({ views: -1, purchases: -1 }).limit(20);
+    } else {
+      // Regular category
+      products = await Product.find({
+        category: category,
+        isActive: true,
+      });
+    }
 
     const count = products.length;
 

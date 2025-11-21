@@ -2952,39 +2952,39 @@ class ApiService {
     >
   >
   updateNotificationSettings({
-    bool? push,
-    bool? email,
-    bool? sms,
-    Map<
-      String,
-      bool
-    >?
-    types,
+    required bool push,
+    required bool email,
+    required bool sms,
+    required bool referral,
+    required bool transaction,
+    required bool community,
+    required bool marketing,
   }) async {
     final response = await http.put(
       Uri.parse(
-        '$baseUrl/notifications/settings',
+        '$baseUrl/users/notification-settings',
       ),
       headers: await _getHeaders(),
       body: jsonEncode(
         {
-          if (push !=
-              null)
-            'push': push,
-          if (email !=
-              null)
-            'email': email,
-          if (sms !=
-              null)
-            'sms': sms,
-          if (types !=
-              null)
-            'types': types,
+          'push': push,
+          'email': email,
+          'sms': sms,
+          'referral': referral,
+          'transaction': transaction,
+          'community': community,
+          'marketing': marketing,
         },
       ),
     );
-    return jsonDecode(
+    final decoded = jsonDecode(
       response.body,
+    );
+    return Map<
+      String,
+      dynamic
+    >.from(
+      decoded,
     );
   }
 
@@ -3136,6 +3136,103 @@ class ApiService {
           'transactionId': transactionId,
         },
       ),
+    );
+    final decoded = jsonDecode(
+      response.body,
+    );
+    return Map<
+      String,
+      dynamic
+    >.from(
+      decoded,
+    );
+  }
+
+  // ============ PRIVACY & SECURITY METHODS ============
+
+  // Update privacy settings
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  updatePrivacySettings({
+    required bool profileVisibility,
+    required bool dataSharing,
+    required bool locationTracking,
+    required bool twoFactorAuth,
+  }) async {
+    final response = await http.put(
+      Uri.parse(
+        '$baseUrl/users/privacy-settings',
+      ),
+      headers: await _getHeaders(),
+      body: jsonEncode(
+        {
+          'profileVisibility': profileVisibility,
+          'dataSharing': dataSharing,
+          'locationTracking': locationTracking,
+          'twoFactorAuth': twoFactorAuth,
+        },
+      ),
+    );
+    final decoded = jsonDecode(
+      response.body,
+    );
+    return Map<
+      String,
+      dynamic
+    >.from(
+      decoded,
+    );
+  }
+
+  // Delete account
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  deleteAccount(
+    String password,
+  ) async {
+    final response = await http.delete(
+      Uri.parse(
+        '$baseUrl/users/delete-account',
+      ),
+      headers: await _getHeaders(),
+      body: jsonEncode(
+        {
+          'password': password,
+        },
+      ),
+    );
+    final decoded = jsonDecode(
+      response.body,
+    );
+    return Map<
+      String,
+      dynamic
+    >.from(
+      decoded,
+    );
+  }
+
+  // Download user data
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  downloadUserData() async {
+    final response = await http.get(
+      Uri.parse(
+        '$baseUrl/users/download-data',
+      ),
+      headers: await _getHeaders(),
     );
     final decoded = jsonDecode(
       response.body,

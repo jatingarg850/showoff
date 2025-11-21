@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'services/api_service.dart';
+import 'services/storage_service.dart';
 
 class NotificationSettingsScreen
     extends
@@ -24,7 +26,7 @@ class _NotificationSettingsScreenState
   bool
   emailNotifications = false;
   bool
-  smsNotifications = true;
+  smsNotifications = false;
   bool
   referralNotifications = true;
   bool
@@ -33,12 +35,182 @@ class _NotificationSettingsScreenState
   communityNotifications = false;
   bool
   marketingNotifications = false;
+  bool
+  _isLoading = true;
+
+  @override
+  void
+  initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<
+    void
+  >
+  _loadSettings() async {
+    try {
+      final user = await StorageService.getUser();
+      if (user !=
+              null &&
+          user['notificationSettings'] !=
+              null) {
+        final settings = user['notificationSettings'];
+        setState(
+          () {
+            pushNotifications =
+                settings['push'] ??
+                true;
+            emailNotifications =
+                settings['email'] ??
+                false;
+            smsNotifications =
+                settings['sms'] ??
+                false;
+            referralNotifications =
+                settings['referral'] ??
+                true;
+            transactionNotifications =
+                settings['transaction'] ??
+                true;
+            communityNotifications =
+                settings['community'] ??
+                false;
+            marketingNotifications =
+                settings['marketing'] ??
+                false;
+            _isLoading = false;
+          },
+        );
+      } else {
+        setState(
+          () {
+            _isLoading = false;
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading notification settings: $e',
+      );
+      setState(
+        () {
+          _isLoading = false;
+        },
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _saveSettings() async {
+    try {
+      final response = await ApiService.updateNotificationSettings(
+        push: pushNotifications,
+        email: emailNotifications,
+        sms: smsNotifications,
+        referral: referralNotifications,
+        transaction: transactionNotifications,
+        community: communityNotifications,
+        marketing: marketingNotifications,
+      );
+
+      if (response['success']) {
+        // Update local storage
+        final user = await StorageService.getUser();
+        if (user !=
+            null) {
+          user['notificationSettings'] = {
+            'push': pushNotifications,
+            'email': emailNotifications,
+            'sms': smsNotifications,
+            'referral': referralNotifications,
+            'transaction': transactionNotifications,
+            'community': communityNotifications,
+            'marketing': marketingNotifications,
+          };
+          await StorageService.saveUser(
+            user,
+          );
+        }
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Settings saved',
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(
+              seconds: 1,
+            ),
+          ),
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error saving notification settings: $e',
+      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error: $e',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget
   build(
     BuildContext context,
   ) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back,
+              color: Colors.black,
+            ),
+            onPressed: () => Navigator.pop(
+              context,
+            ),
+          ),
+          title: const Text(
+            'Notification',
+            style: TextStyle(
+              color: Color(
+                0xFF8B5CF6,
+              ),
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(
+            color: Color(
+              0xFF8B5CF6,
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -90,9 +262,12 @@ class _NotificationSettingsScreenState
               pushNotifications,
               (
                 value,
-              ) => setState(
-                () => pushNotifications = value,
-              ),
+              ) {
+                setState(
+                  () => pushNotifications = value,
+                );
+                _saveSettings();
+              },
             ),
 
             _buildNotificationItem(
@@ -101,9 +276,12 @@ class _NotificationSettingsScreenState
               emailNotifications,
               (
                 value,
-              ) => setState(
-                () => emailNotifications = value,
-              ),
+              ) {
+                setState(
+                  () => emailNotifications = value,
+                );
+                _saveSettings();
+              },
             ),
 
             _buildNotificationItem(
@@ -112,9 +290,12 @@ class _NotificationSettingsScreenState
               smsNotifications,
               (
                 value,
-              ) => setState(
-                () => smsNotifications = value,
-              ),
+              ) {
+                setState(
+                  () => smsNotifications = value,
+                );
+                _saveSettings();
+              },
             ),
 
             const SizedBox(
@@ -140,9 +321,12 @@ class _NotificationSettingsScreenState
               referralNotifications,
               (
                 value,
-              ) => setState(
-                () => referralNotifications = value,
-              ),
+              ) {
+                setState(
+                  () => referralNotifications = value,
+                );
+                _saveSettings();
+              },
             ),
 
             _buildNotificationItem(
@@ -151,9 +335,12 @@ class _NotificationSettingsScreenState
               transactionNotifications,
               (
                 value,
-              ) => setState(
-                () => transactionNotifications = value,
-              ),
+              ) {
+                setState(
+                  () => transactionNotifications = value,
+                );
+                _saveSettings();
+              },
             ),
 
             _buildNotificationItem(
@@ -162,9 +349,12 @@ class _NotificationSettingsScreenState
               communityNotifications,
               (
                 value,
-              ) => setState(
-                () => communityNotifications = value,
-              ),
+              ) {
+                setState(
+                  () => communityNotifications = value,
+                );
+                _saveSettings();
+              },
             ),
 
             _buildNotificationItem(
@@ -173,9 +363,12 @@ class _NotificationSettingsScreenState
               marketingNotifications,
               (
                 value,
-              ) => setState(
-                () => marketingNotifications = value,
-              ),
+              ) {
+                setState(
+                  () => marketingNotifications = value,
+                );
+                _saveSettings();
+              },
             ),
           ],
         ),

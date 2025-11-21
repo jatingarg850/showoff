@@ -374,7 +374,7 @@
                     <tr>
                         <td>
                             <div class="user-profile">
-                                <img src="<%= user.profilePicture ? (user.profilePicture.startsWith('http') ? user.profilePicture : 'http://localhost:3000' + user.profilePicture) : 'https://via.placeholder.com/40' %>" alt="<%= user.displayName %>" class="user-avatar" onerror="this.src='https://via.placeholder.com/40'">
+                                <img src="<%= user.profilePicture ? (user.profilePicture.startsWith('http') ? user.profilePicture : 'http://localhost:3000' + user.profilePicture) : 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect width=%2240%22 height=%2240%22 fill=%22%23ddd%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-family=%22sans-serif%22 font-size=%2216%22 fill=%22%23999%22%3E%3F%3C/text%3E%3C/svg%3E' %>" alt="<%= user.displayName %>" class="user-avatar" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect width=%2240%22 height=%2240%22 fill=%22%23ddd%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-family=%22sans-serif%22 font-size=%2216%22 fill=%22%23999%22%3E%3F%3C/text%3E%3C/svg%3E'">
                                 <div class="user-info">
                                     <h4><%= user.displayName %></h4>
                                     <p>@<%= user.username %></p>
@@ -488,43 +488,98 @@
 
 <script>
     function viewUser(userId) {
-        // In a real implementation, you would fetch user details via AJAX
         document.getElementById('userModalContent').innerHTML = `
-            <div class="loading">
-                <i class="fas fa-spinner"></i>
-                <p>Loading user details...</p>
+            <div style="text-align: center; padding: 2rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #667eea;"></i>
+                <p style="margin-top: 1rem; color: #64748b;">Loading user details...</p>
             </div>
         `;
         document.getElementById('userModal').style.display = 'flex';
         
-        // Simulate loading user data
-        setTimeout(() => {
+        // Fetch real user data from API
+        fetch(`/api/admin/users/${userId}`, {
+            method: 'GET',
+            credentials: 'include'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const user = data.data.user;
+                const stats = data.data.stats;
+                const profilePic = user.profilePicture 
+                    ? (user.profilePicture.startsWith('http') ? user.profilePicture : 'http://localhost:3000' + user.profilePicture)
+                    : "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23ddd'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='40' fill='%23999'%3E%3F%3C/text%3E%3C/svg%3E";
+                
+                document.getElementById('userModalContent').innerHTML = `
+                    <div style="text-align: center; margin-bottom: 2rem;">
+                        <img src="${profilePic}" alt="${user.displayName}" style="width: 100px; height: 100px; border-radius: 50%; margin-bottom: 1rem; object-fit: cover;">
+                        <h3 style="margin-bottom: 0.5rem;">${user.displayName}</h3>
+                        <p style="color: #64748b; margin-bottom: 0.5rem;">@${user.username}</p>
+                        ${user.isVerified ? '<span class="status-badge status-verified"><i class="fas fa-check-circle"></i> Verified</span>' : ''}
+                    </div>
+                    
+                    <div style="background: #f8fafc; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+                        <h4 style="margin-bottom: 0.5rem;">Contact Information</h4>
+                        ${user.email ? `<p style="font-size: 0.875rem; margin-bottom: 0.25rem;"><i class="fas fa-envelope"></i> ${user.email}</p>` : ''}
+                        ${user.phone ? `<p style="font-size: 0.875rem;"><i class="fas fa-phone"></i> ${user.phone}</p>` : ''}
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="background: #f8fafc; padding: 1rem; border-radius: 0.5rem;">
+                            <strong style="color: #64748b; font-size: 0.75rem;">Account Status</strong>
+                            <p style="font-size: 1.25rem; font-weight: 600; margin-top: 0.25rem;">${(user.accountStatus || 'active').charAt(0).toUpperCase() + (user.accountStatus || 'active').slice(1)}</p>
+                        </div>
+                        <div style="background: #f8fafc; padding: 1rem; border-radius: 0.5rem;">
+                            <strong style="color: #64748b; font-size: 0.75rem;">Total Posts</strong>
+                            <p style="font-size: 1.25rem; font-weight: 600; margin-top: 0.25rem;">${stats.totalPosts || 0}</p>
+                        </div>
+                        <div style="background: #f8fafc; padding: 1rem; border-radius: 0.5rem;">
+                            <strong style="color: #64748b; font-size: 0.75rem;">Followers</strong>
+                            <p style="font-size: 1.25rem; font-weight: 600; margin-top: 0.25rem;">${user.followersCount || 0}</p>
+                        </div>
+                        <div style="background: #f8fafc; padding: 1rem; border-radius: 0.5rem;">
+                            <strong style="color: #64748b; font-size: 0.75rem;">Following</strong>
+                            <p style="font-size: 1.25rem; font-weight: 600; margin-top: 0.25rem;">${user.followingCount || 0}</p>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div style="background: #fef3c7; padding: 1rem; border-radius: 0.5rem;">
+                            <strong style="color: #92400e; font-size: 0.75rem;">Coin Balance</strong>
+                            <p style="font-size: 1.25rem; font-weight: 600; margin-top: 0.25rem; color: #f59e0b;"><i class="fas fa-coins"></i> ${(user.coinBalance || 0).toLocaleString()}</p>
+                        </div>
+                        <div style="background: #dcfce7; padding: 1rem; border-radius: 0.5rem;">
+                            <strong style="color: #166534; font-size: 0.75rem;">Total Earned</strong>
+                            <p style="font-size: 1.25rem; font-weight: 600; margin-top: 0.25rem; color: #10b981;"><i class="fas fa-coins"></i> ${(user.totalCoinsEarned || 0).toLocaleString()}</p>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+                        <p style="font-size: 0.75rem; color: #64748b;">
+                            <strong>Joined:</strong> ${new Date(user.createdAt).toLocaleDateString()} at ${new Date(user.createdAt).toLocaleTimeString()}
+                        </p>
+                        ${user.lastLogin ? `<p style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">
+                            <strong>Last Login:</strong> ${new Date(user.lastLogin).toLocaleDateString()} at ${new Date(user.lastLogin).toLocaleTimeString()}
+                        </p>` : ''}
+                    </div>
+                `;
+            } else {
+                document.getElementById('userModalContent').innerHTML = `
+                    <div style="text-align: center; padding: 2rem;">
+                        <i class="fas fa-exclamation-circle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
+                        <p style="color: #64748b;">Error loading user details: ${data.message}</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
             document.getElementById('userModalContent').innerHTML = `
-                <div style="text-align: center; margin-bottom: 2rem;">
-                    <img src="https://via.placeholder.com/100" alt="User" style="width: 100px; height: 100px; border-radius: 50%; margin-bottom: 1rem;">
-                    <h3>User Details</h3>
-                    <p style="color: #64748b;">Detailed user information would be loaded here</p>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div>
-                        <strong>Account Status:</strong>
-                        <p>Active</p>
-                    </div>
-                    <div>
-                        <strong>Total Posts:</strong>
-                        <p>25 posts</p>
-                    </div>
-                    <div>
-                        <strong>Followers:</strong>
-                        <p>1,234</p>
-                    </div>
-                    <div>
-                        <strong>Following:</strong>
-                        <p>567</p>
-                    </div>
+                <div style="text-align: center; padding: 2rem;">
+                    <i class="fas fa-exclamation-circle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
+                    <p style="color: #64748b;">Error loading user details: ${error.message}</p>
                 </div>
             `;
-        }, 1000);
+        });
     }
 
     function suspendUser(userId, userName) {
@@ -532,9 +587,9 @@
             fetch(`/api/admin/users/${userId}/status`, {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+                    'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     status: 'suspended',
                     reason: 'Suspended by admin'
@@ -560,9 +615,9 @@
             fetch(`/api/admin/users/${userId}/status`, {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+                    'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     status: 'active',
                     reason: 'Activated by admin'
@@ -588,9 +643,9 @@
             fetch(`/api/admin/users/${userId}/verify`, {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+                    'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     isVerified: true
                 })
@@ -615,9 +670,9 @@
             fetch(`/api/admin/users/${userId}/verify`, {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+                    'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     isVerified: false
                 })
@@ -650,9 +705,9 @@
             fetch(`/api/admin/users/${userId}/coins`, {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+                    'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     amount: amount,
                     type: action,
@@ -680,9 +735,7 @@
             if (confirmation === 'DELETE') {
                 fetch(`/api/admin/users/${userId}`, {
                     method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
-                    }
+                    credentials: 'include'
                 })
                 .then(response => response.json())
                 .then(data => {
@@ -702,6 +755,10 @@
 
     function closeModal() {
         document.getElementById('userModal').style.display = 'none';
+    }
+
+    function confirmAction(message) {
+        return confirm(message);
     }
 
     // Search and filter functionality

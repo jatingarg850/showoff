@@ -5,13 +5,15 @@ const {
   getWithdrawalHistory,
   submitKYC,
   getKYCStatus,
+  getWithdrawalSettings,
 } = require('../controllers/withdrawalController');
 const { protect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
-router.post('/request', protect, requestWithdrawal);
+router.post('/request', protect, upload.array('idDocuments', 5), requestWithdrawal);
 router.get('/history', protect, getWithdrawalHistory);
 router.post('/kyc', protect, upload.array('documents', 5), submitKYC);
 router.get('/kyc-status', protect, getKYCStatus);
+router.get('/settings', protect, getWithdrawalSettings);
 
 module.exports = router;

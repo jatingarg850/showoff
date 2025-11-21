@@ -88,7 +88,7 @@
                                     <tr>
                                         <td>
                                             <div class="user-profile">
-                                                <img src="<%= withdrawal.user.profilePicture ? (withdrawal.user.profilePicture.startsWith('http') ? withdrawal.user.profilePicture : 'http://localhost:3000' + withdrawal.user.profilePicture) : 'https://via.placeholder.com/40' %>" alt="<%= withdrawal.user.displayName %>" class="user-avatar" onerror="this.src='https://via.placeholder.com/40'">
+                                                <img src="<%= withdrawal.user.profilePicture ? (withdrawal.user.profilePicture.startsWith('http') ? withdrawal.user.profilePicture : 'http://localhost:3000' + withdrawal.user.profilePicture) : 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-family=%22sans-serif%22 font-size=%2216%22%3E?%3C/text%3E%3C/svg%3E' %>" alt="<%= withdrawal.user.displayName %>" class="user-avatar" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-family=%22sans-serif%22 font-size=%2216%22%3E?%3C/text%3E%3C/svg%3E'">
                                                 <div class="user-info">
                                                     <h4><%= withdrawal.user.displayName %></h4>
                                                     <p>@<%= withdrawal.user.username %></p>
@@ -106,19 +106,42 @@
                                         </td>
                                         <td>
                                             <span class="badge">
-                                                <%= withdrawal.method === 'bank' ? 'Bank Transfer' : 'Web3 Wallet' %>
+                                                <% if (withdrawal.method === 'bank_transfer') { %>
+                                                    Bank Transfer
+                                                <% } else if (withdrawal.method === 'sofft_address') { %>
+                                                    Sofft Address
+                                                <% } else if (withdrawal.method === 'upi') { %>
+                                                    UPI
+                                                <% } else { %>
+                                                    <%= withdrawal.method %>
+                                                <% } %>
                                             </span>
                                         </td>
                                         <td>
-                                            <% if (withdrawal.method === 'bank' && withdrawal.bankDetails) { %>
+                                            <% if (withdrawal.method === 'bank_transfer' && withdrawal.bankDetails) { %>
                                                 <div style="font-size: 0.75rem;">
-                                                    <div><%= withdrawal.bankDetails.accountHolderName %></div>
-                                                    <div>****<%= withdrawal.bankDetails.accountNumber.slice(-4) %></div>
-                                                    <div><%= withdrawal.bankDetails.ifscCode %></div>
+                                                    <div><%= withdrawal.bankDetails.accountName || 'N/A' %></div>
+                                                    <div>****<%= withdrawal.bankDetails.accountNumber ? withdrawal.bankDetails.accountNumber.slice(-4) : 'N/A' %></div>
+                                                    <div><%= withdrawal.bankDetails.ifscCode || 'N/A' %></div>
                                                 </div>
-                                            <% } else if (withdrawal.method === 'web3' && withdrawal.walletAddress) { %>
+                                            <% } else if (withdrawal.method === 'sofft_address' && withdrawal.sofftAddress) { %>
                                                 <div style="font-size: 0.75rem;">
-                                                    <%= withdrawal.walletAddress.slice(0, 6) %>...<%=withdrawal.walletAddress.slice(-4) %>
+                                                    <%= withdrawal.sofftAddress.slice(0, 10) %>...
+                                                </div>
+                                            <% } else if (withdrawal.method === 'upi' && withdrawal.upiId) { %>
+                                                <div style="font-size: 0.75rem;">
+                                                    <%= withdrawal.upiId %>
+                                                </div>
+                                            <% } else { %>
+                                                <div style="font-size: 0.75rem; color: #94a3b8;">
+                                                    No details
+                                                </div>
+                                            <% } %>
+                                            <% if (withdrawal.idDocuments && withdrawal.idDocuments.length > 0) { %>
+                                                <div style="margin-top: 0.25rem;">
+                                                    <span style="font-size: 0.7rem; color: #10b981;">
+                                                        <i class="fas fa-id-card"></i> <%= withdrawal.idDocuments.length %> ID(s)
+                                                    </span>
                                                 </div>
                                             <% } %>
                                         </td>
@@ -196,7 +219,7 @@
             document.getElementById('withdrawalModalContent').innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div>';
             document.getElementById('withdrawalModal').style.display = 'flex';
             
-            fetch(`/api/withdrawal/${withdrawalId}`, {
+            fetch(`/api/admin/withdrawals/${withdrawalId}`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
                 }
@@ -207,35 +230,102 @@
                     displayWithdrawalDetails(data.data);
                 } else {
                     alert('Error loading withdrawal details');
+                    closeModal();
                 }
             })
             .catch(error => {
                 alert('Error: ' + error.message);
+                closeModal();
             });
         }
 
         function displayWithdrawalDetails(withdrawal) {
+            let methodDisplay = withdrawal.method;
+            if (withdrawal.method === 'bank_transfer') methodDisplay = 'Bank Transfer';
+            else if (withdrawal.method === 'sofft_address') methodDisplay = 'Sofft Address';
+            else if (withdrawal.method === 'upi') methodDisplay = 'UPI';
+            
+            let detailsHtml = '';
+            if (withdrawal.method === 'bank_transfer' && withdrawal.bankDetails) {
+                detailsHtml = `
+                    <div class="info-group">
+                        <label>Bank Details:</label>
+                        <p>Account Name: ${withdrawal.bankDetails.accountName || 'N/A'}</p>
+                        <p>Account Number: ${withdrawal.bankDetails.accountNumber || 'N/A'}</p>
+                        <p>Bank Name: ${withdrawal.bankDetails.bankName || 'N/A'}</p>
+                        <p>IFSC Code: ${withdrawal.bankDetails.ifscCode || 'N/A'}</p>
+                    </div>
+                `;
+            } else if (withdrawal.method === 'sofft_address' && withdrawal.sofftAddress) {
+                detailsHtml = `
+                    <div class="info-group">
+                        <label>Sofft Address:</label>
+                        <p style="word-break: break-all;">${withdrawal.sofftAddress}</p>
+                    </div>
+                `;
+            } else if (withdrawal.method === 'upi' && withdrawal.upiId) {
+                detailsHtml = `
+                    <div class="info-group">
+                        <label>UPI ID:</label>
+                        <p>${withdrawal.upiId}</p>
+                    </div>
+                `;
+            }
+            
+            let idDocsHtml = '';
+            if (withdrawal.idDocuments && withdrawal.idDocuments.length > 0) {
+                idDocsHtml = `
+                    <div class="info-group">
+                        <label>ID Documents (${withdrawal.idDocuments.length}):</label>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; margin-top: 0.5rem;">
+                            ${withdrawal.idDocuments.map((doc, index) => `
+                                <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                                    <img src="${doc.url}" alt="ID Document ${index + 1}" style="width: 100%; height: 150px; object-fit: cover; cursor: pointer;" onclick="window.open('${doc.url}', '_blank')">
+                                    <div style="padding: 0.5rem; font-size: 0.75rem; text-align: center; background: #f8fafc;">
+                                        ${doc.type || 'ID Document'}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            
             const html = `
                 <div class="info-group">
                     <label>User:</label>
                     <p>${withdrawal.user.displayName} (@${withdrawal.user.username})</p>
+                    <p style="font-size: 0.875rem; color: #64748b;">${withdrawal.user.email || 'No email'}</p>
                 </div>
                 <div class="info-group">
                     <label>Amount:</label>
-                    <p>${withdrawal.amount.toLocaleString()} coins (≈ ₹${(withdrawal.amount / 100).toLocaleString()})</p>
+                    <p style="font-size: 1.25rem; font-weight: 600; color: #f59e0b;">
+                        ${withdrawal.coinAmount ? withdrawal.coinAmount.toLocaleString() : '0'} coins
+                    </p>
+                    <p style="font-size: 0.875rem; color: #64748b;">
+                        ≈ ₹${withdrawal.localAmount ? withdrawal.localAmount.toLocaleString() : '0'}
+                    </p>
                 </div>
                 <div class="info-group">
                     <label>Method:</label>
-                    <p>${withdrawal.method === 'bank' ? 'Bank Transfer' : 'Web3 Wallet'}</p>
+                    <p>${methodDisplay}</p>
                 </div>
+                ${detailsHtml}
+                ${idDocsHtml}
                 <div class="info-group">
                     <label>Status:</label>
-                    <p>${withdrawal.status.toUpperCase()}</p>
+                    <p><span class="status-badge status-${withdrawal.status}">${withdrawal.status.toUpperCase()}</span></p>
                 </div>
                 <div class="info-group">
                     <label>Requested:</label>
                     <p>${new Date(withdrawal.createdAt).toLocaleString()}</p>
                 </div>
+                ${withdrawal.adminNotes ? `
+                    <div class="info-group">
+                        <label>Admin Notes:</label>
+                        <p>${withdrawal.adminNotes}</p>
+                    </div>
+                ` : ''}
                 ${withdrawal.status === 'pending' ? `
                     <div style="margin-top: 2rem; display: flex; gap: 1rem;">
                         <button class="btn btn-success" onclick="approveWithdrawal('${withdrawal._id}')">
@@ -252,19 +342,25 @@
 
         function approveWithdrawal(withdrawalId) {
             const notes = prompt('Enter admin notes (optional):');
+            const transactionId = prompt('Enter transaction ID (optional):');
+            
             if (confirm('Are you sure you want to approve this withdrawal?')) {
-                fetch(`/api/withdrawal/${withdrawalId}/approve`, {
+                fetch(`/api/admin/withdrawals/${withdrawalId}/approve`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
                     },
-                    body: JSON.stringify({ adminNotes: notes })
+                    body: JSON.stringify({ 
+                        adminNotes: notes,
+                        transactionId: transactionId
+                    })
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
                         alert('Withdrawal approved successfully');
+                        closeModal();
                         window.location.reload();
                     } else {
                         alert('Error: ' + data.message);
@@ -280,8 +376,8 @@
             const reason = prompt('Enter rejection reason:');
             if (!reason) return;
             
-            if (confirm('Are you sure you want to reject this withdrawal?')) {
-                fetch(`/api/withdrawal/${withdrawalId}/reject`, {
+            if (confirm('Are you sure you want to reject this withdrawal? The coins will be refunded to the user.')) {
+                fetch(`/api/admin/withdrawals/${withdrawalId}/reject`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -292,7 +388,8 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        alert('Withdrawal rejected');
+                        alert('Withdrawal rejected and coins refunded');
+                        closeModal();
                         window.location.reload();
                     } else {
                         alert('Error: ' + data.message);

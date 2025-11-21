@@ -441,9 +441,121 @@
         <h2 style="font-size: 1.875rem; font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;">Store Management</h2>
         <p style="color: #64748b;">Manage products, orders, and store analytics</p>
     </div>
-    <button class="btn btn-primary">
+    <button class="btn btn-primary" onclick="openAddProductModal()">
         <i class="fas fa-plus"></i> Add Product
     </button>
+</div>
+
+<!-- Add/Edit Product Modal - v2.0 with File Upload -->
+<div id="productModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto;">
+    <div style="max-width: 600px; margin: 2rem auto; background: white; border-radius: 1rem; padding: 2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h3 id="modalTitle" style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">Add New Product</h3>
+            <button onclick="closeProductModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
+        </div>
+        <div style="background: #f0fdf4; border: 1px solid #86efac; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+            <small style="color: #166534; font-weight: 600;">✨ New: Upload multiple product images directly!</small>
+        </div>
+        
+        <form id="productForm" onsubmit="handleProductSubmit(event)">
+            <input type="hidden" id="productId" name="productId">
+            
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Product Name *</label>
+                <input type="text" id="productName" name="name" required 
+                       style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 1rem;">
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Description *</label>
+                <textarea id="productDescription" name="description" required rows="3"
+                          style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 1rem;"></textarea>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Price (USD) *</label>
+                    <input type="number" id="productPrice" name="price" required step="0.01" min="0"
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 1rem;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Original Price</label>
+                    <input type="number" id="productOriginalPrice" name="originalPrice" step="0.01" min="0"
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 1rem;">
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Category *</label>
+                    <select id="productCategory" name="category" required
+                            style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 1rem;">
+                        <option value="clothing">Clothing</option>
+                        <option value="shoes">Shoes</option>
+                        <option value="accessories">Accessories</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Stock *</label>
+                    <input type="number" id="productStock" name="stock" required min="0"
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 1rem;">
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Payment Type *</label>
+                    <select id="productPaymentType" name="paymentType" required onchange="handlePaymentTypeChange()"
+                            style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 1rem;">
+                        <option value="mixed">Mixed (50% Cash + 50% Coins)</option>
+                        <option value="coins">Coins Only</option>
+                        <option value="upi">UPI Only</option>
+                    </select>
+                </div>
+                <div id="coinPriceDiv">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Coin Price</label>
+                    <input type="number" id="productCoinPrice" name="coinPrice" min="0"
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 1rem;">
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Badge</label>
+                <select id="productBadge" name="badge"
+                        style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 1rem;">
+                    <option value="">None</option>
+                    <option value="new">New</option>
+                    <option value="sale">Sale</option>
+                    <option value="hot">Hot</option>
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Product Images (4-5 images recommended)</label>
+                <input type="file" id="productImages" name="images" accept="image/*" multiple
+                       style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 1rem;"
+                       onchange="handleImagePreview(event)">
+                <small style="color: #64748b;">Select 4-5 images of the same product. Images will be uploaded to Wasabi S3.</small>
+                
+                <!-- Image Preview Container -->
+                <div id="imagePreviewContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.5rem; margin-top: 1rem;">
+                </div>
+                
+                <!-- Hidden field to store uploaded image URLs -->
+                <input type="hidden" id="uploadedImageUrls" name="uploadedImageUrls">
+            </div>
+            
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                    <i class="fas fa-save"></i> Save Product
+                </button>
+                <button type="button" onclick="closeProductModal()" class="btn" style="flex: 1; background: #e5e7eb; color: #374151;">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 
 <!-- Store Stats -->
@@ -522,7 +634,7 @@
             <% products.forEach(product => { %>
                 <div style="background: rgba(248, 250, 252, 0.5); border-radius: 0.75rem; overflow: hidden; border: 1px solid rgba(0,0,0,0.1);">
                     <div style="position: relative;">
-                        <img src="<%= product.images && product.images[0] ? product.images[0] : 'https://via.placeholder.com/300x200' %>" 
+                        <img src="<%= product.images && product.images[0] ? product.images[0] : 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22200%22%3E%3Crect fill=%22%23ddd%22 width=%22300%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-family=%22sans-serif%22 font-size=%2224%22%3ENo Image%3C/text%3E%3C/svg%3E' %>" 
                              alt="<%= product.name %>" 
                              style="width: 100%; height: 200px; object-fit: cover;">
                         
@@ -592,6 +704,9 @@
                                 <i class="fas fa-<%= product.isActive ? 'pause' : 'play' %>"></i> 
                                 <%= product.isActive ? 'Deactivate' : 'Activate' %>
                             </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteProduct('<%= product._id %>')">
+                                <i class="fas fa-trash"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -606,18 +721,281 @@
 </div>
 
 <script>
-    function editProduct(productId) {
-        alert('Edit product functionality would be implemented here');
+    // Modal functions
+    function openAddProductModal() {
+        document.getElementById('productModal').style.display = 'block';
+        document.getElementById('modalTitle').textContent = 'Add New Product';
+        document.getElementById('productForm').reset();
+        document.getElementById('productId').value = '';
+        document.getElementById('imagePreviewContainer').innerHTML = '';
     }
 
-    function toggleProduct(productId, activate) {
-        const action = activate ? 'activate' : 'deactivate';
-        if (confirmAction(`Are you sure you want to ${action} this product?`)) {
-            // In a real implementation, you would make an API call
-            alert(`Product ${action}d successfully`);
-            // window.location.reload();
+    function closeProductModal() {
+        document.getElementById('productModal').style.display = 'none';
+        document.getElementById('productForm').reset();
+        document.getElementById('imagePreviewContainer').innerHTML = '';
+    }
+
+    function handlePaymentTypeChange() {
+        const paymentType = document.getElementById('productPaymentType').value;
+        const coinPriceDiv = document.getElementById('coinPriceDiv');
+        
+        if (paymentType === 'coins') {
+            coinPriceDiv.style.display = 'block';
+            document.getElementById('productCoinPrice').required = true;
+        } else {
+            coinPriceDiv.style.display = 'none';
+            document.getElementById('productCoinPrice').required = false;
         }
     }
+
+    function handleImagePreview(event) {
+        const files = event.target.files;
+        const previewContainer = document.getElementById('imagePreviewContainer');
+        previewContainer.innerHTML = '';
+        
+        if (files.length > 5) {
+            alert('Please select maximum 5 images');
+            event.target.value = '';
+            return;
+        }
+        
+        Array.from(files).forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imgDiv = document.createElement('div');
+                imgDiv.style.cssText = 'position: relative; border: 2px solid #d1d5db; border-radius: 0.5rem; overflow: hidden;';
+                imgDiv.innerHTML = `
+                    <img src="${e.target.result}" style="width: 100%; height: 100px; object-fit: cover;">
+                    <div style="position: absolute; top: 0.25rem; right: 0.25rem; background: rgba(0,0,0,0.5); color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">
+                        ${index + 1}
+                    </div>
+                `;
+                previewContainer.appendChild(imgDiv);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function uploadImages() {
+        const fileInput = document.getElementById('productImages');
+        const files = fileInput.files;
+        
+        if (files.length === 0) {
+            return [];
+        }
+        
+        const formData = new FormData();
+        Array.from(files).forEach(file => {
+            formData.append('images', file);
+        });
+        
+        try {
+            const response = await fetch('/api/admin/products/upload-images', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                return result.data.images;
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error) {
+            console.error('Error uploading images:', error);
+            throw error;
+        }
+    }
+
+    async function handleProductSubmit(event) {
+        event.preventDefault();
+        
+        // Show loading state
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+        submitBtn.disabled = true;
+        
+        try {
+            // First, upload images if any
+            let imageUrls = [];
+            const fileInput = document.getElementById('productImages');
+            
+            if (fileInput.files.length > 0) {
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading images...';
+                imageUrls = await uploadImages();
+            }
+            
+            // Then create/update product
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving product...';
+            
+            const formData = new FormData(event.target);
+            const productId = document.getElementById('productId').value;
+            
+            const productData = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                price: parseFloat(formData.get('price')),
+                originalPrice: formData.get('originalPrice') ? parseFloat(formData.get('originalPrice')) : null,
+                category: formData.get('category'),
+                stock: parseInt(formData.get('stock')),
+                paymentType: formData.get('paymentType'),
+                coinPrice: formData.get('coinPrice') ? parseInt(formData.get('coinPrice')) : null,
+                badge: formData.get('badge'),
+                images: imageUrls.length > 0 ? imageUrls : []
+            };
+
+            const url = productId 
+                ? `/api/admin/products/${productId}` 
+                : '/api/admin/products';
+            const method = productId ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(productData)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert(result.message);
+                closeProductModal();
+                window.location.reload();
+            } else {
+                alert('Error: ' + result.message);
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to save product: ' + error.message);
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    }
+
+    async function editProduct(productId) {
+        try {
+            // Fetch product details
+            const response = await fetch(`/api/products/${productId}`);
+            const result = await response.json();
+            
+            if (result.success) {
+                const product = result.data;
+                
+                // Populate form
+                document.getElementById('productId').value = product._id;
+                document.getElementById('productName').value = product.name;
+                document.getElementById('productDescription').value = product.description;
+                document.getElementById('productPrice').value = product.price;
+                document.getElementById('productOriginalPrice').value = product.originalPrice || '';
+                document.getElementById('productCategory').value = product.category;
+                document.getElementById('productStock').value = product.stock;
+                document.getElementById('productPaymentType').value = product.paymentType;
+                document.getElementById('productCoinPrice').value = product.coinPrice || '';
+                document.getElementById('productBadge').value = product.badge || '';
+                
+                // Show existing images
+                const previewContainer = document.getElementById('imagePreviewContainer');
+                previewContainer.innerHTML = '';
+                if (product.images && product.images.length > 0) {
+                    product.images.forEach((imageUrl, index) => {
+                        const imgDiv = document.createElement('div');
+                        imgDiv.style.cssText = 'position: relative; border: 2px solid #d1d5db; border-radius: 0.5rem; overflow: hidden;';
+                        imgDiv.innerHTML = `
+                            <img src="${imageUrl}" style="width: 100%; height: 100px; object-fit: cover;">
+                            <div style="position: absolute; top: 0.25rem; right: 0.25rem; background: rgba(0,0,0,0.5); color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">
+                                ${index + 1}
+                            </div>
+                        `;
+                        previewContainer.appendChild(imgDiv);
+                    });
+                }
+                
+                // Update modal title
+                document.getElementById('modalTitle').textContent = 'Edit Product';
+                
+                // Show modal
+                document.getElementById('productModal').style.display = 'block';
+                
+                // Handle payment type visibility
+                handlePaymentTypeChange();
+            } else {
+                alert('Failed to load product details');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to load product details');
+        }
+    }
+
+    async function toggleProduct(productId, activate) {
+        const action = activate ? 'activate' : 'deactivate';
+        if (confirm(`Are you sure you want to ${action} this product?`)) {
+            try {
+                const response = await fetch(`/api/admin/products/${productId}/toggle`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(result.message);
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to toggle product status');
+            }
+        }
+    }
+
+    async function deleteProduct(productId) {
+        if (confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
+            try {
+                const response = await fetch(`/api/admin/products/${productId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(result.message);
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to delete product');
+            }
+        }
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('productModal')?.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeProductModal();
+        }
+    });
+
+    // Initialize payment type visibility
+    document.addEventListener('DOMContentLoaded', function() {
+        handlePaymentTypeChange();
+    });
 </script>
             </div>
         </main>

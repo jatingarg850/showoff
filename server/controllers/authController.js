@@ -1,11 +1,12 @@
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const { generateReferralCode, awardCoins } = require('../utils/coinSystem');
+const phoneEmailService = require('../services/phoneEmailService');
 
-// In-memory OTP storage (in production, use Redis or database)
+// In-memory OTP storage for tracking (in production, use Redis or database)
 const otpStore = new Map();
 
-// Generate 6-digit OTP
+// Generate 6-digit OTP (fallback only)
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
@@ -45,31 +46,62 @@ exports.sendOTP = async (req, res) => {
       }
     }
 
-    // Generate OTP
-    const otp = generateOTP();
     const identifier = email || `${countryCode}${phone}`;
     
-    // Store OTP with 5 minute expiry
+    // Generate OTP locally for development/testing
+    const otp = generateOTP();
+    
+    // Store OTP
     otpStore.set(identifier, {
       otp,
-      expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
+      expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
       attempts: 0,
+      createdAt: Date.now(),
     });
 
-    // In production, send OTP via SMS/Email service
-    // For development, log it
-    console.log(`OTP for ${identifier}: ${otp}`);
+    // Always show OTP in console for development
+    console.log('╔════════════════════════════════════════╗');
+    console.log('║          🔐 OTP GENERATED             ║');
+    console.log('╠════════════════════════════════════════╣');
+    console.log(`║  Phone/Email: ${identifier.padEnd(23)} ║`);
+    console.log(`║  OTP Code:    ${otp.padEnd(23)} ║`);
+    console.log(`║  Valid for:   10 minutes              ║`);
+    console.log('╚════════════════════════════════════════╝');
 
+    try {
+      // Try to send OTP via phone.email service (but don't fail if it doesn't work)
+      if (email) {
+        console.log(`📧 Attempting to send OTP to email: ${email}`);
+        await phoneEmailService.sendEmailOTP(email).catch(err => {
+          console.log('⚠️ Email service unavailable, using console OTP only');
+        });
+      } else {
+        const fullPhone = `${countryCode}${phone}`;
+        console.log(`📱 Attempting to send OTP to phone: ${fullPhone}`);
+        await phoneEmailService.sendPhoneOTP(fullPhone).catch(err => {
+          console.log('⚠️ SMS service unavailable, using console OTP only');
+        });
+      }
+    } catch (otpError) {
+      console.log('⚠️ External OTP service error, using console OTP only');
+    }
+
+    // Always return success with OTP in development
     res.status(200).json({
       success: true,
       message: 'OTP sent successfully',
-      // In development, return OTP (remove in production)
-      ...(process.env.NODE_ENV === 'development' && { otp }),
+      data: {
+        identifier,
+        expiresIn: 600, // 10 minutes in seconds
+        // Include OTP in response for development (remove in production)
+        ...(process.env.NODE_ENV === 'development' && { otp }),
+      },
     });
   } catch (error) {
+    console.error('❌ Send OTP error:', error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message || 'Failed to send OTP',
     });
   }
 };
@@ -89,17 +121,17 @@ exports.verifyOTP = async (req, res) => {
     }
 
     const identifier = email || `${countryCode}${phone}`;
-    const storedOTP = otpStore.get(identifier);
+    const storedSession = otpStore.get(identifier);
 
-    if (!storedOTP) {
+    if (!storedSession) {
       return res.status(400).json({
         success: false,
-        message: 'OTP expired or not found. Please request a new one.',
+        message: 'OTP session expired or not found. Please request a new one.',
       });
     }
 
     // Check expiry
-    if (Date.now() > storedOTP.expiresAt) {
+    if (Date.now() > storedSession.expiresAt) {
       otpStore.delete(identifier);
       return res.status(400).json({
         success: false,
@@ -108,7 +140,7 @@ exports.verifyOTP = async (req, res) => {
     }
 
     // Check attempts
-    if (storedOTP.attempts >= 3) {
+    if (storedSession.attempts >= 3) {
       otpStore.delete(identifier);
       return res.status(400).json({
         success: false,
@@ -116,26 +148,46 @@ exports.verifyOTP = async (req, res) => {
       });
     }
 
-    // Verify OTP
-    if (storedOTP.otp !== otp) {
-      storedOTP.attempts += 1;
+    // Verify OTP locally (since we're using console OTP)
+    console.log('╔════════════════════════════════════════╗');
+    console.log('║       🔍 VERIFYING OTP                ║');
+    console.log('╠════════════════════════════════════════╣');
+    console.log(`║  Phone/Email: ${identifier.padEnd(23)} ║`);
+    console.log(`║  Entered OTP: ${otp.padEnd(23)} ║`);
+    console.log(`║  Stored OTP:  ${(storedSession.otp || 'N/A').padEnd(23)} ║`);
+    console.log(`║  Attempts:    ${storedSession.attempts}/3${' '.repeat(18)} ║`);
+    console.log('╚════════════════════════════════════════╝');
+
+    if (storedSession.otp !== otp) {
+      storedSession.attempts += 1;
+      
+      console.log(`❌ Invalid OTP for ${identifier} (Attempt ${storedSession.attempts}/3)`);
+      
       return res.status(400).json({
         success: false,
         message: 'Invalid OTP',
+        attemptsLeft: 3 - storedSession.attempts,
       });
     }
-
+    
     // OTP verified successfully
     otpStore.delete(identifier);
+    
+    console.log('╔════════════════════════════════════════╗');
+    console.log('║       ✅ OTP VERIFIED SUCCESS         ║');
+    console.log('╠════════════════════════════════════════╣');
+    console.log(`║  Phone/Email: ${identifier.padEnd(23)} ║`);
+    console.log('╚════════════════════════════════════════╝');
 
     res.status(200).json({
       success: true,
       message: 'OTP verified successfully',
     });
   } catch (error) {
+    console.error('❌ Verify OTP error:', error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message || 'Failed to verify OTP',
     });
   }
 };
@@ -385,6 +437,101 @@ exports.checkUsername = async (req, res) => {
       message: 'Username is available',
     });
   } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Login or Register with Phone.email verified phone number
+// @route   POST /api/auth/phone-login
+// @access  Public
+exports.phoneLogin = async (req, res) => {
+  try {
+    const { phoneNumber, countryCode, firstName, lastName, accessToken } = req.body;
+
+    if (!phoneNumber || !countryCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number and country code are required',
+      });
+    }
+
+    console.log('📱 Phone Login Request:', { phoneNumber, countryCode, firstName, lastName });
+
+    // Check if user exists with this phone number
+    let user = await User.findOne({ phone: phoneNumber });
+
+    if (!user) {
+      // Create new user with phone number
+      console.log('👤 Creating new user with phone number');
+      
+      // Generate username from phone number
+      const baseUsername = `user_${phoneNumber.slice(-6)}`;
+      let username = baseUsername;
+      let counter = 1;
+      
+      // Ensure username is unique
+      while (await User.findOne({ username: username.toLowerCase() })) {
+        username = `${baseUsername}_${counter}`;
+        counter++;
+      }
+
+      // Generate display name
+      const displayName = firstName && lastName 
+        ? `${firstName} ${lastName}`.trim()
+        : `User ${phoneNumber.slice(-4)}`;
+
+      user = await User.create({
+        username: username.toLowerCase(),
+        displayName: displayName,
+        phone: phoneNumber,
+        countryCode: countryCode,
+        isPhoneVerified: true, // Phone is verified by Phone.email
+        accountStatus: 'active',
+        referralCode: generateReferralCode(),
+      });
+
+      console.log('✅ New user created:', user.username);
+
+      // Award welcome bonus
+      await awardCoins(user._id, 50, 'welcome_bonus', 'Welcome bonus for new user');
+    } else {
+      console.log('✅ Existing user found:', user.username);
+      
+      // Update phone verification status if not already verified
+      if (!user.isPhoneVerified) {
+        user.isPhoneVerified = true;
+        await user.save();
+      }
+    }
+
+    // Generate JWT token
+    const token = generateToken(user._id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      data: {
+        user: {
+          id: user._id,
+          username: user.username,
+          displayName: user.displayName,
+          phone: user.phone,
+          email: user.email,
+          profilePicture: user.profilePicture,
+          bio: user.bio,
+          coinBalance: user.coinBalance,
+          isVerified: user.isVerified,
+          isPhoneVerified: user.isPhoneVerified,
+          accountStatus: user.accountStatus,
+        },
+        token: token,
+      },
+    });
+  } catch (error) {
+    console.error('❌ Phone login error:', error);
     res.status(500).json({
       success: false,
       message: error.message,

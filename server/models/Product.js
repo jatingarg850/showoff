@@ -51,13 +51,18 @@ const productSchema = new mongoose.Schema({
   },
   paymentType: {
     type: String,
-    enum: ['coins', 'upi'],
+    enum: ['coins', 'upi', 'mixed'],
     required: true,
-    default: 'upi',
+    default: 'mixed', // Default to 50% money + 50% coins
   },
   coinPrice: {
     type: Number,
-    // Price in coins when paymentType is 'coins'
+    // Price in coins when paymentType is 'coins' or for mixed payment (50% of total)
+  },
+  // For mixed payment: 50% real money + 50% coins
+  mixedPayment: {
+    cashAmount: Number,    // 50% of price in USD
+    coinAmount: Number,    // 50% of price in coins
   },
   isActive: {
     type: Boolean,

@@ -1,4 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'services/api_service.dart';
+import 'services/storage_service.dart';
+import 'providers/auth_provider.dart';
+import 'set_password_screen.dart';
 
 class MyAccountScreen
     extends
@@ -20,27 +27,397 @@ class _MyAccountScreenState
           MyAccountScreen
         > {
   final TextEditingController
-  _nameController = TextEditingController(
-    text: 'Sathon',
-  );
+  _nameController = TextEditingController();
   final TextEditingController
-  _emailController = TextEditingController(
-    text: 'sathon@example.com',
-  );
+  _emailController = TextEditingController();
   final TextEditingController
-  _phoneController = TextEditingController(
-    text: '+1 (555) 123-4567',
-  );
+  _phoneController = TextEditingController();
   final TextEditingController
-  _bioController = TextEditingController(
-    text: 'Hi, How are you doing?Hi, How are you doing?Hi, How are you doing?Hi, How are you doing?Hi, How are you doing?Hi, How are you.',
-  );
+  _bioController = TextEditingController();
+
+  bool
+  _isLoading = true;
+  bool
+  _isSaving = false;
+  File?
+  _profileImage;
+  String?
+  _profilePictureUrl;
+  Map<
+    String,
+    dynamic
+  >?
+  _userData;
+
+  @override
+  void
+  initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<
+    void
+  >
+  _loadUserData() async {
+    try {
+      final user = await StorageService.getUser();
+      if (user !=
+          null) {
+        setState(
+          () {
+            _userData = user;
+            _nameController.text =
+                user['displayName'] ??
+                user['username'] ??
+                '';
+            _emailController.text =
+                user['email'] ??
+                '';
+            _phoneController.text =
+                user['phone'] ??
+                '';
+            _bioController.text =
+                user['bio'] ??
+                '';
+            _profilePictureUrl = user['profilePicture'];
+            _isLoading = false;
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading user data: $e',
+      );
+      setState(
+        () {
+          _isLoading = false;
+        },
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _pickImage() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (image !=
+          null) {
+        setState(
+          () {
+            _profileImage = File(
+              image.path,
+            );
+          },
+        );
+        await _uploadProfilePicture();
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error picking image: $e',
+      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error: $e',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _uploadProfilePicture() async {
+    if (_profileImage ==
+        null)
+      return;
+
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (
+              context,
+            ) => const Center(
+              child: CircularProgressIndicator(
+                color: Colors.white,
+              ),
+            ),
+      );
+
+      final response = await ApiService.uploadProfilePicture(
+        _profileImage!,
+      );
+
+      Navigator.pop(
+        context,
+      ); // Close loading dialog
+
+      if (response['success']) {
+        setState(
+          () {
+            _profilePictureUrl = response['data']['profilePicture'];
+          },
+        );
+
+        // Update local storage
+        final user = await StorageService.getUser();
+        if (user !=
+            null) {
+          user['profilePicture'] = _profilePictureUrl;
+          await StorageService.saveUser(
+            user,
+          );
+        }
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Profile picture updated!',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (
+      e
+    ) {
+      Navigator.pop(
+        context,
+      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error: $e',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _saveProfile() async {
+    setState(
+      () {
+        _isSaving = true;
+      },
+    );
+
+    try {
+      final response = await ApiService.updateProfile(
+        displayName: _nameController.text.trim(),
+        bio: _bioController.text.trim(),
+      );
+
+      if (response['success']) {
+        // Update local storage
+        final user = await StorageService.getUser();
+        if (user !=
+            null) {
+          user['displayName'] = _nameController.text.trim();
+          user['bio'] = _bioController.text.trim();
+          user['phone'] = _phoneController.text.trim();
+          await StorageService.saveUser(
+            user,
+          );
+        }
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Profile updated successfully!',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              response['message'] ??
+                  'Failed to update profile',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (
+      e
+    ) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error: $e',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(
+        () {
+          _isSaving = false;
+        },
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _downloadMyData() async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (
+              context,
+            ) => const AlertDialog(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(
+                    height: 16,
+                  ),
+                  Text(
+                    'Preparing your data...',
+                  ),
+                ],
+              ),
+            ),
+      );
+
+      final response = await ApiService.downloadUserData();
+
+      Navigator.pop(
+        context,
+      );
+
+      if (response['success']) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Data download link sent to your email!',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (
+      e
+    ) {
+      Navigator.pop(
+        context,
+      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error: $e',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void
+  _signOut() {
+    final authProvider =
+        Provider.of<
+          AuthProvider
+        >(
+          context,
+          listen: false,
+        );
+    authProvider.logout();
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(
+      '/login',
+      (
+        route,
+      ) => false,
+    );
+  }
 
   @override
   Widget
   build(
     BuildContext context,
   ) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back,
+              color: Colors.black,
+            ),
+            onPressed: () => Navigator.pop(
+              context,
+            ),
+          ),
+          title: const Text(
+            'My Account',
+            style: TextStyle(
+              color: Color(
+                0xFF8B5CF6,
+              ),
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(
+            color: Color(
+              0xFF8B5CF6,
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -67,31 +444,30 @@ class _MyAccountScreenState
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              // Handle save changes
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Profile updated successfully!',
+            onPressed: _isSaving
+                ? null
+                : _saveProfile,
+            child: _isSaving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(
+                        0xFF8B5CF6,
+                      ),
+                    ),
+                  )
+                : const Text(
+                    'Save',
+                    style: TextStyle(
+                      color: Color(
+                        0xFF8B5CF6,
+                      ),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  backgroundColor: Color(
-                    0xFF8B5CF6,
-                  ),
-                ),
-              );
-            },
-            child: const Text(
-              'Save',
-              style: TextStyle(
-                color: Color(
-                  0xFF8B5CF6,
-                ),
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
           ),
         ],
       ),
@@ -120,43 +496,64 @@ class _MyAccountScreenState
                     ),
                   ),
                   child: ClipOval(
-                    child: Image.asset(
-                      'assets/setup/coins.png',
-                      width: 120,
-                      height: 120,
-                      fit: BoxFit.cover,
-                      errorBuilder:
-                          (
-                            context,
-                            error,
-                            stackTrace,
-                          ) {
-                            return const Icon(
-                              Icons.person,
-                              color: Colors.white,
-                              size: 60,
-                            );
-                          },
-                    ),
+                    child:
+                        _profileImage !=
+                            null
+                        ? Image.file(
+                            _profileImage!,
+                            width: 120,
+                            height: 120,
+                            fit: BoxFit.cover,
+                          )
+                        : _profilePictureUrl !=
+                              null
+                        ? Image.network(
+                            ApiService.getImageUrl(
+                              _profilePictureUrl!,
+                            ),
+                            width: 120,
+                            height: 120,
+                            fit: BoxFit.cover,
+                            errorBuilder:
+                                (
+                                  context,
+                                  error,
+                                  stackTrace,
+                                ) {
+                                  return const Icon(
+                                    Icons.person,
+                                    color: Colors.white,
+                                    size: 60,
+                                  );
+                                },
+                          )
+                        : const Icon(
+                            Icons.person,
+                            color: Colors.white,
+                            size: 60,
+                          ),
                   ),
                 ),
                 Positioned(
                   bottom: 0,
                   right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(
-                      8,
-                    ),
-                    decoration: const BoxDecoration(
-                      color: Color(
-                        0xFF8B5CF6,
+                  child: GestureDetector(
+                    onTap: _pickImage,
+                    child: Container(
+                      padding: const EdgeInsets.all(
+                        8,
                       ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.camera_alt,
-                      color: Colors.white,
-                      size: 20,
+                      decoration: const BoxDecoration(
+                        color: Color(
+                          0xFF8B5CF6,
+                        ),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.camera_alt,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
                   ),
                 ),
@@ -184,8 +581,10 @@ class _MyAccountScreenState
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildStatColumn(
-                    '200',
-                    'Subscribers',
+                    (_userData?['referralCount'] ??
+                            0)
+                        .toString(),
+                    'Referrals',
                   ),
                   Container(
                     width: 1,
@@ -193,7 +592,9 @@ class _MyAccountScreenState
                     color: Colors.grey[400],
                   ),
                   _buildStatColumn(
-                    '16k',
+                    (_userData?['followersCount'] ??
+                            0)
+                        .toString(),
                     'Followers',
                   ),
                   Container(
@@ -202,7 +603,9 @@ class _MyAccountScreenState
                     color: Colors.grey[400],
                   ),
                   _buildStatColumn(
-                    '978',
+                    (_userData?['followingCount'] ??
+                            0)
+                        .toString(),
                     'Following',
                   ),
                 ],
@@ -265,7 +668,15 @@ class _MyAccountScreenState
               'Change Password',
               'Update your account password',
               () {
-                // Handle change password
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (
+                          context,
+                        ) => const SetPasswordScreen(),
+                  ),
+                );
               },
             ),
 
@@ -274,7 +685,18 @@ class _MyAccountScreenState
               'Verify Account',
               'Verify your account for additional features',
               () {
-                // Handle verify account
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Account verification coming soon!',
+                    ),
+                    backgroundColor: Color(
+                      0xFF8B5CF6,
+                    ),
+                  ),
+                );
               },
             ),
 
@@ -283,7 +705,7 @@ class _MyAccountScreenState
               'Download My Data',
               'Download a copy of your account data',
               () {
-                // Handle download data
+                _downloadMyData();
               },
             ),
 
@@ -328,20 +750,24 @@ class _MyAccountScreenState
                     height: 12,
                   ),
                   _buildInfoRow(
-                    'Account ID',
-                    'USR123456789',
+                    'Username',
+                    _userData?['username'] ??
+                        'N/A',
                   ),
                   _buildInfoRow(
                     'Member Since',
-                    'January 2025',
+                    _formatDate(
+                      _userData?['createdAt'],
+                    ),
                   ),
                   _buildInfoRow(
                     'Account Type',
-                    'Basic',
+                    _userData?['subscriptionTier'] ??
+                        'Free',
                   ),
                   _buildInfoRow(
-                    'Last Login',
-                    'Today, 9:41 AM',
+                    'Coin Balance',
+                    '${_userData?['coinBalance'] ?? 0} coins',
                   ),
                 ],
               ),
@@ -574,6 +1000,39 @@ class _MyAccountScreenState
     );
   }
 
+  String
+  _formatDate(
+    String? dateString,
+  ) {
+    if (dateString ==
+        null)
+      return 'N/A';
+    try {
+      final date = DateTime.parse(
+        dateString,
+      );
+      final months = [
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+      ];
+      return '${months[date.month - 1]} ${date.year}';
+    } catch (
+      e
+    ) {
+      return 'N/A';
+    }
+  }
+
   void
   _showSignOutDialog() {
     showDialog(
@@ -585,6 +1044,9 @@ class _MyAccountScreenState
             return AlertDialog(
               title: const Text(
                 'Sign Out',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               content: const Text(
                 'Are you sure you want to sign out of your account?',
@@ -603,12 +1065,13 @@ class _MyAccountScreenState
                     Navigator.pop(
                       context,
                     );
-                    // Handle sign out
+                    _signOut();
                   },
                   child: const Text(
                     'Sign Out',
                     style: TextStyle(
                       color: Colors.red,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
@@ -616,5 +1079,15 @@ class _MyAccountScreenState
             );
           },
     );
+  }
+
+  @override
+  void
+  dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _bioController.dispose();
+    super.dispose();
   }
 }

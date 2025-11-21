@@ -472,7 +472,7 @@
             <% if (recentUsers && recentUsers.length > 0) { %>
                 <% recentUsers.forEach(user => { %>
                     <div class="user-profile" style="padding: 0.75rem 0; border-bottom: 1px solid rgba(0,0,0,0.05);">
-                        <img src="<%= user.profilePicture ? (user.profilePicture.startsWith('http') ? user.profilePicture : 'http://localhost:3000' + user.profilePicture) : 'https://via.placeholder.com/40' %>" alt="<%= user.displayName %>" class="user-avatar" onerror="this.src='https://via.placeholder.com/40'">
+                        <img src="<%= user.profilePicture ? (user.profilePicture.startsWith('http') ? user.profilePicture : 'http://localhost:3000' + user.profilePicture) : 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-family=%22sans-serif%22 font-size=%2216%22%3E?%3C/text%3E%3C/svg%3E' %>" alt="<%= user.displayName %>" class="user-avatar" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-family=%22sans-serif%22 font-size=%2216%22%3E?%3C/text%3E%3C/svg%3E'">
                         <div class="user-info">
                             <h4><%= user.displayName %></h4>
                             <p>@<%= user.username %> • <%= new Date(user.createdAt).toLocaleDateString() %></p>
@@ -496,10 +496,10 @@
             <% if (recentPosts && recentPosts.length > 0) { %>
                 <% recentPosts.forEach(post => { %>
                     <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid rgba(0,0,0,0.05);">
-                        <img src="<%= (post.thumbnailUrl || post.mediaUrl).startsWith('http') ? (post.thumbnailUrl || post.mediaUrl) : 'http://localhost:3000' + (post.thumbnailUrl || post.mediaUrl) %>" alt="Post" style="width: 40px; height: 40px; border-radius: 0.5rem; object-fit: cover;" onerror="this.src='https://via.placeholder.com/40'">
+                        <img src="<%= (post.thumbnailUrl || post.mediaUrl).startsWith('http') ? (post.thumbnailUrl || post.mediaUrl) : 'http://localhost:3000' + (post.thumbnailUrl || post.mediaUrl) %>" alt="Post" style="width: 40px; height: 40px; border-radius: 0.5rem; object-fit: cover;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-family=%22sans-serif%22 font-size=%2216%22%3E?%3C/text%3E%3C/svg%3E'">
                         <div style="flex: 1;">
                             <h4 style="font-size: 0.875rem; font-weight: 500;"><%= post.caption || 'No caption' %></h4>
-                            <p style="font-size: 0.75rem; color: #64748b;"><%= post.likesCount %> likes • @<%= post.user.username %></p>
+                            <p style="font-size: 0.75rem; color: #64748b;"><%= post.likesCount %> likes<% if (post.user) { %> • @<%= post.user.username %><% } %></p>
                         </div>
                     </div>
                 <% }) %>

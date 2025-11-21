@@ -205,13 +205,35 @@ const userSchema = new mongoose.Schema({
   // Settings
   notificationSettings: {
     push: { type: Boolean, default: true },
-    email: { type: Boolean, default: true },
+    email: { type: Boolean, default: false },
     sms: { type: Boolean, default: false },
+    referral: { type: Boolean, default: true },
+    transaction: { type: Boolean, default: true },
+    community: { type: Boolean, default: false },
+    marketing: { type: Boolean, default: false },
   },
   privacySettings: {
     profileVisibility: { type: String, enum: ['public', 'private'], default: 'public' },
     showEmail: { type: Boolean, default: false },
     showPhone: { type: Boolean, default: false },
+  },
+  
+  // Privacy & Security (New fields for Privacy and Safety screen)
+  profileVisibility: {
+    type: Boolean,
+    default: true,
+  },
+  dataSharing: {
+    type: Boolean,
+    default: false,
+  },
+  locationTracking: {
+    type: Boolean,
+    default: false,
+  },
+  twoFactorAuth: {
+    type: Boolean,
+    default: false,
   },
   
   // Location

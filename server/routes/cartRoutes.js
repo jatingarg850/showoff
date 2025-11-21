@@ -8,6 +8,7 @@ const {
   clearCart,
   checkout,
   processPayment,
+  createCartRazorpayOrder,
 } = require('../controllers/cartController');
 const { protect } = require('../middleware/auth');
 
@@ -17,6 +18,7 @@ router.put('/update/:itemId', protect, updateCartItem);
 router.delete('/remove/:itemId', protect, removeFromCart);
 router.delete('/clear', protect, clearCart);
 router.post('/checkout', protect, checkout);
+router.post('/create-razorpay-order', protect, createCartRazorpayOrder);
 router.post('/process-payment', protect, processPayment);
 
 module.exports = router;

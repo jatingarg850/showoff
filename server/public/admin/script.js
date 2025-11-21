@@ -413,6 +413,40 @@ async function suspendUser(userId) {
         loadUsersData();
     } catch (error) {
         console.error('Failed to suspend user:', error);
+        showNotification('Failed to suspend user', 'error');
+    }
+}
+
+async function viewUser(userId) {
+    try {
+        const response = await apiCall(`/admin/users/${userId}`);
+        if (response.success) {
+            const user = response.data;
+            alert(`User Details:\n\nUsername: ${user.username}\nEmail: ${user.email}\nPhone: ${user.phone || 'N/A'}\nCoins: ${user.coinBalance}\nStatus: ${user.status}\nCreated: ${new Date(user.createdAt).toLocaleDateString()}`);
+        }
+    } catch (error) {
+        console.error('Failed to view user:', error);
+        showNotification('Failed to load user details', 'error');
+    }
+}
+
+async function editProduct(productId) {
+    showNotification('Product editing feature coming soon', 'info');
+    // TODO: Implement product editing modal
+}
+
+async function toggleProduct(productId) {
+    if (!confirm('Are you sure you want to toggle this product status?')) return;
+    
+    try {
+        await apiCall(`/admin/products/${productId}/toggle`, {
+            method: 'PUT'
+        });
+        showNotification('Product status updated successfully', 'success');
+        loadProductsData();
+    } catch (error) {
+        console.error('Failed to toggle product:', error);
+        showNotification('Failed to update product status', 'error');
     }
 }
 

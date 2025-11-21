@@ -7,9 +7,20 @@ const Transaction = require('../models/Transaction');
 // @access  Private
 exports.requestWithdrawal = async (req, res) => {
   try {
-    const { coinAmount, method, bankDetails, walletAddress } = req.body;
+    const { coinAmount, method, bankDetails, sofftAddress, upiId } = req.body;
 
     const user = await User.findById(req.user.id);
+
+    // Get minimum withdrawal amount from settings (default 100)
+    const minWithdrawal = parseInt(process.env.MIN_WITHDRAWAL_AMOUNT) || 100;
+
+    // Check minimum withdrawal amount
+    if (coinAmount < minWithdrawal) {
+      return res.status(400).json({
+        success: false,
+        message: `Minimum withdrawal amount is ${minWithdrawal} coins`,
+      });
+    }
 
     // Check KYC
     if (user.kycStatus !== 'verified') {
@@ -20,39 +31,55 @@ exports.requestWithdrawal = async (req, res) => {
     }
 
     // Check balance
-    if (user.withdrawableBalance < coinAmount) {
+    if (user.coinBalance < coinAmount) {
       return res.status(400).json({
         success: false,
-        message: 'Insufficient withdrawable balance',
+        message: 'Insufficient coin balance',
       });
     }
 
-    // Calculate amounts
-    const coinToUsdRate = parseInt(process.env.COIN_TO_USD_RATE);
-    const usdAmount = coinAmount / coinToUsdRate;
+    // Calculate amounts (1 coin = 1 INR)
+    const coinToInrRate = parseInt(process.env.COIN_TO_INR_RATE) || 1;
+    const inrAmount = coinAmount / coinToInrRate;
     
-    // Convert to local currency (simplified - in production use real exchange rates)
+    // Convert to USD (simplified - in production use real exchange rates)
+    const usdAmount = inrAmount / 83;
+    
+    // Convert to local currency
     const exchangeRates = {
       USD: 1,
       INR: 83,
       EUR: 0.92,
       GBP: 0.79,
     };
-    const localAmount = usdAmount * (exchangeRates[user.currency] || 1);
+    const localAmount = usdAmount * (exchangeRates[user.currency || 'INR'] || 83);
+
+    // Handle ID document uploads from request files
+    const idDocuments = [];
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        idDocuments.push({
+          url: file.location || `/uploads/${file.filename}`,
+          type: file.fieldname || 'id_document',
+        });
+      });
+    }
 
     const withdrawal = await Withdrawal.create({
       user: user._id,
       coinAmount,
       usdAmount,
       localAmount,
-      currency: user.currency,
+      currency: user.currency || 'INR',
       method,
       bankDetails: method === 'bank_transfer' ? bankDetails : undefined,
-      walletAddress: method === 'sofft_pay' ? walletAddress : undefined,
+      sofftAddress: method === 'sofft_address' ? sofftAddress : undefined,
+      upiId: method === 'upi' ? upiId : undefined,
+      idDocuments,
     });
 
-    // Deduct from withdrawable balance
-    user.withdrawableBalance -= coinAmount;
+    // Deduct from coin balance
+    user.coinBalance -= coinAmount;
     await user.save();
 
     // Create transaction
@@ -67,6 +94,7 @@ exports.requestWithdrawal = async (req, res) => {
 
     res.status(201).json({
       success: true,
+      message: 'Withdrawal request submitted successfully. Your money will be processed within 24 hours.',
       data: withdrawal,
     });
   } catch (error) {
@@ -149,6 +177,30 @@ exports.getKYCStatus = async (req, res) => {
         kycStatus: user.kycStatus,
         kycDetails: user.kycDetails,
       },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Get withdrawal settings
+// @route   GET /api/withdrawal/settings
+// @access  Private
+exports.getWithdrawalSettings = async (req, res) => {
+  try {
+    const settings = {
+      minWithdrawal: parseInt(process.env.MIN_WITHDRAWAL_AMOUNT) || 100,
+      coinToInrRate: parseInt(process.env.COIN_TO_INR_RATE) || 1,
+      processingTime: '24 hours',
+      supportedMethods: ['sofft_address', 'upi'],
+    };
+
+    res.status(200).json({
+      success: true,
+      data: settings,
     });
   } catch (error) {
     res.status(500).json({

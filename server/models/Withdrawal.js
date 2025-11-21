@@ -28,7 +28,7 @@ const withdrawalSchema = new mongoose.Schema({
   // Payment Method
   method: {
     type: String,
-    enum: ['bank_transfer', 'sofft_pay', 'paypal'],
+    enum: ['bank_transfer', 'sofft_address', 'upi', 'paypal'],
     required: true,
   },
   
@@ -41,8 +41,21 @@ const withdrawalSchema = new mongoose.Schema({
     swiftCode: String,
   },
   
-  // Wallet Address (if sofft_pay)
-  walletAddress: String,
+  // Wallet Address (if sofft_address)
+  sofftAddress: String,
+  
+  // UPI Details (if upi)
+  upiId: String,
+  
+  // ID Documents (uploaded to Wasabi)
+  idDocuments: [{
+    url: String,
+    type: String, // 'passport', 'driving_license', 'national_id', etc.
+    uploadedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  }],
   
   // Status
   status: {

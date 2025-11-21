@@ -219,6 +219,7 @@ assets:
 
 ## API Configuration
 
+### Client-Side Implementation (Current)
 ```dart
 // AI Service Configuration
 const String API_KEY = 'AIzaSyCoFlnT5VNn-mMLNAVQ6CHkejWAGjIe9AA';
@@ -229,6 +230,25 @@ GenerationConfig:
   - topK: 40              // Token sampling
   - topP: 0.95            // Nucleus sampling
   - maxOutputTokens: 1024 // Response length
+  - timeout: 30 seconds   // Request timeout
+
+Architecture Benefits:
+✅ No server load - Direct Flutter → Gemini API
+✅ Faster responses - No proxy overhead
+✅ Reduced server costs - No AI processing on backend
+✅ Better scalability - Google handles infrastructure
+✅ Offline detection - Client-side error handling
+```
+
+### Why Client-Side?
+```
+Traditional (Server-Side):
+Flutter App → Your Server → Gemini API → Your Server → Flutter App
+Problems: Server load, latency, costs, complexity
+
+Current (Client-Side):
+Flutter App → Gemini API → Flutter App
+Benefits: Fast, cheap, simple, scalable
 ```
 
 ## Error Handling
@@ -240,14 +260,23 @@ API Call
     │
     └─ Error
         │
+        ├─ Timeout (30s)
+        │   └─ "Connection timeout! Please check your internet and try again. 📡"
+        │
+        ├─ API Key Error
+        │   └─ "API configuration issue. Please contact support. 🔧"
+        │
+        ├─ Quota Exceeded
+        │   └─ "Service temporarily unavailable. Please try again later. ⏰"
+        │
         ├─ Network Error
         │   └─ "Oops! I'm having a moment. Please try again! 😅"
         │
-        ├─ API Error
+        ├─ Empty Response
         │   └─ "I'm having trouble understanding. Could you rephrase? 🤔"
         │
         └─ Unknown Error
-            └─ "Oops! Something went wrong. Please try again! 😅"
+            └─ "Oops! I'm having a moment. Please try again! 😅"
 ```
 
 ## Performance Considerations
