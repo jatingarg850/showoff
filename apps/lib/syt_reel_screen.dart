@@ -299,19 +299,19 @@ class _SYTReelScreenState
         setState(
           () {
             _votedReels[index] = true;
-            // Update vote count
+            // Update vote count (separate from likes)
             final currentVotes =
                 int.tryParse(
-                  widget.competitions[index]['likes'] ??
+                  widget.competitions[index]['votes'] ??
                       '0',
                 ) ??
                 0;
-            widget.competitions[index]['likes'] =
+            widget.competitions[index]['votes'] =
                 (currentVotes +
                         1)
                     .toString();
             print(
-              'Updated vote count to: ${widget.competitions[index]['likes']}',
+              'Updated vote count to: ${widget.competitions[index]['votes']}',
             );
             print(
               '_votedReels[$index] is now: ${_votedReels[index]}',
@@ -512,7 +512,10 @@ class _SYTReelScreenState
               ? '${competition['title']} - ${competition['category']} 🎭'
               : 'Competing in ${competition['category']} - Show Your Talent! 🎭'),
       'likes':
+          competition['likesCount']?.toString() ??
           competition['likes'] ??
+          '0',
+      'votes':
           competition['votesCount']?.toString() ??
           '0',
       'comments':
@@ -1308,6 +1311,7 @@ class _SYTReelScreenState
                       value),
               child: GestureDetector(
                 onTap: onTap,
+                behavior: HitTestBehavior.opaque,
                 child: AnimatedContainer(
                   duration: const Duration(
                     milliseconds: 200,
@@ -1403,7 +1407,8 @@ class _SYTReelScreenState
         true;
     final voteCount =
         int.tryParse(
-          reel['likes'].toString(),
+          reel['votes']?.toString() ??
+              '0',
         ) ??
         0;
     final displayVotes = hasVoted
@@ -1436,6 +1441,7 @@ class _SYTReelScreenState
                   reel,
                   index,
                 ),
+                behavior: HitTestBehavior.opaque,
                 child: AnimatedContainer(
                   duration: const Duration(
                     milliseconds: 200,
@@ -1477,9 +1483,7 @@ class _SYTReelScreenState
                                         iconValue) *
                                     0.2,
                                 child: Icon(
-                                  hasVoted
-                                      ? Icons.star
-                                      : Icons.star_border,
+                                  Icons.touch_app,
                                   size: 32,
                                   color: hasVoted
                                       ? Colors.amber

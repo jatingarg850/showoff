@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'set_password_screen.dart';
+import 'otp_verification_screen.dart';
+import 'services/api_service.dart';
 
 class EmailSignUpScreen
     extends
@@ -187,21 +188,112 @@ class _EmailSignUpScreenState
                   ),
                 ),
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Handle email verification
+                  onPressed: () async {
+                    // Handle email verification with OTP
                     if (_emailController.text.isNotEmpty) {
-                      // Navigate to set password with email
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (
-                                context,
-                              ) => SetPasswordScreen(
-                                email: _emailController.text.trim(),
-                              ),
-                        ),
+                      // Validate email format
+                      final emailRegex = RegExp(
+                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
                       );
+
+                      if (!emailRegex.hasMatch(
+                        _emailController.text.trim(),
+                      )) {
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Please enter a valid email address',
+                            ),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+
+                      // Show loading
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder:
+                            (
+                              context,
+                            ) => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                      );
+
+                      try {
+                        // Send OTP to email
+                        final response = await ApiService.sendOTP(
+                          email: _emailController.text.trim(),
+                        );
+
+                        // Close loading
+                        if (context.mounted) {
+                          Navigator.pop(
+                            context,
+                          );
+                        }
+
+                        if (response['success']) {
+                          // Show OTP verification modal
+                          if (context.mounted) {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              isDismissible: false,
+                              enableDrag: false,
+                              builder:
+                                  (
+                                    context,
+                                  ) => OTPVerificationScreen(
+                                    email: _emailController.text.trim(),
+                                  ),
+                            );
+                          }
+                        } else {
+                          // Show error
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(
+                              context,
+                            ).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  response['message'] ??
+                                      'Failed to send OTP',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      } catch (
+                        e
+                      ) {
+                        // Close loading
+                        if (context.mounted) {
+                          Navigator.pop(
+                            context,
+                          );
+                        }
+
+                        // Show error
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Error: ${e.toString()}',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
                     } else {
                       ScaffoldMessenger.of(
                         context,

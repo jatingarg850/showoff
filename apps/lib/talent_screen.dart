@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'leaderboard_screen.dart';
-import 'chat_screen.dart';
 import 'notification_screen.dart';
 import 'syt_reel_screen.dart';
 import 'camera_screen.dart';
@@ -266,60 +265,6 @@ class _TalentScreenState
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // AI Chat Button - SHOWIE
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (
-                                      context,
-                                    ) => const AIChatScreen(),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            width: 28,
-                            height: 28,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: const LinearGradient(
-                                colors: [
-                                  Color(
-                                    0xFF701CF5,
-                                  ),
-                                  Color(
-                                    0xFF3E98E4,
-                                  ),
-                                ],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color:
-                                      const Color(
-                                        0xFF701CF5,
-                                      ).withOpacity(
-                                        0.3,
-                                      ),
-                                  blurRadius: 8,
-                                  offset: const Offset(
-                                    0,
-                                    2,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.smart_toy,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(
-                          width: 12,
-                        ),
                         GestureDetector(
                           onTap: () {
                             Navigator.push(
@@ -350,12 +295,7 @@ class _TalentScreenState
                                 builder:
                                     (
                                       context,
-                                    ) => ChatScreen(
-                                      userId: 'talent_user_id',
-                                      username: 'talent_user',
-                                      displayName: 'Talent User',
-                                      isVerified: false,
-                                    ),
+                                    ) => const AIChatScreen(),
                               ),
                             );
                           },
@@ -654,55 +594,32 @@ class _TalentScreenState
                                 crossAxisSpacing: 16,
                                 mainAxisSpacing: 16,
                               ),
-                              itemCount: _entries.isEmpty
-                                  ? 4
-                                  : _entries.length,
+                              itemCount: _entries.length,
                               itemBuilder:
                                   (
                                     context,
                                     index,
                                   ) {
-                                    // Use loaded entries if available, otherwise use dummy data
-                                    final competition =
-                                        _entries.isNotEmpty &&
-                                            index <
-                                                _entries.length
-                                        ? {
-                                            'username': '@${_entries[index]['user']?['username'] ?? 'user'}',
-                                            'category':
-                                                _entries[index]['category'] ??
-                                                'Other',
-                                            'likes':
-                                                _entries[index]['likesCount']?.toString() ??
-                                                '0',
-                                            'gradient':
-                                                competitions[index %
-                                                    competitions.length]['gradient'],
-                                            'entryId': _entries[index]['_id'],
-                                            'thumbnailUrl': _entries[index]['thumbnailUrl'],
-                                            'videoUrl': _entries[index]['videoUrl'],
-                                          }
-                                        : competitions[index];
+                                    // Use loaded entries from database
+                                    final entry = _entries[index];
+                                    final competition = {
+                                      'username': '@${entry['user']?['username'] ?? 'user'}',
+                                      'category':
+                                          entry['category'] ??
+                                          'Other',
+                                      'likes':
+                                          entry['likesCount']?.toString() ??
+                                          '0',
+                                      'gradient':
+                                          competitions[index %
+                                              competitions.length]['gradient'],
+                                      'entryId': entry['_id'],
+                                      'thumbnailUrl': entry['thumbnailUrl'],
+                                      'videoUrl': entry['videoUrl'],
+                                    };
 
                                     return GestureDetector(
                                       onTap: () {
-                                        // Only navigate if we have real entries
-                                        if (_entries.isEmpty) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                'No entries available yet',
-                                              ),
-                                              duration: Duration(
-                                                seconds: 2,
-                                              ),
-                                            ),
-                                          );
-                                          return;
-                                        }
-
                                         // Create real competition data for reel screen
                                         final realCompetitions = _entries
                                             .map(
@@ -760,71 +677,85 @@ class _TalentScreenState
                     left: 40,
                     right: 40,
                     bottom: 140,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(
-                              0xFF5A9FFF,
-                            ),
-                            Color(
-                              0xFF701CF5,
-                            ),
-                            Color(
-                              0xFF4A7FFF,
+                    child: Opacity(
+                      opacity: _hasSubmittedThisWeek
+                          ? 0.5
+                          : 1.0,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(
+                                0xFF5A9FFF,
+                              ),
+                              Color(
+                                0xFF701CF5,
+                              ),
+                              Color(
+                                0xFF4A7FFF,
+                              ),
+                            ],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            12,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(
+                                alpha: 0.2,
+                              ),
+                              blurRadius: 10,
+                              offset: const Offset(
+                                0,
+                                4,
+                              ),
                             ),
                           ],
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
                         ),
-                        borderRadius: BorderRadius.circular(
-                          12,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(
-                              alpha: 0.2,
-                            ),
-                            blurRadius: 10,
-                            offset: const Offset(
-                              0,
-                              4,
-                            ),
-                          ),
-                        ],
-                      ),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (
+                        child: ElevatedButton(
+                          onPressed: _hasSubmittedThisWeek
+                              ? null
+                              : () {
+                                  Navigator.push(
                                     context,
-                                  ) => const CameraScreen(
-                                    selectedPath: 'SYT',
-                                  ),
+                                    MaterialPageRoute(
+                                      builder:
+                                          (
+                                            context,
+                                          ) => const CameraScreen(
+                                            selectedPath: 'SYT',
+                                          ),
+                                    ),
+                                  );
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            foregroundColor: Colors.white,
+                            shadowColor: Colors.transparent,
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 16,
                             ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          foregroundColor: Colors.white,
-                          shadowColor: Colors.transparent,
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 16,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              12,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                12,
+                              ),
                             ),
                           ),
-                        ),
-                        child: const Text(
-                          'Show Your Talent : SYT',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                          child: Text(
+                            _hasSubmittedThisWeek
+                                ? 'Already Submitted This Week'
+                                : 'Show Your Talent : SYT',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: _hasSubmittedThisWeek
+                                  ? Colors.white.withValues(
+                                      alpha: 0.6,
+                                    )
+                                  : Colors.white,
+                            ),
                           ),
                         ),
                       ),

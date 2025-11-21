@@ -426,10 +426,11 @@ class _PhoneSignUpScreenState
                         );
 
                         // Close loading
-                        if (context.mounted)
+                        if (context.mounted) {
                           Navigator.pop(
                             context,
                           );
+                        }
 
                         if (response['success']) {
                           // Show OTP verification modal
@@ -469,10 +470,11 @@ class _PhoneSignUpScreenState
                         e
                       ) {
                         // Close loading
-                        if (context.mounted)
+                        if (context.mounted) {
                           Navigator.pop(
                             context,
                           );
+                        }
 
                         // Show error
                         if (context.mounted) {

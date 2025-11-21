@@ -165,8 +165,9 @@ class _ChatScreenState
     String? timestamp,
   ) {
     if (timestamp ==
-        null)
+        null) {
       return '';
+    }
     try {
       final date = DateTime.parse(
         timestamp,
@@ -211,8 +212,9 @@ class _ChatScreenState
   >
   _sendMessage() async {
     if (_messageController.text.trim().isEmpty ||
-        _isSending)
+        _isSending) {
       return;
+    }
 
     final messageText = _messageController.text.trim();
     _messageController.clear();

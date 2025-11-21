@@ -93,8 +93,9 @@ class _SearchScreenState
   void
   _onSearchChanged() {
     if (_debounce?.isActive ??
-        false)
+        false) {
       _debounce!.cancel();
+    }
     _debounce = Timer(
       const Duration(
         milliseconds: 300,

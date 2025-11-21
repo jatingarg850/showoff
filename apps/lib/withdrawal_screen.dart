@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'withdrawal_successful_screen.dart';
+import 'package:image_picker/image_picker.dart';
 import 'services/api_service.dart';
+import 'services/storage_service.dart';
 
 class WithdrawalScreen
     extends
@@ -21,34 +23,57 @@ class _WithdrawalScreenState
         State<
           WithdrawalScreen
         > {
-  final TextEditingController
-  _amountController = TextEditingController();
+  final _amountController = TextEditingController();
+  final _sofftAddressController = TextEditingController();
+  final _upiIdController = TextEditingController();
 
-  int
-  _availableBalance = 0;
   bool
-  _isLoading = true;
+  _isLoading = false;
+  int
+  _coinBalance = 0;
+  int
+  _minWithdrawal = 100;
+  String?
+  _selectedMethod;
+  List<
+    File
+  >
+  _idDocuments = [];
 
   @override
   void
   initState() {
     super.initState();
-    _loadBalance();
+    _loadData();
   }
 
   Future<
     void
   >
-  _loadBalance() async {
+  _loadData() async {
+    setState(
+      () => _isLoading = true,
+    );
+
     try {
-      final response = await ApiService.getCoinBalance();
-      if (response['success']) {
+      // Get user balance
+      final user = await StorageService.getUser();
+      setState(
+        () {
+          _coinBalance =
+              user?['coinBalance'] ??
+              0;
+        },
+      );
+
+      // Get withdrawal settings
+      final settingsResponse = await ApiService.getWithdrawalSettings();
+      if (settingsResponse['success']) {
         setState(
           () {
-            _availableBalance =
-                response['data']['withdrawableBalance'] ??
-                0;
-            _isLoading = false;
+            _minWithdrawal =
+                settingsResponse['data']['minWithdrawal'] ??
+                100;
           },
         );
       }
@@ -56,19 +81,557 @@ class _WithdrawalScreenState
       e
     ) {
       print(
-        'Error loading balance: $e',
+        'Error loading data: $e',
       );
+    } finally {
       setState(
         () => _isLoading = false,
       );
     }
   }
 
-  @override
+  Future<
+    void
+  >
+  _pickIdDocuments() async {
+    final ImagePicker picker = ImagePicker();
+    final List<
+      XFile
+    >
+    images = await picker.pickMultiImage();
+
+    if (images.isNotEmpty) {
+      setState(
+        () {
+          _idDocuments = images
+              .map(
+                (
+                  xFile,
+                ) => File(
+                  xFile.path,
+                ),
+              )
+              .toList();
+        },
+      );
+    }
+  }
+
   void
-  dispose() {
-    _amountController.dispose();
-    super.dispose();
+  _showMethodBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder:
+          (
+            context,
+          ) => Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(
+                  20,
+                ),
+              ),
+            ),
+            padding: const EdgeInsets.all(
+              20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Select Withdrawal Method',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(
+                  height: 20,
+                ),
+                _buildMethodOption(
+                  'Sofft Address',
+                  'sofft_address',
+                  Icons.account_balance_wallet,
+                ),
+                const SizedBox(
+                  height: 12,
+                ),
+                _buildMethodOption(
+                  'UPI',
+                  'upi',
+                  Icons.payment,
+                ),
+              ],
+            ),
+          ),
+    );
+  }
+
+  Widget
+  _buildMethodOption(
+    String title,
+    String method,
+    IconData icon,
+  ) {
+    return InkWell(
+      onTap: () {
+        setState(
+          () => _selectedMethod = method,
+        );
+        Navigator.pop(
+          context,
+        );
+        _showDetailsBottomSheet();
+      },
+      child: Container(
+        padding: const EdgeInsets.all(
+          16,
+        ),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: Colors.grey.shade300,
+          ),
+          borderRadius: BorderRadius.circular(
+            12,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: const Color(
+                0xFF8B5CF6,
+              ),
+            ),
+            const SizedBox(
+              width: 12,
+            ),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const Spacer(),
+            const Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void
+  _showDetailsBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder:
+          (
+            context,
+          ) => Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(
+                context,
+              ).viewInsets.bottom,
+            ),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(
+                    20,
+                  ),
+                ),
+              ),
+              padding: const EdgeInsets.all(
+                20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _selectedMethod ==
+                            'sofft_address'
+                        ? 'Enter Sofft Address'
+                        : 'Enter UPI ID',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(
+                    height: 20,
+                  ),
+                  TextField(
+                    controller:
+                        _selectedMethod ==
+                            'sofft_address'
+                        ? _sofftAddressController
+                        : _upiIdController,
+                    decoration: InputDecoration(
+                      hintText:
+                          _selectedMethod ==
+                              'sofft_address'
+                          ? 'Enter your Sofft address'
+                          : 'Enter your UPI ID (e.g., name@upi)',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          12,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          12,
+                        ),
+                        borderSide: const BorderSide(
+                          color: Color(
+                            0xFF8B5CF6,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(
+                    height: 20,
+                  ),
+                  const Text(
+                    'Upload ID Documents',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(
+                    height: 10,
+                  ),
+                  InkWell(
+                    onTap: () {
+                      Navigator.pop(
+                        context,
+                      );
+                      _pickIdDocuments();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(
+                        16,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: Colors.grey.shade300,
+                        ),
+                        borderRadius: BorderRadius.circular(
+                          12,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.upload_file,
+                            color: Color(
+                              0xFF8B5CF6,
+                            ),
+                          ),
+                          const SizedBox(
+                            width: 12,
+                          ),
+                          Text(
+                            _idDocuments.isEmpty
+                                ? 'Upload ID Documents'
+                                : '${_idDocuments.length} document(s) selected',
+                            style: const TextStyle(
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(
+                    height: 20,
+                  ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(
+                          context,
+                        );
+                        _submitWithdrawal();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(
+                          0xFF8B5CF6,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            12,
+                          ),
+                        ),
+                      ),
+                      child: const Text(
+                        'Submit',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+    );
+  }
+
+  Future<
+    void
+  >
+  _submitWithdrawal() async {
+    final amount =
+        int.tryParse(
+          _amountController.text,
+        ) ??
+        0;
+
+    if (amount <
+        _minWithdrawal) {
+      _showErrorDialog(
+        'Minimum withdrawal amount is $_minWithdrawal coins',
+      );
+      return;
+    }
+
+    if (amount >
+        _coinBalance) {
+      _showErrorDialog(
+        'Insufficient balance',
+      );
+      return;
+    }
+
+    if (_selectedMethod ==
+        null) {
+      _showErrorDialog(
+        'Please select a withdrawal method',
+      );
+      return;
+    }
+
+    if (_selectedMethod ==
+            'sofft_address' &&
+        _sofftAddressController.text.isEmpty) {
+      _showErrorDialog(
+        'Please enter your Sofft address',
+      );
+      return;
+    }
+
+    if (_selectedMethod ==
+            'upi' &&
+        _upiIdController.text.isEmpty) {
+      _showErrorDialog(
+        'Please enter your UPI ID',
+      );
+      return;
+    }
+
+    if (_idDocuments.isEmpty) {
+      _showErrorDialog(
+        'Please upload your ID documents',
+      );
+      return;
+    }
+
+    setState(
+      () => _isLoading = true,
+    );
+
+    try {
+      final response = await ApiService.requestWithdrawal(
+        coinAmount: amount,
+        method: _selectedMethod!,
+        sofftAddress:
+            _selectedMethod ==
+                'sofft_address'
+            ? _sofftAddressController.text
+            : null,
+        upiId:
+            _selectedMethod ==
+                'upi'
+            ? _upiIdController.text
+            : null,
+        idDocuments: _idDocuments,
+      );
+
+      if (response['success']) {
+        _showSuccessBottomSheet();
+      } else {
+        _showErrorDialog(
+          response['message'] ??
+              'Withdrawal request failed',
+        );
+      }
+    } catch (
+      e
+    ) {
+      _showErrorDialog(
+        'Error: $e',
+      );
+    } finally {
+      setState(
+        () => _isLoading = false,
+      );
+    }
+  }
+
+  void
+  _showSuccessBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isDismissible: false,
+      enableDrag: false,
+      builder:
+          (
+            context,
+          ) => WillPopScope(
+            onWillPop: () async => false,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(
+                    20,
+                  ),
+                ),
+              ),
+              padding: const EdgeInsets.all(
+                30,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(
+                      20,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.check_circle,
+                      color: Colors.green.shade600,
+                      size: 60,
+                    ),
+                  ),
+                  const SizedBox(
+                    height: 20,
+                  ),
+                  const Text(
+                    'Withdrawal Request Submitted!',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(
+                    height: 12,
+                  ),
+                  const Text(
+                    'Your money will be withdrawn within 24 hours',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(
+                    height: 30,
+                  ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(
+                          context,
+                        );
+                        Navigator.pop(
+                          context,
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(
+                          0xFF8B5CF6,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            12,
+                          ),
+                        ),
+                      ),
+                      child: const Text(
+                        'Done',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+    );
+  }
+
+  void
+  _showErrorDialog(
+    String message,
+  ) {
+    showDialog(
+      context: context,
+      builder:
+          (
+            context,
+          ) => AlertDialog(
+            title: const Text(
+              'Error',
+            ),
+            content: Text(
+              message,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(
+                  context,
+                ),
+                child: const Text(
+                  'OK',
+                ),
+              ),
+            ],
+          ),
+    );
   }
 
   @override
@@ -78,1040 +641,318 @@ class _WithdrawalScreenState
   ) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(
-            20,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Colors.black,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header with back button and title
-              Row(
+          onPressed: () => Navigator.pop(
+            context,
+          ),
+        ),
+        title: const Text(
+          'Withdrawal',
+          style: TextStyle(
+            color: Color(
+              0xFF8B5CF6,
+            ),
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(
+                20,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(
-                      context,
+                  // Balance Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(
+                      24,
                     ),
-                    child: const Icon(
-                      Icons.arrow_back,
-                      color: Colors.black,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(
-                    width: 16,
-                  ),
-                  const Text(
-                    'Withdrawal',
-                    style: TextStyle(
-                      color: Color(
-                        0xFF8B5CF6,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(
+                            0xFF8B5CF6,
+                          ),
+                          Color(
+                            0xFF7C3AED,
+                          ),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(
-                height: 30,
-              ),
-
-              // Withdrawal Balance Card
-              Container(
-                width: double.infinity,
-                height: 180,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(
-                    20,
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    // Background card image
-                    ClipRRect(
                       borderRadius: BorderRadius.circular(
                         20,
                       ),
-                      child: Image.asset(
-                        'assets/withdrawl/card.png',
-                        width: double.infinity,
-                        height: 180,
-                        fit: BoxFit.cover,
-                      ),
                     ),
-                    // Dollar amount overlay
-                    Positioned(
-                      left: 20,
-                      bottom: 30,
-                      child: Text(
-                        '\$600',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
+                    child: Stack(
+                      children: [
+                        // Decorative circles in background
+                        Positioned(
+                          top: -20,
+                          right: -20,
+                          child: Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(
+                                0.1,
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
                         ),
-                      ),
+                        Positioned(
+                          bottom: -30,
+                          right: 40,
+                          child: Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(
+                                0.08,
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 20,
+                          right: 80,
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(
+                                0.12,
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                        // Main content
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Withdrawal Balance',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(
+                              height: 8,
+                            ),
+                            Row(
+                              children: [
+                                const Text(
+                                  '\$',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  _coinBalance.toString(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 48,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(
+                              height: 16,
+                            ),
+                            // Coin icon
+                            Container(
+                              padding: const EdgeInsets.all(
+                                12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFFFBBF24,
+                                ),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color:
+                                        const Color(
+                                          0xFFFBBF24,
+                                        ).withOpacity(
+                                          0.3,
+                                        ),
+                                    blurRadius: 12,
+                                    offset: const Offset(
+                                      0,
+                                      4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.attach_money,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(
-                height: 30,
-              ),
-
-              // Amount label
-              const Text(
-                'Amount',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-
-              const SizedBox(
-                height: 12,
-              ),
-
-              // Amount input field with purple border
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(
-                    12,
                   ),
-                  gradient: const LinearGradient(
-                    colors: [
-                      Color(
-                        0xFF8B5CF6,
-                      ),
-                      Color(
-                        0xFF3B82F6,
-                      ),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                  const SizedBox(
+                    height: 30,
                   ),
-                ),
-                child: Container(
-                  margin: const EdgeInsets.all(
-                    2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(
-                      10,
+
+                  // Amount Input
+                  const Text(
+                    'Amount',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  child: TextField(
+                  const SizedBox(
+                    height: 10,
+                  ),
+                  TextField(
                     controller: _amountController,
                     keyboardType: TextInputType.number,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.black,
-                    ),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: 'Enter withdrawal amount',
                       hintStyle: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey,
+                        color: Colors.grey.shade400,
                       ),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.all(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          12,
+                        ),
+                        borderSide: BorderSide(
+                          color: Colors.grey.shade300,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          12,
+                        ),
+                        borderSide: const BorderSide(
+                          color: Color(
+                            0xFF8B5CF6,
+                          ),
+                          width: 2,
+                        ),
+                      ),
+                      contentPadding: const EdgeInsets.all(
                         16,
                       ),
                     ),
                   ),
-                ),
-              ),
+                  const SizedBox(
+                    height: 30,
+                  ),
 
-              const SizedBox(
-                height: 30,
-              ),
-
-              // Continue button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    // Show withdrawal preview modal
-                    final amount = _amountController.text;
-                    if (amount.isNotEmpty) {
-                      _showWithdrawalPreview(
-                        context,
-                        amount,
-                      );
-                    } else {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Please enter withdrawal amount',
-                          ),
-                          backgroundColor: Colors.red,
+                  // Continue Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _showMethodBottomSheet,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(
+                          0xFF8B5CF6,
                         ),
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(
-                      0xFF8B5CF6,
-                    ),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 18,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        30,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            12,
+                          ),
+                        ),
+                      ),
+                      child: const Text(
+                        'Continue',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
-                    elevation: 0,
                   ),
-                  child: const Text(
-                    'Continue',
+                  const SizedBox(
+                    height: 30,
+                  ),
+
+                  // Note Section
+                  const Text(
+                    'Note:',
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(
+                        0xFF8B5CF6,
+                      ),
                     ),
                   ),
-                ),
-              ),
-
-              const SizedBox(
-                height: 30,
-              ),
-
-              // Note section
-              const Text(
-                'Note:',
-                style: TextStyle(
-                  color: Color(
-                    0xFF8B5CF6,
+                  const SizedBox(
+                    height: 8,
                   ),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-
-              const SizedBox(
-                height: 8,
-              ),
-
-              // Note points
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 4,
-                        height: 4,
-                        margin: const EdgeInsets.only(
-                          top: 8,
-                          right: 8,
-                        ),
-                        decoration: const BoxDecoration(
-                          color: Colors.grey,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const Expanded(
-                        child: Text(
-                          'Max 20% of wallet per month',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
+                  Text(
+                    '• Min $_minWithdrawal coins per withdrawal',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade600,
+                    ),
                   ),
                   const SizedBox(
                     height: 4,
                   ),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 4,
-                        height: 4,
-                        margin: const EdgeInsets.only(
-                          top: 8,
-                          right: 8,
-                        ),
-                        decoration: const BoxDecoration(
-                          color: Colors.grey,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const Expanded(
-                        child: Text(
-                          '20% fee applied',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
+                  Text(
+                    '• 20% fee applied',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(
+                    height: 4,
+                  ),
+                  Text(
+                    '• Processing time: 24 hours',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade600,
+                    ),
                   ),
                 ],
               ),
-
-              const Spacer(),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 
+  @override
   void
-  _showWithdrawalPreview(
-    BuildContext context,
-    String amount,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder:
-          (
-            BuildContext context,
-          ) {
-            return Container(
-              height:
-                  MediaQuery.of(
-                    context,
-                  ).size.height *
-                  0.4,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(
-                    30,
-                  ),
-                  topRight: Radius.circular(
-                    30,
-                  ),
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(
-                  24,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Handle bar
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(
-                            2,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 20,
-                    ),
-
-                    // Preview title
-                    const Text(
-                      'Preview',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 20,
-                    ),
-
-                    // Withdrawal method label
-                    const Text(
-                      'Withdrawal method',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black,
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 8,
-                    ),
-
-                    // Withdrawal method dropdown
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          12,
-                        ),
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(
-                              0xFF8B5CF6,
-                            ),
-                            Color(
-                              0xFF3B82F6,
-                            ),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: Container(
-                        margin: const EdgeInsets.all(
-                          2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(
-                            10,
-                          ),
-                        ),
-                        child:
-                            DropdownButtonFormField<
-                              String
-                            >(
-                              decoration: const InputDecoration(
-                                hintText: 'Choose a withdrawal method',
-                                hintStyle: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey,
-                                ),
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.all(
-                                  16,
-                                ),
-                              ),
-                              items: const [
-                                DropdownMenuItem(
-                                  value: 'bank',
-                                  child: Text(
-                                    'Bank Transfer',
-                                  ),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'paypal',
-                                  child: Text(
-                                    'PayPal',
-                                  ),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'card',
-                                  child: Text(
-                                    'Debit Card',
-                                  ),
-                                ),
-                              ],
-                              onChanged:
-                                  (
-                                    value,
-                                  ) {
-                                    // Handle selection
-                                  },
-                            ),
-                      ),
-                    ),
-
-                    const Spacer(),
-
-                    // Continue button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(
-                            context,
-                          );
-                          _showBankDetailsModal(
-                            context,
-                            amount,
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(
-                            0xFF8B5CF6,
-                          ),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 18,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              30,
-                            ),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: const Text(
-                          'Continue',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-    );
-  }
-
-  void
-  _showBankDetailsModal(
-    BuildContext context,
-    String amount,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder:
-          (
-            BuildContext context,
-          ) {
-            return Container(
-              height:
-                  MediaQuery.of(
-                    context,
-                  ).size.height *
-                  0.5,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(
-                    30,
-                  ),
-                  topRight: Radius.circular(
-                    30,
-                  ),
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(
-                  24,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Handle bar
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(
-                            2,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 20,
-                    ),
-
-                    // Preview title
-                    const Text(
-                      'Preview',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 20,
-                    ),
-
-                    // Bank Name label
-                    const Text(
-                      'Bank Name',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black,
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 8,
-                    ),
-
-                    // Bank Name dropdown
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          12,
-                        ),
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(
-                              0xFF8B5CF6,
-                            ),
-                            Color(
-                              0xFF3B82F6,
-                            ),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: Container(
-                        margin: const EdgeInsets.all(
-                          2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(
-                            10,
-                          ),
-                        ),
-                        child:
-                            DropdownButtonFormField<
-                              String
-                            >(
-                              decoration: const InputDecoration(
-                                hintText: 'Select bank account',
-                                hintStyle: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey,
-                                ),
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.all(
-                                  16,
-                                ),
-                              ),
-                              items: const [
-                                DropdownMenuItem(
-                                  value: 'chase',
-                                  child: Text(
-                                    'Chase Bank',
-                                  ),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'bofa',
-                                  child: Text(
-                                    'Bank of America',
-                                  ),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'wells',
-                                  child: Text(
-                                    'Wells Fargo',
-                                  ),
-                                ),
-                              ],
-                              onChanged:
-                                  (
-                                    value,
-                                  ) {
-                                    // Handle selection
-                                  },
-                            ),
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 20,
-                    ),
-
-                    // Bank Account Number label
-                    const Text(
-                      'Bank Account number',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black,
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 8,
-                    ),
-
-                    // Account number input
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          12,
-                        ),
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(
-                              0xFF8B5CF6,
-                            ),
-                            Color(
-                              0xFF3B82F6,
-                            ),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: Container(
-                        margin: const EdgeInsets.all(
-                          2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(
-                            10,
-                          ),
-                        ),
-                        child: const TextField(
-                          decoration: InputDecoration(
-                            hintText: 'Enter account number',
-                            hintStyle: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey,
-                            ),
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.all(
-                              16,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const Spacer(),
-
-                    // Continue button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(
-                            context,
-                          );
-                          _showSofftAddressModal(
-                            context,
-                            amount,
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(
-                            0xFF8B5CF6,
-                          ),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 18,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              30,
-                            ),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: const Text(
-                          'Continue',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-    );
-  }
-
-  void
-  _showSofftAddressModal(
-    BuildContext context,
-    String amount,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder:
-          (
-            BuildContext context,
-          ) {
-            return Container(
-              height:
-                  MediaQuery.of(
-                    context,
-                  ).size.height *
-                  0.5,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(
-                    30,
-                  ),
-                  topRight: Radius.circular(
-                    30,
-                  ),
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(
-                  24,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Handle bar
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(
-                            2,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 20,
-                    ),
-
-                    // Preview title
-                    const Text(
-                      'Preview',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 20,
-                    ),
-
-                    // Network label
-                    const Text(
-                      'Network',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black,
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 8,
-                    ),
-
-                    // Network dropdown
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          12,
-                        ),
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(
-                              0xFF8B5CF6,
-                            ),
-                            Color(
-                              0xFF3B82F6,
-                            ),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: Container(
-                        margin: const EdgeInsets.all(
-                          2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(
-                            10,
-                          ),
-                        ),
-                        child:
-                            DropdownButtonFormField<
-                              String
-                            >(
-                              decoration: const InputDecoration(
-                                hintText: 'Select SOFFT network',
-                                hintStyle: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey,
-                                ),
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.all(
-                                  16,
-                                ),
-                              ),
-                              items: const [
-                                DropdownMenuItem(
-                                  value: 'ethereum',
-                                  child: Text(
-                                    'Ethereum (ETH)',
-                                  ),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'bsc',
-                                  child: Text(
-                                    'Binance Smart Chain (BSC)',
-                                  ),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'polygon',
-                                  child: Text(
-                                    'Polygon (MATIC)',
-                                  ),
-                                ),
-                              ],
-                              onChanged:
-                                  (
-                                    value,
-                                  ) {
-                                    // Handle selection
-                                  },
-                            ),
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 20,
-                    ),
-
-                    // SOFFT address label
-                    const Text(
-                      'SOFFT address',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black,
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 8,
-                    ),
-
-                    // SOFFT address input
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          12,
-                        ),
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(
-                              0xFF8B5CF6,
-                            ),
-                            Color(
-                              0xFF3B82F6,
-                            ),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: Container(
-                        margin: const EdgeInsets.all(
-                          2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(
-                            10,
-                          ),
-                        ),
-                        child: const TextField(
-                          decoration: InputDecoration(
-                            hintText: 'Enter account number',
-                            hintStyle: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey,
-                            ),
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.all(
-                              16,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const Spacer(),
-
-                    // Continue button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(
-                            context,
-                          );
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (
-                                    context,
-                                  ) => const WithdrawalSuccessfulScreen(),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(
-                            0xFF8B5CF6,
-                          ),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 18,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              30,
-                            ),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: const Text(
-                          'Continue',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-    );
+  dispose() {
+    _amountController.dispose();
+    _sofftAddressController.dispose();
+    _upiIdController.dispose();
+    super.dispose();
   }
 }

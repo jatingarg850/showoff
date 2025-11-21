@@ -847,8 +847,8 @@ class _EnhancedAddMoneyScreenState
                       child: Text(
                         _selectedGateway ==
                                 'stripe'
-                            ? '1 USD = 100 Coins'
-                            : '1 INR = 1.2 Coins',
+                            ? '1 USD = 83 Coins'
+                            : '1 INR = 1 Coin',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.blue[600],

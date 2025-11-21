@@ -920,7 +920,7 @@ class _EnhancedCommunityScreenState
                           DropdownButtonFormField<
                             String
                           >(
-                            value: selectedCategory,
+                            initialValue: selectedCategory,
                             decoration: InputDecoration(
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(

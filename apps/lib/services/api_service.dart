@@ -164,6 +164,54 @@ class ApiService {
       dynamic
     >
   >
+  phoneLogin({
+    required String phoneNumber,
+    required String countryCode,
+    String? firstName,
+    String? lastName,
+    required String accessToken,
+  }) async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/auth/phone-login',
+      ),
+      headers: await _getHeaders(),
+      body: jsonEncode(
+        {
+          'phoneNumber': phoneNumber,
+          'countryCode': countryCode,
+          if (firstName !=
+              null)
+            'firstName': firstName,
+          if (lastName !=
+              null)
+            'lastName': lastName,
+          'accessToken': accessToken,
+        },
+      ),
+    );
+
+    final data = jsonDecode(
+      response.body,
+    );
+    if (response.statusCode ==
+        200) {
+      await StorageService.saveToken(
+        data['data']['token'],
+      );
+      await StorageService.saveUser(
+        data['data']['user'],
+      );
+    }
+    return data;
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
   getMe() async {
     final response = await http.get(
       Uri.parse(
@@ -545,16 +593,19 @@ class ApiService {
     }
 
     if (caption !=
-        null)
+        null) {
       request.fields['caption'] = caption;
+    }
     if (hashtags !=
-        null)
+        null) {
       request.fields['hashtags'] = hashtags.join(
         ',',
       );
+    }
     if (type !=
-        null)
+        null) {
       request.fields['type'] = type;
+    }
 
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(
@@ -848,8 +899,9 @@ class ApiService {
     request.fields['category'] = category;
     request.fields['competitionType'] = competitionType;
     if (description !=
-        null)
+        null) {
       request.fields['description'] = description;
+    }
 
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(
@@ -873,14 +925,17 @@ class ApiService {
   }) async {
     String url = '$baseUrl/syt/entries?';
     if (type !=
-        null)
+        null) {
       url += 'type=$type&';
+    }
     if (period !=
-        null)
+        null) {
       url += 'period=$period&';
+    }
     if (filter !=
-        null)
+        null) {
       url += 'filter=$filter&';
+    }
 
     final response = await http.get(
       Uri.parse(
@@ -1340,8 +1395,8 @@ class ApiService {
       'amount': amount, // Send amount in rupees, backend will convert to paise
       'coins':
           (amount *
-                  1.2)
-              .round(), // 1 INR = 1.2 coins
+                  1)
+              .round(), // 1 INR = 1 coin
     };
 
     print(
@@ -1544,25 +1599,82 @@ class ApiService {
       dynamic
     >?
     bankDetails,
-    String? walletAddress,
+    String? sofftAddress,
+    String? upiId,
+    List<
+      File
+    >?
+    idDocuments,
   }) async {
-    final response = await http.post(
+    final request = http.MultipartRequest(
+      'POST',
       Uri.parse(
         '$baseUrl/withdrawal/request',
       ),
-      headers: await _getHeaders(),
-      body: jsonEncode(
-        {
-          'coinAmount': coinAmount,
-          'method': method,
-          if (bankDetails !=
-              null)
-            'bankDetails': bankDetails,
-          if (walletAddress !=
-              null)
-            'walletAddress': walletAddress,
-        },
+    );
+
+    request.headers.addAll(
+      await _getMultipartHeaders(),
+    );
+
+    request.fields['coinAmount'] = coinAmount.toString();
+    request.fields['method'] = method;
+
+    if (bankDetails !=
+        null) {
+      request.fields['bankDetails'] = jsonEncode(
+        bankDetails,
+      );
+    }
+
+    if (sofftAddress !=
+        null) {
+      request.fields['sofftAddress'] = sofftAddress;
+    }
+
+    if (upiId !=
+        null) {
+      request.fields['upiId'] = upiId;
+    }
+
+    // Add ID documents
+    if (idDocuments !=
+            null &&
+        idDocuments.isNotEmpty) {
+      for (var doc in idDocuments) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'idDocuments',
+            doc.path,
+            contentType: http_parser.MediaType.parse(
+              'image/jpeg',
+            ),
+          ),
+        );
+      }
+    }
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(
+      streamedResponse,
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  getWithdrawalSettings() async {
+    final response = await http.get(
+      Uri.parse(
+        '$baseUrl/withdrawal/settings',
       ),
+      headers: await _getHeaders(),
     );
     return jsonDecode(
       response.body,
@@ -1928,14 +2040,17 @@ class ApiService {
   }) async {
     String url = '$baseUrl/products?page=$page&limit=$limit';
     if (category !=
-        null)
+        null) {
       url += '&category=$category';
+    }
     if (badge !=
-        null)
+        null) {
       url += '&badge=$badge';
+    }
     if (search !=
-        null)
+        null) {
       url += '&search=$search';
+    }
 
     final response = await http.get(
       Uri.parse(
@@ -2262,11 +2377,13 @@ class ApiService {
   }) async {
     String url = '$baseUrl/groups?';
     if (category !=
-        null)
+        null) {
       url += 'category=$category&';
+    }
     if (search !=
-        null)
+        null) {
       url += 'search=$search&';
+    }
 
     final response = await http.get(
       Uri.parse(
@@ -2896,10 +3013,29 @@ class ApiService {
       dynamic
     >
   >
+  createCartRazorpayOrder() async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/cart/create-razorpay-order',
+      ),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(
+      response.body,
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
   processPayment({
     required String paymentMethod,
-    String? razorpayPaymentId,
-    String? razorpaySignature,
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
   }) async {
     final response = await http.post(
       Uri.parse(
@@ -2909,17 +3045,106 @@ class ApiService {
       body: jsonEncode(
         {
           'paymentMethod': paymentMethod,
-          if (razorpayPaymentId !=
-              null)
-            'razorpayPaymentId': razorpayPaymentId,
-          if (razorpaySignature !=
-              null)
-            'razorpaySignature': razorpaySignature,
+          'razorpayOrderId': razorpayOrderId,
+          'razorpayPaymentId': razorpayPaymentId,
+          'razorpaySignature': razorpaySignature,
         },
       ),
     );
     return jsonDecode(
       response.body,
+    );
+  }
+
+  // ============ SUBSCRIPTION METHODS ============
+
+  // Get user's subscription status
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  getMySubscription() async {
+    final response = await http.get(
+      Uri.parse(
+        '$baseUrl/subscriptions/my-subscription',
+      ),
+      headers: await _getHeaders(),
+    );
+    final decoded = jsonDecode(
+      response.body,
+    );
+    return Map<
+      String,
+      dynamic
+    >.from(
+      decoded,
+    );
+  }
+
+  // Get subscription plans
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  getSubscriptionPlans() async {
+    final response = await http.get(
+      Uri.parse(
+        '$baseUrl/subscriptions/plans',
+      ),
+      headers: await _getHeaders(),
+    );
+    final decoded = jsonDecode(
+      response.body,
+    );
+    return Map<
+      String,
+      dynamic
+    >.from(
+      decoded,
+    );
+  }
+
+  // Subscribe to a plan
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  subscribeToPlan({
+    required String planId,
+    required String billingCycle,
+    String? paymentMethod,
+    String? transactionId,
+  }) async {
+    final response = await http.post(
+      Uri.parse(
+        '$baseUrl/subscriptions/subscribe',
+      ),
+      headers: await _getHeaders(),
+      body: jsonEncode(
+        {
+          'planId': planId,
+          'billingCycle': billingCycle,
+          'paymentMethod':
+              paymentMethod ??
+              'coins',
+          'transactionId': transactionId,
+        },
+      ),
+    );
+    final decoded = jsonDecode(
+      response.body,
+    );
+    return Map<
+      String,
+      dynamic
+    >.from(
+      decoded,
     );
   }
 }

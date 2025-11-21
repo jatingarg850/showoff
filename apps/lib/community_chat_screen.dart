@@ -123,10 +123,11 @@ class _CommunityChatScreenState
     bool silent = false,
   }) async {
     try {
-      if (!silent)
+      if (!silent) {
         setState(
           () => _isLoading = true,
         );
+      }
 
       final response = await ApiService.getGroupMessages(
         widget.groupId,
@@ -168,10 +169,11 @@ class _CommunityChatScreenState
         'Error loading messages: $e',
       );
       if (!silent &&
-          mounted)
+          mounted) {
         setState(
           () => _isLoading = false,
         );
+      }
     }
   }
 
@@ -214,8 +216,9 @@ class _CommunityChatScreenState
     String? timestamp,
   ) {
     if (timestamp ==
-        null)
+        null) {
       return '';
+    }
     try {
       final date = DateTime.parse(
         timestamp,
@@ -665,8 +668,9 @@ class _CommunityChatScreenState
   void
   _showCommunityInfo() {
     if (_groupDetails ==
-        null)
+        null) {
       return;
+    }
 
     showDialog(
       context: context,

@@ -128,8 +128,9 @@ class _ProfileScreenState
           }
 
           if (posts.length <
-              20)
+              20) {
             break; // No more posts
+          }
         } else {
           break;
         }
@@ -345,8 +346,9 @@ class _ProfileScreenState
                                                     loadingProgress,
                                                   ) {
                                                     if (loadingProgress ==
-                                                        null)
+                                                        null) {
                                                       return child;
+                                                    }
                                                     return const Center(
                                                       child: CircularProgressIndicator(),
                                                     );
@@ -453,14 +455,32 @@ class _ProfileScreenState
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  Text(
-                                    user['displayName'] ??
-                                        'User',
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black,
-                                    ),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        user['displayName'] ??
+                                            'User',
+                                        style: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      if (user['isVerified'] ==
+                                          true)
+                                        const Padding(
+                                          padding: EdgeInsets.only(
+                                            left: 8,
+                                          ),
+                                          child: Icon(
+                                            Icons.verified,
+                                            size: 20,
+                                            color: Color(
+                                              0xFF701CF5,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
 
                                   const Spacer(),

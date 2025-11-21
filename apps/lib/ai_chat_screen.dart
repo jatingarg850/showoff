@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'services/ai_service.dart';
 
 class AIChatScreen
@@ -516,16 +517,47 @@ class _AIChatScreenState
                   16,
                 ),
               ),
-              child: Text(
-                message,
-                style: TextStyle(
-                  color: isAI
-                      ? Colors.black87
-                      : Colors.white,
-                  fontSize: 15,
-                  height: 1.4,
-                ),
-              ),
+              child: isAI
+                  ? MarkdownBody(
+                      data: message,
+                      styleSheet: MarkdownStyleSheet(
+                        p: const TextStyle(
+                          color: Colors.black87,
+                          fontSize: 15,
+                          height: 1.4,
+                        ),
+                        strong: const TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                        em: const TextStyle(
+                          color: Colors.black87,
+                          fontStyle: FontStyle.italic,
+                          fontSize: 15,
+                        ),
+                        listBullet: const TextStyle(
+                          color: Colors.black87,
+                          fontSize: 15,
+                        ),
+                        code: TextStyle(
+                          backgroundColor: Colors.grey[200],
+                          color: const Color(
+                            0xFF701CF5,
+                          ),
+                          fontFamily: 'monospace',
+                          fontSize: 14,
+                        ),
+                      ),
+                    )
+                  : Text(
+                      message,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        height: 1.4,
+                      ),
+                    ),
             ),
           ),
         ],

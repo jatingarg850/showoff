@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:phone_email_auth/phone_email_auth.dart';
 import 'forgot_password_screen.dart';
 import '../main_screen.dart';
 import '../signup_screen.dart';
 import '../providers/auth_provider.dart';
+import '../services/phone_auth_service.dart';
+import '../services/api_service.dart';
 
 class LoginScreen
     extends
@@ -28,6 +31,17 @@ class _LoginScreenState
   _emailController = TextEditingController();
   final TextEditingController
   _passwordController = TextEditingController();
+
+  bool
+  _isPhoneLoginLoading = false;
+
+  @override
+  void
+  initState() {
+    super.initState();
+    // Initialize Phone Email Auth
+    PhoneAuthService.initialize();
+  }
 
   @override
   Widget
@@ -248,6 +262,181 @@ class _LoginScreenState
             ),
 
             const Spacer(),
+
+            // OR divider
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 1,
+                    color: Colors.grey.shade300,
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                  ),
+                  child: Text(
+                    'OR',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Container(
+                    height: 1,
+                    color: Colors.grey.shade300,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(
+              height: 24,
+            ),
+
+            // Phone Login Button
+            if (_isPhoneLoginLoading)
+              const Center(
+                child: CircularProgressIndicator(),
+              )
+            else
+              PhoneLoginButton(
+                borderRadius: 10,
+                buttonColor: const Color(
+                  0xFF3E98E4,
+                ),
+                label: 'Login with Phone',
+                onSuccess:
+                    (
+                      String accessToken,
+                      String jwtToken,
+                    ) async {
+                      if (accessToken.isNotEmpty) {
+                        setState(
+                          () {
+                            _isPhoneLoginLoading = true;
+                          },
+                        );
+
+                        // Get user info from phone auth
+                        final userData = await PhoneAuthService.getUserInfo(
+                          accessToken,
+                        );
+
+                        if (userData !=
+                                null &&
+                            mounted) {
+                          // Login/Register user with verified phone number
+                          try {
+                            final response = await ApiService.phoneLogin(
+                              phoneNumber:
+                                  userData.phoneNumber ??
+                                  '',
+                              countryCode:
+                                  userData.countryCode ??
+                                  '',
+                              firstName: userData.firstName,
+                              lastName: userData.lastName,
+                              accessToken: accessToken,
+                            );
+
+                            setState(
+                              () {
+                                _isPhoneLoginLoading = false;
+                              },
+                            );
+
+                            if (mounted) {
+                              if (response['success']) {
+                                // Update auth provider
+                                final authProvider =
+                                    Provider.of<
+                                      AuthProvider
+                                    >(
+                                      context,
+                                      listen: false,
+                                    );
+                                authProvider.updateUser(
+                                  response['data']['user'],
+                                );
+
+                                // Navigate to main screen
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (
+                                          context,
+                                        ) => const MainScreen(),
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(
+                                  context,
+                                ).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      response['message'] ??
+                                          'Login failed',
+                                    ),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          } catch (
+                            e
+                          ) {
+                            setState(
+                              () {
+                                _isPhoneLoginLoading = false;
+                              },
+                            );
+
+                            if (mounted) {
+                              ScaffoldMessenger.of(
+                                context,
+                              ).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Error: ${e.toString()}',
+                                  ),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        } else {
+                          setState(
+                            () {
+                              _isPhoneLoginLoading = false;
+                            },
+                          );
+
+                          if (mounted) {
+                            ScaffoldMessenger.of(
+                              context,
+                            ).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Failed to get phone number',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      }
+                    },
+              ),
+
+            const SizedBox(
+              height: 24,
+            ),
 
             // Continue button
             Container(

@@ -55,8 +55,18 @@ dependencies:
   # State Management
   provider: ^6.1.1
   
+  # Sharing
+  share_plus: ^10.1.2
+  
   # AI/ML
   google_generative_ai: ^0.4.7
+  flutter_markdown: ^0.7.4+1
+  
+  # AdMob for rewarded ads
+  google_mobile_ads: ^5.1.0
+  
+  # Phone Email Authentication
+  phone_email_auth: ^0.0.6
 
 dev_dependencies:
   flutter_test:

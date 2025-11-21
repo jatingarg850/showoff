@@ -313,7 +313,7 @@ class _PaymentSettingsScreenState
                     ),
                   ),
                 )
-                .toList(),
+                ,
 
             const SizedBox(
               height: 16,
@@ -474,7 +474,7 @@ class _PaymentSettingsScreenState
                     true,
                   ),
                 )
-                .toList(),
+                ,
 
             const SizedBox(
               height: 16,
@@ -568,25 +568,29 @@ class _PaymentSettingsScreenState
           String
         >[];
     if (_billingInfo['address']?.isNotEmpty ==
-        true)
+        true) {
       parts.add(
         _billingInfo['address'],
       );
+    }
     if (_billingInfo['city']?.isNotEmpty ==
-        true)
+        true) {
       parts.add(
         _billingInfo['city'],
       );
+    }
     if (_billingInfo['state']?.isNotEmpty ==
-        true)
+        true) {
       parts.add(
         _billingInfo['state'],
       );
+    }
     if (_billingInfo['zipCode']?.isNotEmpty ==
-        true)
+        true) {
       parts.add(
         _billingInfo['zipCode'],
       );
+    }
     return parts.isEmpty
         ? 'Not set'
         : parts.join(

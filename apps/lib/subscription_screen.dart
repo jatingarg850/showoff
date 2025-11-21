@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'services/api_service.dart';
 
 class SubscriptionScreen
     extends
@@ -23,12 +24,194 @@ class _SubscriptionScreenState
   _pageController = PageController();
   int
   _currentPage = 0;
+  List<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  _plans = [];
+  bool
+  _isLoading = true;
+  String?
+  _currentPlanId;
+
+  @override
+  void
+  initState() {
+    super.initState();
+    _loadPlans();
+    _loadCurrentSubscription();
+  }
+
+  Future<
+    void
+  >
+  _loadPlans() async {
+    try {
+      final response = await ApiService.getSubscriptionPlans();
+      if (response['success']) {
+        setState(
+          () {
+            _plans =
+                List<
+                  Map<
+                    String,
+                    dynamic
+                  >
+                >.from(
+                  response['data'] ??
+                      [],
+                );
+            _isLoading = false;
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading plans: $e',
+      );
+      setState(
+        () {
+          _isLoading = false;
+        },
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _loadCurrentSubscription() async {
+    try {
+      final response = await ApiService.getMySubscription();
+      if (response['success'] &&
+          response['data'] !=
+              null) {
+        setState(
+          () {
+            _currentPlanId = response['data']['plan']?['_id'];
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'No active subscription: $e',
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _subscribeToPlan(
+    String planId,
+    String planName,
+  ) async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (
+              context,
+            ) => const Center(
+              child: CircularProgressIndicator(
+                color: Colors.white,
+              ),
+            ),
+      );
+
+      final response = await ApiService.subscribeToPlan(
+        planId: planId,
+        billingCycle: 'monthly',
+        paymentMethod: 'coins',
+      );
+
+      Navigator.pop(
+        context,
+      ); // Close loading dialog
+
+      if (response['success']) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Successfully subscribed to $planName!',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Reload subscription status
+        await _loadCurrentSubscription();
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              response['message'] ??
+                  'Failed to subscribe',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (
+      e
+    ) {
+      Navigator.pop(
+        context,
+      ); // Close loading dialog
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error: $e',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget
   build(
     BuildContext context,
   ) {
+    if (_isLoading) {
+      return Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(
+                  0xFF8B5CF6,
+                ),
+                Color(
+                  0xFF7C3AED,
+                ),
+              ],
+            ),
+          ),
+          child: const Center(
+            child: CircularProgressIndicator(
+              color: Colors.white,
+            ),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -107,70 +290,60 @@ class _SubscriptionScreenState
 
               // Subscription cards with PageView
               Expanded(
-                child: PageView(
-                  controller: _pageController,
-                  physics: const BouncingScrollPhysics(),
-                  onPageChanged:
-                      (
-                        index,
-                      ) {
-                        setState(
-                          () {
-                            _currentPage = index;
-                          },
-                        );
-                      },
-                  children: [
-                    _buildSubscriptionCard(
-                      planName: 'BASIC',
-                      price: '\$0',
-                      description: 'Start free, join weekly contests, earn coins, and unlock the core ShowOff.life experience.',
-                      features: [
-                        'Upload 1 video per week in the Weekly Showcase',
-                        'Cast 1 vote per day (1 coin deducted, 1 coin given to creator)',
-                        '1 free Fortune Wheel spin/day',
-                        'Ads appear every 5-7 Reels',
-                        'Earn coins from uploads, votes, ads, and referrals',
-                        'Limited ad rewards: watch up to 5 ads/day for coins',
-                      ],
-                      buttonText: 'Start 7-day free trial',
-                      isCurrentPlan: true,
-                    ),
-                    _buildSubscriptionCard(
-                      planName: 'COMMON',
-                      price: '\$4.99',
-                      description: 'Enhanced features for regular users who want more engagement and fewer restrictions.',
-                      features: [
-                        'Upload 3 videos per week in the Weekly Showcase',
-                        'Cast 5 votes per day with reduced coin cost',
-                        '3 free Fortune Wheel spins/day',
-                        'Ads appear every 10-12 Reels',
-                        'Priority support and faster processing',
-                        'Unlimited ad rewards: watch unlimited ads for coins',
-                        'Access to exclusive community features',
-                      ],
-                      buttonText: 'Upgrade to Common',
-                      isCurrentPlan: false,
-                    ),
-                    _buildSubscriptionCard(
-                      planName: 'ADVANCED',
-                      price: '\$9.99',
-                      description: 'Premium experience with maximum features, no ads, and exclusive content access.',
-                      features: [
-                        'Unlimited video uploads in Weekly Showcase',
-                        'Unlimited voting with bonus coins for creators',
-                        '10 free Fortune Wheel spins/day',
-                        'Completely ad-free experience',
-                        'VIP support and instant processing',
-                        'Exclusive premium content and early access',
-                        'Advanced analytics and insights',
-                        'Custom profile badges and themes',
-                      ],
-                      buttonText: 'Go Premium',
-                      isCurrentPlan: false,
-                    ),
-                  ],
-                ),
+                child: _plans.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No plans available',
+                          style: TextStyle(
+                            color: Colors.white,
+                          ),
+                        ),
+                      )
+                    : PageView(
+                        controller: _pageController,
+                        physics: const BouncingScrollPhysics(),
+                        onPageChanged:
+                            (
+                              index,
+                            ) {
+                              setState(
+                                () {
+                                  _currentPage = index;
+                                },
+                              );
+                            },
+                        children: _plans
+                            .map(
+                              (
+                                plan,
+                              ) => _buildSubscriptionCard(
+                                planId: plan['_id'],
+                                planName:
+                                    plan['name']?.toUpperCase() ??
+                                    'PLAN',
+                                price: '\$${plan['price']?['monthly'] ?? 0}',
+                                description:
+                                    plan['description'] ??
+                                    '',
+                                features:
+                                    List<
+                                      String
+                                    >.from(
+                                      plan['highlightedFeatures'] ??
+                                          [],
+                                    ),
+                                buttonText:
+                                    _currentPlanId ==
+                                        plan['_id']
+                                    ? 'Current Plan'
+                                    : 'Subscribe',
+                                isCurrentPlan:
+                                    _currentPlanId ==
+                                    plan['_id'],
+                              ),
+                            )
+                            .toList(),
+                      ),
               ),
 
               // Page indicators
@@ -181,7 +354,7 @@ class _SubscriptionScreenState
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
-                    3,
+                    _plans.length,
                     (
                       index,
                     ) {
@@ -273,6 +446,7 @@ class _SubscriptionScreenState
 
   Widget
   _buildSubscriptionCard({
+    required String planId,
     required String planName,
     required String price,
     required String description,
@@ -442,15 +616,22 @@ class _SubscriptionScreenState
             width: double.infinity,
             height: 56,
             decoration: BoxDecoration(
-              color: const Color(
-                0xFF8B5CF6,
-              ),
+              color: isCurrentPlan
+                  ? Colors.grey
+                  : const Color(
+                      0xFF8B5CF6,
+                    ),
               borderRadius: BorderRadius.circular(
                 28,
               ),
             ),
             child: ElevatedButton(
-              onPressed: () {},
+              onPressed: isCurrentPlan
+                  ? null
+                  : () => _subscribeToPlan(
+                      planId,
+                      planName,
+                    ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,

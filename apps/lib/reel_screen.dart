@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'comments_screen.dart';
 import 'gift_screen.dart';
 import 'user_profile_screen.dart';
@@ -8,6 +9,7 @@ import 'messages_screen.dart';
 import 'notification_screen.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
+import 'services/ad_service.dart';
 import 'config/api_config.dart';
 
 class ReelScreen
@@ -54,6 +56,8 @@ class _ReelScreenState
     bool
   >
   _followStatus = {};
+  bool
+  _isAdFree = false; // Track if user has ad-free subscription
 
   // Video controllers
   final Map<
@@ -67,11 +71,22 @@ class _ReelScreenState
   >
   _videoInitialized = {};
 
+  // Ad related
+  InterstitialAd?
+  _interstitialAd;
+  int
+  _reelsSinceLastAd = 0;
+  final int
+  _adFrequency = 4; // Show ad every 4 reels
+  bool
+  _isLoadingAd = false;
+
   @override
   void
   initState() {
     super.initState();
     _loadCurrentUser();
+    _checkSubscriptionStatus();
     _loadFeed();
   }
 
@@ -96,6 +111,121 @@ class _ReelScreenState
     ) {
       print(
         'Error loading current user: $e',
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  _checkSubscriptionStatus() async {
+    try {
+      final response = await ApiService.getMySubscription();
+
+      // Check if response is successful and has data
+      if (response['success'] ==
+              true &&
+          response['data'] !=
+              null) {
+        try {
+          // Safely convert nested maps
+          final dataRaw = response['data'];
+          if (dataRaw
+              is! Map) {
+            throw Exception(
+              'Invalid data format',
+            );
+          }
+
+          final data =
+              Map<
+                String,
+                dynamic
+              >.from(
+                dataRaw,
+              );
+
+          final planRaw = data['plan'];
+          if (planRaw !=
+                  null &&
+              planRaw
+                  is Map) {
+            final plan =
+                Map<
+                  String,
+                  dynamic
+                >.from(
+                  planRaw,
+                );
+
+            final featuresRaw = plan['features'];
+            if (featuresRaw !=
+                    null &&
+                featuresRaw
+                    is Map) {
+              final features =
+                  Map<
+                    String,
+                    dynamic
+                  >.from(
+                    featuresRaw,
+                  );
+
+              setState(
+                () {
+                  _isAdFree =
+                      features['adFree'] ==
+                      true;
+                },
+              );
+              print(
+                'Subscription check: adFree = $_isAdFree',
+              );
+            }
+          }
+        } catch (
+          conversionError
+        ) {
+          print(
+            'Error converting subscription data: $conversionError',
+          );
+          setState(
+            () {
+              _isAdFree = false;
+            },
+          );
+        }
+      } else {
+        // No active subscription
+        print(
+          'No active subscription found',
+        );
+        setState(
+          () {
+            _isAdFree = false;
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error checking subscription: $e',
+      );
+      // Default to showing ads if check fails
+      setState(
+        () {
+          _isAdFree = false;
+        },
+      );
+    }
+
+    // Only load ads if user is not ad-free
+    if (!_isAdFree) {
+      _loadInterstitialAd();
+    } else {
+      print(
+        'User has ad-free subscription, skipping ad load',
       );
     }
   }
@@ -216,6 +346,65 @@ class _ReelScreenState
     }
   }
 
+  // Load interstitial ad
+  Future<
+    void
+  >
+  _loadInterstitialAd() async {
+    if (_isLoadingAd) return;
+
+    setState(
+      () {
+        _isLoadingAd = true;
+      },
+    );
+
+    try {
+      _interstitialAd = await AdService.loadInterstitialAd();
+      print(
+        'Interstitial ad loaded successfully',
+      );
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading interstitial ad: $e',
+      );
+    } finally {
+      setState(
+        () {
+          _isLoadingAd = false;
+        },
+      );
+    }
+  }
+
+  // Show ad if ready
+  void
+  _showAdIfReady() {
+    if (_interstitialAd !=
+        null) {
+      // Pause current video before showing ad
+      _videoControllers[_currentIndex]?.pause();
+
+      AdService.showInterstitialAd(
+        _interstitialAd,
+        onAdDismissed: () {
+          // Reset counter and load next ad
+          _reelsSinceLastAd = 0;
+          _interstitialAd = null;
+          _loadInterstitialAd();
+
+          // Resume video after ad
+          _videoControllers[_currentIndex]?.play();
+        },
+      );
+    } else {
+      // Ad not ready, try loading again
+      _loadInterstitialAd();
+    }
+  }
+
   Future<
     void
   >
@@ -224,14 +413,16 @@ class _ReelScreenState
   ) async {
     if (_posts.isEmpty ||
         index >=
-            _posts.length)
+            _posts.length) {
       return;
+    }
 
     final mediaUrl = _posts[index]['mediaUrl'];
     if (mediaUrl ==
             null ||
-        mediaUrl.isEmpty)
+        mediaUrl.isEmpty) {
       return;
+    }
 
     // Dispose existing controller
     _videoControllers[index]?.dispose();
@@ -293,6 +484,15 @@ class _ReelScreenState
         _currentIndex = index;
       },
     );
+
+    // Check if we should show an ad (only if not ad-free)
+    if (!_isAdFree) {
+      _reelsSinceLastAd++;
+      if (_reelsSinceLastAd >=
+          _adFrequency) {
+        _showAdIfReady();
+      }
+    }
 
     // Pause all other videos
     _videoControllers.forEach(
@@ -648,6 +848,7 @@ class _ReelScreenState
       },
     );
     _videoControllers.clear();
+    _interstitialAd?.dispose();
     super.dispose();
   }
 
@@ -722,11 +923,31 @@ class _ReelScreenState
             ) {
               final post = _posts[index];
               final user =
-                  post['user'] ??
-                  {};
+                  post['user'] !=
+                      null
+                  ? Map<
+                      String,
+                      dynamic
+                    >.from(
+                      post['user'],
+                    )
+                  : <
+                      String,
+                      dynamic
+                    >{};
               final stats =
-                  post['stats'] ??
-                  {};
+                  post['stats'] !=
+                      null
+                  ? Map<
+                      String,
+                      dynamic
+                    >.from(
+                      post['stats'],
+                    )
+                  : <
+                      String,
+                      dynamic
+                    >{};
 
               return Stack(
                 children: [

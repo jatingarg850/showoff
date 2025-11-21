@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'services/api_service.dart';
+import 'services/currency_service.dart';
 import 'product_detail_screen.dart';
 
 class CategoryProductsScreen
@@ -38,11 +39,47 @@ class _CategoryProductsScreenState
   bool
   _isLoading = true;
 
+  // Currency data
+  String
+  _currencySymbol = '\$';
+  double
+  _exchangeRate = 1.0;
+  String
+  _currencyCode = 'USD';
+
   @override
   void
   initState() {
     super.initState();
+    _initCurrency();
     _loadProducts();
+  }
+
+  Future<
+    void
+  >
+  _initCurrency() async {
+    try {
+      final symbol = await CurrencyService.getCurrencySymbol();
+      final rates = await CurrencyService.getExchangeRates();
+      final currency = await CurrencyService.getUserCurrency();
+
+      setState(
+        () {
+          _currencySymbol = symbol;
+          _currencyCode = currency;
+          _exchangeRate =
+              rates[currency] ??
+              1.0;
+        },
+      );
+    } catch (
+      e
+    ) {
+      print(
+        'Error initializing currency: $e',
+      );
+    }
   }
 
   Future<
@@ -304,17 +341,24 @@ class _CategoryProductsScreenState
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          _getProductPrice(
-                            product,
-                          ),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(
-                              0xFF8B5CF6,
+                        Expanded(
+                          child: Text(
+                            _getProductPrice(
+                              product,
                             ),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(
+                                0xFF8B5CF6,
+                              ),
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
+                        ),
+                        const SizedBox(
+                          width: 4,
                         ),
                         if (product['badge'] !=
                                 null &&
@@ -361,20 +405,20 @@ class _CategoryProductsScreenState
     >
     product,
   ) {
-    final paymentType =
-        product['paymentType'] ??
-        'upi';
-    if (paymentType ==
-        'coins') {
-      final coinPrice =
-          product['coinPrice'] ??
-          (product['price'] *
-                  10)
-              .ceil();
-      return '$coinPrice coins';
-    } else {
-      return '\$${product['price']?.toStringAsFixed(2) ?? '0.00'}';
-    }
+    // ALWAYS show 50% cash + 50% coins for ALL products
+    final basePrice =
+        (product['price'] ??
+                0.0)
+            .toDouble();
+    final cashAmount =
+        basePrice *
+        0.5;
+    final coinAmount =
+        (cashAmount *
+                100)
+            .ceil(); // 1 USD = 100 coins
+
+    return '\$${cashAmount.toStringAsFixed(2)} + $coinAmount coins';
   }
 
   Color

@@ -449,8 +449,9 @@ class _CommentsScreenState
     String? dateString,
   ) {
     if (dateString ==
-        null)
+        null) {
       return '';
+    }
 
     try {
       final date = DateTime.parse(

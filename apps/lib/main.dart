@@ -5,11 +5,14 @@ import 'onboarding_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/profile_provider.dart';
 import 'providers/notification_provider.dart';
-import 'services/notification_service.dart';
+import 'services/admob_service.dart';
 
 void
 main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize AdMob
+  await AdMobService.initialize();
 
   runApp(
     MultiProvider(

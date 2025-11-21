@@ -3,6 +3,7 @@ import 'product_detail_screen.dart';
 import 'cart_screen.dart';
 import 'category_products_screen.dart';
 import 'services/api_service.dart';
+import 'services/currency_service.dart';
 
 class StoreScreen
     extends
@@ -50,11 +51,47 @@ class _StoreScreenState
   bool
   _isLoading = true;
 
+  // Currency data
+  String
+  _currencySymbol = '\$';
+  double
+  _exchangeRate = 1.0;
+  String
+  _currencyCode = 'USD';
+
   @override
   void
   initState() {
     super.initState();
+    _initCurrency();
     _loadData();
+  }
+
+  Future<
+    void
+  >
+  _initCurrency() async {
+    try {
+      final symbol = await CurrencyService.getCurrencySymbol();
+      final rates = await CurrencyService.getExchangeRates();
+      final currency = await CurrencyService.getUserCurrency();
+
+      setState(
+        () {
+          _currencySymbol = symbol;
+          _currencyCode = currency;
+          _exchangeRate =
+              rates[currency] ??
+              1.0;
+        },
+      );
+    } catch (
+      e
+    ) {
+      print(
+        'Error initializing currency: $e',
+      );
+    }
   }
 
   Future<
@@ -190,12 +227,27 @@ class _StoreScreenState
       return 0;
     }
     double total = 0;
+    // Calculate total as 50% cash + 50% coins value
     for (var item in _cart['items']) {
-      total +=
-          (item['price'] ??
-              0) *
+      final product =
+          item['product'] ??
+          {};
+      final basePrice =
+          (product['price'] ??
+                  0.0)
+              .toDouble();
+      final quantity =
           (item['quantity'] ??
-              1);
+                  1)
+              .toInt();
+      // Show only the cash portion (50%) in cart total, converted to local currency
+      final cashAmount =
+          (basePrice *
+              0.5) *
+          quantity;
+      total +=
+          cashAmount *
+          _exchangeRate;
     }
     return total;
   }
@@ -387,49 +439,6 @@ class _StoreScreenState
             ),
           ),
 
-          // Floating action buttons
-          Positioned(
-            right: 20,
-            bottom: 180,
-            child: Column(
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: const BoxDecoration(
-                    color: Color(
-                      0xFF8B5CF6,
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.star,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(
-                  height: 12,
-                ),
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: const BoxDecoration(
-                    color: Color(
-                      0xFF8B5CF6,
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.add,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
           // Bottom cart bar
           Positioned(
             left: 20,
@@ -491,7 +500,7 @@ class _StoreScreenState
                         ),
                       ),
                       Text(
-                        '\$${_getCartTotal().toStringAsFixed(2)}',
+                        '$_currencySymbol${_getCartTotal().toStringAsFixed(_currencyCode == 'JPY' ? 0 : 2)}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
@@ -513,6 +522,16 @@ class _StoreScreenState
   _buildSectionHeader(
     String title,
   ) {
+    // Determine which category to show based on title
+    String? categoryKey;
+    if (title ==
+        'New Items') {
+      categoryKey = 'new';
+    } else if (title ==
+        'Most Popular') {
+      categoryKey = 'popular';
+    }
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -524,35 +543,55 @@ class _StoreScreenState
             color: Colors.black,
           ),
         ),
-        Row(
-          children: [
-            Text(
-              'See All',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(
-              width: 4,
-            ),
-            Container(
-              width: 24,
-              height: 24,
-              decoration: const BoxDecoration(
-                color: Color(
-                  0xFF8B5CF6,
+        GestureDetector(
+          onTap:
+              categoryKey !=
+                  null
+              ? () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (
+                            context,
+                          ) => CategoryProductsScreen(
+                            category: categoryKey!,
+                            categoryName: title,
+                          ),
+                    ),
+                  );
+                }
+              : null,
+          child: Row(
+            children: [
+              Text(
+                'See All',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
                 ),
-                shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.arrow_forward,
-                color: Colors.white,
-                size: 14,
+              const SizedBox(
+                width: 4,
               ),
-            ),
-          ],
+              Container(
+                width: 24,
+                height: 24,
+                decoration: const BoxDecoration(
+                  color: Color(
+                    0xFF8B5CF6,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.arrow_forward,
+                  color: Colors.white,
+                  size: 14,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -679,38 +718,50 @@ class _StoreScreenState
             ),
             Row(
               children: [
-                Text(
-                  _getProductPrice(
-                    product,
-                  ),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                Expanded(
+                  child: Text(
+                    _getProductPrice(
+                      product,
+                    ),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(
                   width: 4,
                 ),
-                if (product['paymentType'] ==
-                    'coins')
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 2,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(
+                          0xFF8B5CF6,
+                        ),
+                        Colors.amber,
+                      ],
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.amber,
-                      borderRadius: BorderRadius.circular(
-                        4,
-                      ),
+                    borderRadius: BorderRadius.circular(
+                      4,
                     ),
-                    child: const Icon(
-                      Icons.monetization_on,
-                      size: 12,
+                  ),
+                  child: const Text(
+                    '50/50',
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                   ),
+                ),
               ],
             ),
           ],
@@ -829,43 +880,57 @@ class _StoreScreenState
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      _getProductPrice(
-                        product,
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _getProductPrice(
+                          product,
+                        ),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                      const SizedBox(
+                        height: 2,
                       ),
-                    ),
-                    const SizedBox(
-                      width: 4,
-                    ),
-                    if (product['paymentType'] ==
-                        'coins')
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 4,
-                          vertical: 2,
+                          vertical: 1,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.amber,
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(
+                                0xFF8B5CF6,
+                              ),
+                              Colors.amber,
+                            ],
+                          ),
                           borderRadius: BorderRadius.circular(
                             4,
                           ),
                         ),
-                        child: const Icon(
-                          Icons.monetization_on,
-                          size: 10,
-                          color: Colors.white,
+                        child: const Text(
+                          '50/50',
+                          style: TextStyle(
+                            fontSize: 7,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
-                  ],
+                    ],
+                  ),
                 ),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(
                       Icons.favorite,
@@ -984,20 +1049,35 @@ class _StoreScreenState
     >
     product,
   ) {
-    final paymentType =
-        product['paymentType'] ??
-        'upi';
-    if (paymentType ==
-        'coins') {
-      final coinPrice =
-          product['coinPrice'] ??
-          (product['price'] *
-                  10)
-              .ceil();
-      return '$coinPrice coins';
+    // ALWAYS show 50% cash + 50% coins for ALL products
+    final basePrice =
+        (product['price'] ??
+                0.0)
+            .toDouble();
+    final cashAmount =
+        basePrice *
+        0.5;
+
+    // Convert to user's local currency using cached rate
+    final localAmount =
+        cashAmount *
+        _exchangeRate;
+
+    // Calculate coins (1 local currency unit = 100 coins)
+    final coinAmount = CurrencyService.getCoinAmount(
+      localAmount,
+    );
+
+    // Format based on currency
+    String formattedPrice;
+    if (_currencyCode ==
+        'JPY') {
+      formattedPrice = '$_currencySymbol${localAmount.toStringAsFixed(0)}';
     } else {
-      return '\$${product['price']?.toStringAsFixed(2) ?? '0.00'}';
+      formattedPrice = '$_currencySymbol${localAmount.toStringAsFixed(2)}';
     }
+
+    return '$formattedPrice + $coinAmount coins';
   }
 
   Widget

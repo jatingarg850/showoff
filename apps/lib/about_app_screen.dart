@@ -174,80 +174,231 @@ class AboutAppScreen
               height: 32,
             ),
 
-            const Text(
-              'App Information',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
+            // App Information Card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(
+                20,
               ),
-            ),
-
-            const SizedBox(
-              height: 16,
-            ),
-
-            _buildDetailRow(
-              'Version',
-              '1.0.0',
-            ),
-            _buildDetailRow(
-              'Build',
-              '100',
-            ),
-            _buildDetailRow(
-              'Release Date',
-              'October 2025',
-            ),
-            _buildDetailRow(
-              'Platform',
-              'iOS & Android',
-            ),
-            _buildDetailRow(
-              'Developer',
-              'ShowOff Team',
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(
+                      0xFF8B5CF6,
+                    ).withValues(
+                      alpha: 0.05,
+                    ),
+                    const Color(
+                      0xFF7C3AED,
+                    ).withValues(
+                      alpha: 0.05,
+                    ),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(
+                  16,
+                ),
+                border: Border.all(
+                  color:
+                      const Color(
+                        0xFF8B5CF6,
+                      ).withValues(
+                        alpha: 0.2,
+                      ),
+                  width: 1.5,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(
+                          8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(
+                            0xFF8B5CF6,
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            8,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.info_outline,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(
+                        width: 12,
+                      ),
+                      const Text(
+                        'App Information',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(
+                            0xFF8B5CF6,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(
+                    height: 20,
+                  ),
+                  _buildDetailRow(
+                    'Version',
+                    '1.0.0',
+                  ),
+                  const Divider(
+                    height: 24,
+                  ),
+                  _buildDetailRow(
+                    'Build',
+                    '100',
+                  ),
+                  const Divider(
+                    height: 24,
+                  ),
+                  _buildDetailRow(
+                    'Release Date',
+                    'October 2025',
+                  ),
+                  const Divider(
+                    height: 24,
+                  ),
+                  _buildDetailRow(
+                    'Platform',
+                    'iOS & Android',
+                  ),
+                  const Divider(
+                    height: 24,
+                  ),
+                  _buildDetailRow(
+                    'Developer',
+                    'ShowOff Team',
+                  ),
+                ],
+              ),
             ),
 
             const SizedBox(
               height: 32,
             ),
 
+            // Footer Section
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(
-                16,
+                24,
               ),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(
+                      0xFF8B5CF6,
+                    ),
+                    Color(
+                      0xFF7C3AED,
+                    ),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: BorderRadius.circular(
-                  12,
+                  16,
                 ),
-                border: Border.all(
-                  color: Colors.grey[200]!,
-                ),
+                boxShadow: [
+                  BoxShadow(
+                    color:
+                        const Color(
+                          0xFF8B5CF6,
+                        ).withValues(
+                          alpha: 0.3,
+                        ),
+                    blurRadius: 12,
+                    offset: const Offset(
+                      0,
+                      4,
+                    ),
+                  ),
+                ],
               ),
               child: Column(
                 children: [
+                  const Icon(
+                    Icons.favorite,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                  const SizedBox(
+                    height: 12,
+                  ),
                   const Text(
-                    'Made with ❤️ by ShowOff Team',
+                    'Made with ❤️',
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
                   const SizedBox(
                     height: 8,
                   ),
+                  const Text(
+                    'ShowOff Team by CoddyIO',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(
+                    height: 4,
+                  ),
                   Text(
-                    '© 2025 ShowOff.life. All rights reserved.',
+                    'Powered by Innovatech',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[600],
+                      color: Colors.white.withValues(
+                        alpha: 0.9,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(
+                    height: 16,
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(
+                        alpha: 0.2,
+                      ),
+                      borderRadius: BorderRadius.circular(
+                        20,
+                      ),
+                    ),
+                    child: const Text(
+                      '© 2025 ShowOff.life',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
               ),
+            ),
+
+            const SizedBox(
+              height: 20,
             ),
           ],
         ),

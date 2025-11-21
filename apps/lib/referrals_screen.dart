@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'referral_transaction_history_screen.dart';
 import 'providers/auth_provider.dart';
+import 'services/api_service.dart';
 
 class ReferralsScreen
     extends
@@ -23,6 +25,106 @@ class _ReferralsScreenState
         State<
           ReferralsScreen
         > {
+  int
+  _monthlyCoins = 0;
+  int
+  _lifetimeCoins = 0;
+  bool
+  _isLoading = true;
+
+  @override
+  void
+  initState() {
+    super.initState();
+    _loadReferralStats();
+  }
+
+  Future<
+    void
+  >
+  _loadReferralStats() async {
+    try {
+      final response = await ApiService.getTransactions();
+      if (response['success']) {
+        final transactions =
+            List<
+              Map<
+                String,
+                dynamic
+              >
+            >.from(
+              response['data'] ??
+                  [],
+            );
+
+        // Calculate monthly and lifetime referral coins
+        final now = DateTime.now();
+        final monthStart = DateTime(
+          now.year,
+          now.month,
+          1,
+        );
+
+        int monthly = 0;
+        int lifetime = 0;
+
+        for (final transaction in transactions) {
+          if (transaction['type'] ==
+              'referral') {
+            final amount =
+                (transaction['amount'] ??
+                        0)
+                    as num;
+            lifetime += amount.abs().toInt();
+
+            final createdAt = DateTime.parse(
+              transaction['createdAt'],
+            );
+            if (createdAt.isAfter(
+              monthStart,
+            )) {
+              monthly += amount.abs().toInt();
+            }
+          }
+        }
+
+        setState(
+          () {
+            _monthlyCoins = monthly;
+            _lifetimeCoins = lifetime;
+            _isLoading = false;
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      print(
+        'Error loading referral stats: $e',
+      );
+      setState(
+        () {
+          _isLoading = false;
+        },
+      );
+    }
+  }
+
+  void
+  _shareReferralCode(
+    String referralCode,
+  ) {
+    final message =
+        'Join ShowOff.life and earn coins! Use my referral code: $referralCode\n\n'
+        'Download the app and start earning today!\n'
+        'https://showoff.life/download';
+
+    Share.share(
+      message,
+      subject: 'Join ShowOff.life',
+    );
+  }
+
   @override
   Widget
   build(
@@ -50,9 +152,6 @@ class _ReferralsScreenState
         'LOADING';
     final referralCount =
         user['referralCount'] ??
-        0;
-    final referralCoins =
-        user['referralCoinsEarned'] ??
         0;
     return Scaffold(
       backgroundColor: Colors.white,
@@ -186,9 +285,9 @@ class _ReferralsScreenState
                 ),
               ),
               child: ElevatedButton(
-                onPressed: () {
-                  // Handle share link
-                },
+                onPressed: () => _shareReferralCode(
+                  referralCode,
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   shadowColor: Colors.transparent,
@@ -198,14 +297,27 @@ class _ReferralsScreenState
                     ),
                   ),
                 ),
-                child: const Text(
-                  'SHARE LINK',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 1,
-                  ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.share,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    SizedBox(
+                      width: 8,
+                    ),
+                    Text(
+                      'SHARE LINK',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -271,34 +383,42 @@ class _ReferralsScreenState
             ),
 
             // Statistics Cards
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    'TOTAL\nREFERRALS',
-                    '56',
+            _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(
+                        0xFF8B5CF6,
+                      ),
+                    ),
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatCard(
+                          'TOTAL\nREFERRALS',
+                          referralCount.toString(),
+                        ),
+                      ),
+                      const SizedBox(
+                        width: 12,
+                      ),
+                      Expanded(
+                        child: _buildStatCard(
+                          'MONTHLY\nCOINS',
+                          _monthlyCoins.toString(),
+                        ),
+                      ),
+                      const SizedBox(
+                        width: 12,
+                      ),
+                      Expanded(
+                        child: _buildStatCard(
+                          'LIFETIME\nCOINS',
+                          _lifetimeCoins.toString(),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(
-                  width: 12,
-                ),
-                Expanded(
-                  child: _buildStatCard(
-                    'MONTHLY\nCOINS',
-                    '2300',
-                  ),
-                ),
-                const SizedBox(
-                  width: 12,
-                ),
-                Expanded(
-                  child: _buildStatCard(
-                    'LIFETIME\nCOINS',
-                    '6400',
-                  ),
-                ),
-              ],
-            ),
 
             const SizedBox(
               height: 24,
@@ -339,7 +459,7 @@ class _ReferralsScreenState
 
                   // Tip 1
                   const Text(
-                    '1. First 100 Referrals',
+                    '1. Referral Rewards',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -350,9 +470,9 @@ class _ReferralsScreenState
                     height: 8,
                   ),
                   const Text(
-                    '• Reward: 50 coins per referral\n'
-                    '• Example: If a user refers 100 friends, they earn 100 x 50 = 5,000 coins.\n'
-                    '• Display: "Tier 1 — First 100 referrals = 50 coins each"',
+                    '• Reward: 5 coins per referral\n'
+                    '• Example: If you refer 10 friends, you earn 10 x 5 = 50 coins.\n'
+                    '• Each successful referral earns you 5 coins instantly!',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.black87,
@@ -366,7 +486,7 @@ class _ReferralsScreenState
 
                   // Tip 2
                   const Text(
-                    '2. After 100 Referrals',
+                    '2. How to Refer',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -377,9 +497,10 @@ class _ReferralsScreenState
                     height: 8,
                   ),
                   const Text(
-                    '• Reward: 20 coins per referral\n'
-                    '• Example: If the user refers 150 friends in total, the first 100 gave 50 coins each (5,000), and the next 50 gave 20 each (1,000).\n'
-                    '• Display: "Tier 2 — After 100 referrals = 20 coins each"',
+                    '• Share your unique referral code with friends\n'
+                    '• They must use your code when signing up\n'
+                    '• You receive 5 coins once they complete registration\n'
+                    '• No limit on how many friends you can refer!',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.black87,

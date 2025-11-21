@@ -9,7 +9,7 @@ class AIService {
   static GenerativeModel
   get model {
     _model ??= GenerativeModel(
-      model: 'gemini-pro',
+      model: 'gemini-2.5-flash',
       apiKey: _apiKey,
       generationConfig: GenerationConfig(
         temperature: 0.9,
@@ -84,66 +84,94 @@ Always be positive, supportive, and help users make the most of ShowOff Life!
     chatHistory,
   ) async {
     try {
-      // Build conversation history
-      final List<
-        Content
-      >
-      contents = [];
-
-      // Add system prompt as first message
-      contents.add(
-        Content.text(
-          systemPrompt,
-        ),
+      print(
+        '🟢 Starting AI request for message: $message',
       );
 
-      // Add chat history
-      for (var msg in chatHistory) {
-        if (msg['role'] ==
-            'user') {
-          contents.add(
-            Content.text(
-              msg['message']!,
-            ),
-          );
-        } else {
-          contents.add(
-            Content.model(
-              [
-                TextPart(
-                  msg['message']!,
-                ),
-              ],
-            ),
-          );
-        }
-      }
+      // Simple single-turn approach with system context
+      final prompt = '$systemPrompt\n\nUser: $message\n\nSHOWIE:';
 
-      // Add current message
-      contents.add(
-        Content.text(
-          message,
-        ),
+      print(
+        '🟢 Calling Gemini API...',
       );
 
-      // Generate response
-      final response = await model.generateContent(
-        contents,
+      final response = await model
+          .generateContent(
+            [
+              Content.text(
+                prompt,
+              ),
+            ],
+          )
+          .timeout(
+            const Duration(
+              seconds: 30,
+            ),
+            onTimeout: () {
+              throw Exception(
+                'Request timeout',
+              );
+            },
+          );
+
+      print(
+        '🟢 Response received from Gemini',
       );
 
       if (response.text !=
-          null) {
+              null &&
+          response.text!.isNotEmpty) {
+        print(
+          '🟢 Response text: ${response.text}',
+        );
         return response.text!;
       } else {
+        print(
+          '🔴 Empty response from API',
+        );
         return "I'm having trouble understanding. Could you rephrase that? 🤔";
       }
     } catch (
       e
     ) {
       print(
-        'AI Service Error: $e',
+        '🔴 AI Service Error: $e',
       );
-      return "Oops! I'm having a moment. Please try again! 😅";
+      print(
+        '🔴 Error Type: ${e.runtimeType}',
+      );
+
+      final errorString = e.toString().toLowerCase();
+
+      if (errorString.contains(
+        'timeout',
+      )) {
+        return "Connection timeout! Please check your internet and try again. 📡";
+      } else if (errorString.contains(
+            'api',
+          ) &&
+          errorString.contains(
+            'key',
+          )) {
+        return "API key issue. Please contact support. 🔧";
+      } else if (errorString.contains(
+            'quota',
+          ) ||
+          errorString.contains(
+            'limit',
+          )) {
+        return "Service temporarily unavailable. Please try again later. ⏰";
+      } else if (errorString.contains(
+            'network',
+          ) ||
+          errorString.contains(
+            'connection',
+          )) {
+        return "Network error! Please check your internet connection. 🌐";
+      }
+
+      // Return actual error for debugging
+      return "Debug Error: ${e.toString()}";
     }
   }
 
@@ -153,24 +181,9 @@ Always be positive, supportive, and help users make the most of ShowOff Life!
   getQuickResponse(
     String query,
   ) async {
-    try {
-      final response = await model.generateContent(
-        [
-          Content.text(
-            '$systemPrompt\n\nUser question: $query\n\nProvide a brief, helpful response:',
-          ),
-        ],
-      );
-
-      return response.text ??
-          "I'm here to help! Ask me anything about ShowOff Life! 😊";
-    } catch (
-      e
-    ) {
-      print(
-        'AI Quick Response Error: $e',
-      );
-      return "I'm here to help! Ask me anything about ShowOff Life! 😊";
-    }
+    return sendMessage(
+      query,
+      [],
+    );
   }
 }

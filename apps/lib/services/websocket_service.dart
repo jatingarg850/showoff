@@ -1,5 +1,6 @@
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'storage_service.dart';
+import '../config/api_config.dart';
 
 class WebSocketService {
   static WebSocketService?
@@ -64,10 +65,8 @@ class WebSocketService {
       // Disconnect existing connection
       disconnect();
 
-      // Use the same base URL as API but without /api suffix
-      const serverUrl = 'http://10.0.2.2:3000'; // Android Emulator
-      // const serverUrl = 'http://localhost:3000'; // iOS Simulator
-      // const serverUrl = 'http://192.168.1.100:3000'; // Real Device
+      // Use the centralized WebSocket URL from ApiConfig
+      final serverUrl = ApiConfig.wsUrl;
 
       _socket = IO.io(
         serverUrl,

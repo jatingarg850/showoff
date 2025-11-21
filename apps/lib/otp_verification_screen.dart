@@ -6,15 +6,18 @@ import 'services/api_service.dart';
 class OTPVerificationScreen
     extends
         StatefulWidget {
-  final String
+  final String?
   phoneNumber;
-  final String
+  final String?
   countryCode;
+  final String?
+  email;
 
   const OTPVerificationScreen({
     super.key,
-    required this.phoneNumber,
-    required this.countryCode,
+    this.phoneNumber,
+    this.countryCode = '',
+    this.email,
   });
 
   @override
@@ -130,10 +133,16 @@ class _OTPVerificationScreenState
   _resendOTP() async {
     try {
       // Send OTP again
-      final response = await ApiService.sendOTP(
-        phone: widget.phoneNumber,
-        countryCode: widget.countryCode,
-      );
+      final response =
+          widget.email !=
+              null
+          ? await ApiService.sendOTP(
+              email: widget.email!,
+            )
+          : await ApiService.sendOTP(
+              phone: widget.phoneNumber!,
+              countryCode: widget.countryCode!,
+            );
 
       if (response['success']) {
         setState(
@@ -259,17 +268,25 @@ class _OTPVerificationScreenState
 
       try {
         // Verify OTP with backend
-        final response = await ApiService.verifyOTP(
-          phone: widget.phoneNumber,
-          countryCode: widget.countryCode,
-          otp: otp,
-        );
+        final response =
+            widget.email !=
+                null
+            ? await ApiService.verifyOTP(
+                email: widget.email!,
+                otp: otp,
+              )
+            : await ApiService.verifyOTP(
+                phone: widget.phoneNumber!,
+                countryCode: widget.countryCode!,
+                otp: otp,
+              );
 
         // Close loading
-        if (context.mounted)
+        if (context.mounted) {
           Navigator.pop(
             context,
           );
+        }
 
         if (response['success']) {
           // Show success message
@@ -277,9 +294,12 @@ class _OTPVerificationScreenState
             ScaffoldMessenger.of(
               context,
             ).showSnackBar(
-              const SnackBar(
+              SnackBar(
                 content: Text(
-                  'Phone number verified successfully!',
+                  widget.email !=
+                          null
+                      ? 'Email verified successfully!'
+                      : 'Phone number verified successfully!',
                 ),
                 backgroundColor: Colors.green,
               ),
@@ -299,6 +319,7 @@ class _OTPVerificationScreenState
                     (
                       context,
                     ) => SetPasswordScreen(
+                      email: widget.email,
                       phone: widget.phoneNumber,
                       countryCode: widget.countryCode,
                     ),
@@ -341,10 +362,11 @@ class _OTPVerificationScreenState
         e
       ) {
         // Close loading
-        if (context.mounted)
+        if (context.mounted) {
           Navigator.pop(
             context,
           );
+        }
 
         // Trigger shake animation
         setState(
@@ -461,10 +483,8 @@ class _OTPVerificationScreenState
 
             // Phone number or email
             Text(
-              widget.countryCode.isEmpty
-                  ? widget
-                        .phoneNumber // Show email if no country code
-                  : '${widget.countryCode}${widget.phoneNumber}', // Show phone with country code
+              widget.email ??
+                  '${widget.countryCode}${widget.phoneNumber}',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -642,11 +662,14 @@ class _OTPVerificationScreenState
               onTap: () {
                 Navigator.of(
                   context,
-                ).pop(); // Go back to phone input
+                ).pop(); // Go back to phone/email input
               },
-              child: const Text(
-                'Use another number',
-                style: TextStyle(
+              child: Text(
+                widget.email !=
+                        null
+                    ? 'Use another email'
+                    : 'Use another number',
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: Color(

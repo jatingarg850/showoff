@@ -29,7 +29,7 @@ class _TransactionHistoryScreenState
   _transactions = [];
   bool
   _isLoading = true;
-  int
+  final int
   _currentPage = 1;
 
   @override

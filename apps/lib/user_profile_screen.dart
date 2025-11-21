@@ -211,8 +211,9 @@ class _UserProfileScreenState
   >
   _toggleFollow() async {
     if (_userData ==
-        null)
+        null) {
       return;
+    }
 
     try {
       final userId =

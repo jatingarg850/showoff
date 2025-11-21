@@ -384,8 +384,9 @@ class _MessagesScreenState
     String? timestamp,
   ) {
     if (timestamp ==
-        null)
+        null) {
       return '';
+    }
 
     try {
       final dateTime = DateTime.parse(

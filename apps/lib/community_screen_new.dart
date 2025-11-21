@@ -591,7 +591,7 @@ class _CommunityScreenState
                         DropdownButtonFormField<
                           String
                         >(
-                          value: selectedCategory,
+                          initialValue: selectedCategory,
                           decoration: InputDecoration(
                             labelText: 'Category',
                             border: OutlineInputBorder(

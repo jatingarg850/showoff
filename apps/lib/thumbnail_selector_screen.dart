@@ -40,7 +40,7 @@ class _ThumbnailSelectorScreenState
         > {
   VideoPlayerController?
   _videoController;
-  List<
+  final List<
     String
   >
   _thumbnailPaths = [];

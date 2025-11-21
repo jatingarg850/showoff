@@ -4,6 +4,8 @@ import 'enhanced_add_money_screen.dart';
 import 'withdrawal_screen.dart';
 import 'transaction_history_screen.dart';
 import 'services/api_service.dart';
+import 'services/admob_service.dart';
+import 'services/currency_service.dart';
 
 class WalletScreen
     extends
@@ -37,12 +39,39 @@ class _WalletScreenState
     >
   >
   _transactions = [];
+  String
+  _currencySymbol = '\$';
+  String
+  _userCurrency = 'USD';
 
   @override
   void
   initState() {
     super.initState();
+    _initializeCurrency();
     _loadWalletData();
+  }
+
+  Future<
+    void
+  >
+  _initializeCurrency() async {
+    try {
+      final symbol = await CurrencyService.getCurrencySymbol();
+      final currency = await CurrencyService.getUserCurrency();
+      if (mounted) {
+        setState(
+          () {
+            _currencySymbol = symbol;
+            _userCurrency = currency;
+          },
+        );
+      }
+    } catch (
+      e
+    ) {
+      // Use default USD
+    }
   }
 
   Future<
@@ -63,7 +92,8 @@ class _WalletScreenState
   _loadBalance() async {
     try {
       final response = await ApiService.getCoinBalance();
-      if (response['success']) {
+      if (response['success'] &&
+          mounted) {
         setState(
           () {
             _coinBalance =
@@ -101,7 +131,8 @@ class _WalletScreenState
       final response = await ApiService.getTransactions(
         limit: 10,
       );
-      if (response['success']) {
+      if (response['success'] &&
+          mounted) {
         setState(
           () {
             _transactions =
@@ -120,9 +151,11 @@ class _WalletScreenState
     } catch (
       e
     ) {
-      setState(
-        () => _isLoading = false,
-      );
+      if (mounted) {
+        setState(
+          () => _isLoading = false,
+        );
+      }
     }
   }
 
@@ -131,6 +164,45 @@ class _WalletScreenState
   >
   _watchAd() async {
     try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (
+              context,
+            ) => const Center(
+              child: CircularProgressIndicator(),
+            ),
+      );
+
+      // Load and show AdMob rewarded ad
+      final adWatched = await AdMobService.showRewardedAd();
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.pop(
+          context,
+        );
+      }
+
+      if (!adWatched) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Ad not available or not watched completely',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Call backend to award coins
       final response = await ApiService.watchAd();
       if (response['success'] &&
           mounted) {
@@ -237,13 +309,37 @@ class _WalletScreenState
     }
   }
 
-  double
-  _coinsToUSD(
+  Future<
+    double
+  >
+  _coinsToLocalCurrency(
     int coins,
-  ) {
-    // Assuming 1 coin = $0.01 USD (adjust as needed)
-    return coins *
-        0.01;
+  ) async {
+    // 100 coins = 1 USD
+    final usdAmount =
+        coins /
+        100;
+    // Convert USD to local currency
+    return await CurrencyService.convertFromUSD(
+      usdAmount,
+    );
+  }
+
+  Future<
+    String
+  >
+  _formatCoinBalance(
+    int coins,
+  ) async {
+    final localAmount = await _coinsToLocalCurrency(
+      coins,
+    );
+    if (_userCurrency ==
+        'JPY') {
+      return '$_currencySymbol${localAmount.toStringAsFixed(0)}';
+    } else {
+      return '$_currencySymbol${localAmount.toStringAsFixed(2)}';
+    }
   }
 
   @override
@@ -298,7 +394,6 @@ class _WalletScreenState
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-
                     const SizedBox(
                       height: 20,
                     ),
@@ -329,22 +424,33 @@ class _WalletScreenState
                               ),
                             ],
                           ),
-
                     const SizedBox(
                       height: 8,
                     ),
 
-                    // USD equivalent
+                    // Local currency equivalent
                     _isLoading
                         ? const SizedBox.shrink()
-                        : Text(
-                            '=\$${_coinsToUSD(_coinBalance).toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 16,
+                        : FutureBuilder<
+                            String
+                          >(
+                            future: _formatCoinBalance(
+                              _coinBalance,
                             ),
+                            builder:
+                                (
+                                  context,
+                                  snapshot,
+                                ) {
+                                  return Text(
+                                    '=${snapshot.data ?? '...'}',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 16,
+                                    ),
+                                  );
+                                },
                           ),
-
                     const SizedBox(
                       height: 30,
                     ),
@@ -460,7 +566,6 @@ class _WalletScreenState
                         ],
                       ),
                     ),
-
                     const SizedBox(
                       height: 20,
                     ),
@@ -503,7 +608,7 @@ class _WalletScreenState
                                       _formatDateTime(
                                         transaction['createdAt'],
                                       ),
-                                      '${isPositive ? '+' : ''}${amount}',
+                                      '${isPositive ? '+' : ''}$amount',
                                       isPositive,
                                     );
                                   },

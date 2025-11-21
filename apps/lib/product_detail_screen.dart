@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'cart_screen.dart';
 import 'services/api_service.dart';
+import 'services/currency_service.dart';
 
 class ProductDetailScreen
     extends
@@ -41,11 +42,47 @@ class _ProductDetailScreenState
   bool
   isFavorite = false;
 
+  // Currency data
+  String
+  _currencySymbol = '\$';
+  double
+  _exchangeRate = 1.0;
+  String
+  _currencyCode = 'USD';
+
   @override
   void
   initState() {
     super.initState();
+    _initCurrency();
     _loadProduct();
+  }
+
+  Future<
+    void
+  >
+  _initCurrency() async {
+    try {
+      final symbol = await CurrencyService.getCurrencySymbol();
+      final rates = await CurrencyService.getExchangeRates();
+      final currency = await CurrencyService.getUserCurrency();
+
+      setState(
+        () {
+          _currencySymbol = symbol;
+          _currencyCode = currency;
+          _exchangeRate =
+              rates[currency] ??
+              1.0;
+        },
+      );
+    } catch (
+      e
+    ) {
+      print(
+        'Error initializing currency: $e',
+      );
+    }
   }
 
   Future<
@@ -85,8 +122,9 @@ class _ProductDetailScreenState
   >
   _addToCart() async {
     if (_product ==
-        null)
+        null) {
       return;
+    }
 
     try {
       final response = await ApiService.addToCart(
@@ -186,16 +224,57 @@ class _ProductDetailScreenState
                   decoration: BoxDecoration(
                     color: Colors.grey[200],
                   ),
-                  child: Container(
-                    color: Colors.grey[300],
-                    child: const Center(
-                      child: Icon(
-                        Icons.person,
-                        size: 100,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ),
+                  child:
+                      _product!['images'] !=
+                              null &&
+                          (_product!['images']
+                                  as List)
+                              .isNotEmpty
+                      ? PageView.builder(
+                          itemCount:
+                              (_product!['images']
+                                      as List)
+                                  .length,
+                          itemBuilder:
+                              (
+                                context,
+                                index,
+                              ) {
+                                return Image.network(
+                                  ApiService.getImageUrl(
+                                    _product!['images'][index],
+                                  ),
+                                  fit: BoxFit.cover,
+                                  errorBuilder:
+                                      (
+                                        context,
+                                        error,
+                                        stackTrace,
+                                      ) {
+                                        return Container(
+                                          color: Colors.grey[300],
+                                          child: const Center(
+                                            child: Icon(
+                                              Icons.shopping_bag,
+                                              size: 100,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                );
+                              },
+                        )
+                      : Container(
+                          color: Colors.grey[300],
+                          child: const Center(
+                            child: Icon(
+                              Icons.shopping_bag,
+                              size: 100,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
                 ),
 
                 // Top navigation
@@ -222,6 +301,7 @@ class _ProductDetailScreenState
                               color: Colors.black,
                               size: 20,
                             ),
+                            padding: EdgeInsets.zero,
                             onPressed: () => Navigator.pop(
                               context,
                             ),
@@ -249,6 +329,7 @@ class _ProductDetailScreenState
                                     ),
                               size: 20,
                             ),
+                            padding: EdgeInsets.zero,
                             onPressed: () {
                               setState(
                                 () {
@@ -442,6 +523,7 @@ class _ProductDetailScreenState
 
                   // Size and Color selection
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Size selection
                       Expanded(
@@ -451,15 +533,17 @@ class _ProductDetailScreenState
                             const Text(
                               'Choose Size',
                               style: TextStyle(
-                                fontSize: 16,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.black,
                               ),
                             ),
                             const SizedBox(
-                              height: 12,
+                              height: 8,
                             ),
-                            Row(
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
                               children:
                                   (_product!['sizes']
                                               as List? ??
@@ -483,19 +567,18 @@ class _ProductDetailScreenState
                                               );
                                             },
                                             child: Container(
-                                              margin: const EdgeInsets.only(
-                                                right: 12,
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 8,
                                               ),
-                                              width: 40,
-                                              height: 40,
                                               decoration: BoxDecoration(
                                                 color: isSelected
                                                     ? const Color(
                                                         0xFF8B5CF6,
                                                       )
-                                                    : Colors.grey[100],
+                                                    : Colors.white,
                                                 borderRadius: BorderRadius.circular(
-                                                  12,
+                                                  8,
                                                 ),
                                                 border: Border.all(
                                                   color: isSelected
@@ -505,16 +588,14 @@ class _ProductDetailScreenState
                                                       : Colors.grey[300]!,
                                                 ),
                                               ),
-                                              child: Center(
-                                                child: Text(
-                                                  sizeStr,
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: isSelected
-                                                        ? Colors.white
-                                                        : Colors.black,
-                                                  ),
+                                              child: Text(
+                                                sizeStr,
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: isSelected
+                                                      ? Colors.white
+                                                      : Colors.black,
                                                 ),
                                               ),
                                             ),
@@ -527,6 +608,10 @@ class _ProductDetailScreenState
                         ),
                       ),
 
+                      const SizedBox(
+                        width: 24,
+                      ),
+
                       // Color selection
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -534,15 +619,17 @@ class _ProductDetailScreenState
                           const Text(
                             'Color',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: Colors.black,
                             ),
                           ),
                           const SizedBox(
-                            height: 12,
+                            height: 8,
                           ),
-                          Row(
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
                             children:
                                 (_product!['colors']
                                             as List? ??
@@ -582,11 +669,8 @@ class _ProductDetailScreenState
                                             );
                                           },
                                           child: Container(
-                                            margin: const EdgeInsets.only(
-                                              right: 12,
-                                            ),
-                                            width: 32,
-                                            height: 32,
+                                            width: 36,
+                                            height: 36,
                                             decoration: BoxDecoration(
                                               color: color,
                                               shape: BoxShape.circle,
@@ -595,15 +679,15 @@ class _ProductDetailScreenState
                                                     ? const Color(
                                                         0xFF8B5CF6,
                                                       )
-                                                    : Colors.transparent,
-                                                width: 2,
+                                                    : Colors.grey[300]!,
+                                                width: 3,
                                               ),
                                             ),
                                             child: isSelected
                                                 ? const Icon(
                                                     Icons.check,
                                                     color: Colors.white,
-                                                    size: 16,
+                                                    size: 18,
                                                   )
                                                 : null,
                                           ),
@@ -622,7 +706,7 @@ class _ProductDetailScreenState
                   // Add to Cart button
                   Container(
                     width: double.infinity,
-                    height: 60,
+                    height: 56,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [
@@ -635,7 +719,7 @@ class _ProductDetailScreenState
                         ],
                       ),
                       borderRadius: BorderRadius.circular(
-                        30,
+                        28,
                       ),
                     ),
                     child: ElevatedButton(
@@ -643,9 +727,10 @@ class _ProductDetailScreenState
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
+                        padding: EdgeInsets.zero,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(
-                            30,
+                            28,
                           ),
                         ),
                       ),
@@ -655,28 +740,21 @@ class _ProductDetailScreenState
                           const Icon(
                             Icons.shopping_cart_outlined,
                             color: Colors.white,
-                            size: 20,
+                            size: 18,
                           ),
                           const SizedBox(
-                            width: 12,
+                            width: 8,
                           ),
-                          const Text(
-                            'Add to Cart | ',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            _getProductPrice(
-                              _product!,
-                              quantity,
-                            ),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                          Flexible(
+                            child: Text(
+                              'Add to Cart | ${_getProductPrice(_product!, quantity)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                             ),
                           ),
                           if (_product!['originalPrice'] !=
@@ -717,19 +795,66 @@ class _ProductDetailScreenState
     product,
     int quantity,
   ) {
-    final paymentType =
-        product['paymentType'] ??
-        'upi';
-    if (paymentType ==
-        'coins') {
-      final coinPrice =
-          product['coinPrice'] ??
-          (product['price'] *
-                  10)
-              .ceil();
-      return '${coinPrice * quantity} coins';
+    // ALWAYS show 50% cash + 50% coins for ALL products
+    final basePrice =
+        (product['price'] ??
+                0.0)
+            .toDouble();
+    final cashAmount =
+        (basePrice *
+            0.5) *
+        quantity;
+
+    // Convert to local currency
+    final localAmount =
+        cashAmount *
+        _exchangeRate;
+
+    // Calculate coins (1 local currency unit = 100 coins)
+    final coinAmount = CurrencyService.getCoinAmount(
+      localAmount,
+    );
+
+    // Format based on currency
+    String formattedPrice;
+    if (_currencyCode ==
+        'JPY') {
+      formattedPrice = '$_currencySymbol${localAmount.toStringAsFixed(0)}';
     } else {
-      return '\$${(product['price'] * quantity).toStringAsFixed(2)}';
+      formattedPrice = '$_currencySymbol${localAmount.toStringAsFixed(2)}';
+    }
+
+    return '$formattedPrice + $coinAmount coins';
+  }
+
+  String
+  _getOriginalPrice(
+    Map<
+      String,
+      dynamic
+    >
+    product,
+    int quantity,
+  ) {
+    final originalPrice =
+        (product['originalPrice'] ??
+                0.0)
+            .toDouble();
+    final totalOriginal =
+        originalPrice *
+        quantity;
+
+    // Convert to local currency
+    final localAmount =
+        totalOriginal *
+        _exchangeRate;
+
+    // Format based on currency
+    if (_currencyCode ==
+        'JPY') {
+      return '$_currencySymbol${localAmount.toStringAsFixed(0)}';
+    } else {
+      return '$_currencySymbol${localAmount.toStringAsFixed(2)}';
     }
   }
 }

@@ -171,8 +171,9 @@ class _NotificationScreenState
     String? dateString,
   ) {
     if (dateString ==
-        null)
+        null) {
       return 'Just now';
+    }
 
     try {
       final date = DateTime.parse(
