@@ -3,119 +3,66 @@ import 'spin_wheel_screen.dart';
 import 'enhanced_add_money_screen.dart';
 import 'withdrawal_screen.dart';
 import 'transaction_history_screen.dart';
+import 'ad_selection_screen.dart';
 import 'services/api_service.dart';
 import 'services/admob_service.dart';
 import 'services/currency_service.dart';
 
-class WalletScreen
-    extends
-        StatefulWidget {
-  const WalletScreen({
-    super.key,
-  });
+class WalletScreen extends StatefulWidget {
+  const WalletScreen({super.key});
 
   @override
-  State<
-    WalletScreen
-  >
-  createState() => _WalletScreenState();
+  State<WalletScreen> createState() => _WalletScreenState();
 }
 
-class _WalletScreenState
-    extends
-        State<
-          WalletScreen
-        > {
-  int
-  _coinBalance = 0;
-  int
-  _withdrawableBalance = 0;
-  bool
-  _isLoading = true;
-  List<
-    Map<
-      String,
-      dynamic
-    >
-  >
-  _transactions = [];
-  String
-  _currencySymbol = '\$';
-  String
-  _userCurrency = 'USD';
+class _WalletScreenState extends State<WalletScreen> {
+  int _coinBalance = 0;
+  int _withdrawableBalance = 0;
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _transactions = [];
+  String _currencySymbol = '\$';
+  String _userCurrency = 'USD';
 
   @override
-  void
-  initState() {
+  void initState() {
     super.initState();
     _initializeCurrency();
     _loadWalletData();
   }
 
-  Future<
-    void
-  >
-  _initializeCurrency() async {
+  Future<void> _initializeCurrency() async {
     try {
       final symbol = await CurrencyService.getCurrencySymbol();
       final currency = await CurrencyService.getUserCurrency();
       if (mounted) {
-        setState(
-          () {
-            _currencySymbol = symbol;
-            _userCurrency = currency;
-          },
-        );
+        setState(() {
+          _currencySymbol = symbol;
+          _userCurrency = currency;
+        });
       }
-    } catch (
-      e
-    ) {
+    } catch (e) {
       // Use default USD
     }
   }
 
-  Future<
-    void
-  >
-  _loadWalletData() async {
-    await Future.wait(
-      [
-        _loadBalance(),
-        _loadTransactions(),
-      ],
-    );
+  Future<void> _loadWalletData() async {
+    await Future.wait([_loadBalance(), _loadTransactions()]);
   }
 
-  Future<
-    void
-  >
-  _loadBalance() async {
+  Future<void> _loadBalance() async {
     try {
       final response = await ApiService.getCoinBalance();
-      if (response['success'] &&
-          mounted) {
-        setState(
-          () {
-            _coinBalance =
-                response['data']['coinBalance'] ??
-                0;
-            _withdrawableBalance =
-                response['data']['withdrawableBalance'] ??
-                0;
-          },
-        );
+      if (response['success'] && mounted) {
+        setState(() {
+          _coinBalance = response['data']['coinBalance'] ?? 0;
+          _withdrawableBalance = response['data']['withdrawableBalance'] ?? 0;
+        });
       }
-    } catch (
-      e
-    ) {
+    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Error loading balance: $e',
-            ),
+            content: Text('Error loading balance: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -123,57 +70,29 @@ class _WalletScreenState
     }
   }
 
-  Future<
-    void
-  >
-  _loadTransactions() async {
+  Future<void> _loadTransactions() async {
     try {
-      final response = await ApiService.getTransactions(
-        limit: 10,
-      );
-      if (response['success'] &&
-          mounted) {
-        setState(
-          () {
-            _transactions =
-                List<
-                  Map<
-                    String,
-                    dynamic
-                  >
-                >.from(
-                  response['data'],
-                );
-            _isLoading = false;
-          },
-        );
+      final response = await ApiService.getTransactions(limit: 10);
+      if (response['success'] && mounted) {
+        setState(() {
+          _transactions = List<Map<String, dynamic>>.from(response['data']);
+          _isLoading = false;
+        });
       }
-    } catch (
-      e
-    ) {
+    } catch (e) {
       if (mounted) {
-        setState(
-          () => _isLoading = false,
-        );
+        setState(() => _isLoading = false);
       }
     }
   }
 
-  Future<
-    void
-  >
-  _watchAd() async {
+  Future<void> _watchAd() async {
     try {
       // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder:
-            (
-              context,
-            ) => const Center(
-              child: CircularProgressIndicator(),
-            ),
+        builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
       // Load and show AdMob rewarded ad
@@ -181,20 +100,14 @@ class _WalletScreenState
 
       // Close loading dialog
       if (mounted) {
-        Navigator.pop(
-          context,
-        );
+        Navigator.pop(context);
       }
 
       if (!adWatched) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(
-                'Ad not available or not watched completely',
-              ),
+              content: Text('Ad not available or not watched completely'),
               backgroundColor: Colors.orange,
             ),
           );
@@ -204,57 +117,33 @@ class _WalletScreenState
 
       // Call backend to award coins
       final response = await ApiService.watchAd();
-      if (response['success'] &&
-          mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+      if (response['success'] && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Earned ${response['coinsEarned']} coins!',
-            ),
+            content: Text('Earned ${response['coinsEarned']} coins!'),
             backgroundColor: Colors.green,
-            duration: const Duration(
-              seconds: 2,
-            ),
+            duration: const Duration(seconds: 2),
           ),
         );
         _loadBalance();
       } else if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              response['message'] ??
-                  'Failed to watch ad',
-            ),
+            content: Text(response['message'] ?? 'Failed to watch ad'),
             backgroundColor: Colors.orange,
           ),
         );
       }
-    } catch (
-      e
-    ) {
+    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Error: $e',
-            ),
-            backgroundColor: Colors.red,
-          ),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
-  String
-  _formatTransactionType(
-    String type,
-  ) {
+  String _formatTransactionType(String type) {
     switch (type) {
       case 'ad_watch':
         return 'Ads';
@@ -287,55 +176,31 @@ class _WalletScreenState
     }
   }
 
-  String
-  _formatDateTime(
-    String? dateString,
-  ) {
-    if (dateString ==
-        null)
-      return '';
+  String _formatDateTime(String? dateString) {
+    if (dateString == null) return '';
 
     try {
-      final date = DateTime.parse(
-        dateString,
-      );
-      final dateStr = '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year.toString().substring(2)}';
-      final timeStr = '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')} ${date.hour >= 12 ? 'PM' : 'AM'}';
+      final date = DateTime.parse(dateString);
+      final dateStr =
+          '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year.toString().substring(2)}';
+      final timeStr =
+          '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')} ${date.hour >= 12 ? 'PM' : 'AM'}';
       return '$dateStr  $timeStr';
-    } catch (
-      e
-    ) {
+    } catch (e) {
       return '';
     }
   }
 
-  Future<
-    double
-  >
-  _coinsToLocalCurrency(
-    int coins,
-  ) async {
+  Future<double> _coinsToLocalCurrency(int coins) async {
     // 100 coins = 1 USD
-    final usdAmount =
-        coins /
-        100;
+    final usdAmount = coins / 100;
     // Convert USD to local currency
-    return await CurrencyService.convertFromUSD(
-      usdAmount,
-    );
+    return await CurrencyService.convertFromUSD(usdAmount);
   }
 
-  Future<
-    String
-  >
-  _formatCoinBalance(
-    int coins,
-  ) async {
-    final localAmount = await _coinsToLocalCurrency(
-      coins,
-    );
-    if (_userCurrency ==
-        'JPY') {
+  Future<String> _formatCoinBalance(int coins) async {
+    final localAmount = await _coinsToLocalCurrency(coins);
+    if (_userCurrency == 'JPY') {
       return '$_currencySymbol${localAmount.toStringAsFixed(0)}';
     } else {
       return '$_currencySymbol${localAmount.toStringAsFixed(2)}';
@@ -343,10 +208,7 @@ class _WalletScreenState
   }
 
   @override
-  Widget
-  build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -360,28 +222,15 @@ class _WalletScreenState
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    Color(
-                      0xFF701CF5,
-                    ),
-                    Color(
-                      0xFF701CF5,
-                    ),
-                  ],
+                  colors: [Color(0xFF701CF5), Color(0xFF701CF5)],
                 ),
                 borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(
-                    30,
-                  ),
-                  bottomRight: Radius.circular(
-                    30,
-                  ),
+                  bottomLeft: Radius.circular(30),
+                  bottomRight: Radius.circular(30),
                 ),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(
-                  20,
-                ),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -394,15 +243,11 @@ class _WalletScreenState
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(
-                      height: 20,
-                    ),
+                    const SizedBox(height: 20),
 
                     // Balance amount with coin icon
                     _isLoading
-                        ? const CircularProgressIndicator(
-                            color: Colors.white,
-                          )
+                        ? const CircularProgressIndicator(color: Colors.white)
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -414,9 +259,7 @@ class _WalletScreenState
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              const SizedBox(
-                                width: 8,
-                              ),
+                              const SizedBox(width: 8),
                               Image.asset(
                                 'assets/setup/coins.png',
                                 width: 32,
@@ -424,36 +267,24 @@ class _WalletScreenState
                               ),
                             ],
                           ),
-                    const SizedBox(
-                      height: 8,
-                    ),
+                    const SizedBox(height: 8),
 
                     // Local currency equivalent
                     _isLoading
                         ? const SizedBox.shrink()
-                        : FutureBuilder<
-                            String
-                          >(
-                            future: _formatCoinBalance(
-                              _coinBalance,
-                            ),
-                            builder:
-                                (
-                                  context,
-                                  snapshot,
-                                ) {
-                                  return Text(
-                                    '=${snapshot.data ?? '...'}',
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 16,
-                                    ),
-                                  );
-                                },
+                        : FutureBuilder<String>(
+                            future: _formatCoinBalance(_coinBalance),
+                            builder: (context, snapshot) {
+                              return Text(
+                                '=${snapshot.data ?? '...'}',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 16,
+                                ),
+                              );
+                            },
                           ),
-                    const SizedBox(
-                      height: 30,
-                    ),
+                    const SizedBox(height: 30),
 
                     // Action buttons
                     Row(
@@ -464,10 +295,7 @@ class _WalletScreenState
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder:
-                                    (
-                                      context,
-                                    ) => const SpinWheelScreen(),
+                                builder: (context) => const SpinWheelScreen(),
                               ),
                             );
                           },
@@ -480,15 +308,12 @@ class _WalletScreenState
                             final result = await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder:
-                                    (
-                                      context,
-                                    ) => const EnhancedAddMoneyScreen(),
+                                builder: (context) =>
+                                    const EnhancedAddMoneyScreen(),
                               ),
                             );
                             // Refresh balance if money was added
-                            if (result ==
-                                true) {
+                            if (result == true) {
                               _loadBalance();
                             }
                           },
@@ -501,10 +326,7 @@ class _WalletScreenState
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder:
-                                    (
-                                      context,
-                                    ) => const WithdrawalScreen(),
+                                builder: (context) => const WithdrawalScreen(),
                               ),
                             );
                           },
@@ -513,7 +335,18 @@ class _WalletScreenState
                           ),
                         ),
                         GestureDetector(
-                          onTap: _watchAd,
+                          onTap: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AdSelectionScreen(),
+                              ),
+                            );
+                            // Refresh balance if ad was watched
+                            if (result == true) {
+                              _loadBalance();
+                            }
+                          },
                           child: _buildActionButtonWithImage(
                             'assets/wallet_screen/ads.png',
                           ),
@@ -528,9 +361,7 @@ class _WalletScreenState
             // Transaction history section
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(
-                  20,
-                ),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
                     // Transaction history header
@@ -539,10 +370,8 @@ class _WalletScreenState
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder:
-                                (
-                                  context,
-                                ) => const TransactionHistoryScreen(),
+                            builder: (context) =>
+                                const TransactionHistoryScreen(),
                           ),
                         );
                       },
@@ -552,30 +381,21 @@ class _WalletScreenState
                           const Text(
                             'Transaction history',
                             style: TextStyle(
-                              color: Color(
-                                0xFF8B5CF6,
-                              ),
+                              color: Color(0xFF8B5CF6),
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          Icon(
-                            Icons.chevron_right,
-                            color: Colors.grey[400],
-                          ),
+                          Icon(Icons.chevron_right, color: Colors.grey[400]),
                         ],
                       ),
                     ),
-                    const SizedBox(
-                      height: 20,
-                    ),
+                    const SizedBox(height: 20),
 
                     // Transaction list
                     Expanded(
                       child: _isLoading
-                          ? const Center(
-                              child: CircularProgressIndicator(),
-                            )
+                          ? const Center(child: CircularProgressIndicator())
                           : _transactions.isEmpty
                           ? Center(
                               child: Text(
@@ -588,30 +408,19 @@ class _WalletScreenState
                             )
                           : ListView.builder(
                               itemCount: _transactions.length,
-                              itemBuilder:
-                                  (
-                                    context,
-                                    index,
-                                  ) {
-                                    final transaction = _transactions[index];
-                                    final amount =
-                                        transaction['amount'] ??
-                                        0;
-                                    final isPositive =
-                                        amount >
-                                        0;
-                                    return _buildTransactionItem(
-                                      _formatTransactionType(
-                                        transaction['type'] ??
-                                            '',
-                                      ),
-                                      _formatDateTime(
-                                        transaction['createdAt'],
-                                      ),
-                                      '${isPositive ? '+' : ''}$amount',
-                                      isPositive,
-                                    );
-                                  },
+                              itemBuilder: (context, index) {
+                                final transaction = _transactions[index];
+                                final amount = transaction['amount'] ?? 0;
+                                final isPositive = amount > 0;
+                                return _buildTransactionItem(
+                                  _formatTransactionType(
+                                    transaction['type'] ?? '',
+                                  ),
+                                  _formatDateTime(transaction['createdAt']),
+                                  '${isPositive ? '+' : ''}$amount',
+                                  isPositive,
+                                );
+                              },
                             ),
                     ),
                   ],
@@ -620,34 +429,23 @@ class _WalletScreenState
             ),
 
             // Add bottom padding to account for floating nav bar
-            const SizedBox(
-              height: 100,
-            ),
+            const SizedBox(height: 100),
           ],
         ),
       ),
     );
   }
 
-  Widget
-  _buildActionButtonWithImage(
-    String imagePath,
-  ) {
+  Widget _buildActionButtonWithImage(String imagePath) {
     return Container(
       width: 60,
       height: 60,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(
-          alpha: 0.2,
-        ),
-        borderRadius: BorderRadius.circular(
-          15,
-        ),
+        color: Colors.white.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(15),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(
-          16,
-        ),
+        padding: const EdgeInsets.all(16),
         child: Image.asset(
           imagePath,
           color: Colors.white,
@@ -658,17 +456,14 @@ class _WalletScreenState
     );
   }
 
-  Widget
-  _buildTransactionItem(
+  Widget _buildTransactionItem(
     String title,
     String dateTime,
     String amount,
     bool isPositive,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(
-        bottom: 16,
-      ),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         children: [
           Expanded(
@@ -683,15 +478,10 @@ class _WalletScreenState
                     color: Colors.black,
                   ),
                 ),
-                const SizedBox(
-                  height: 4,
-                ),
+                const SizedBox(height: 4),
                 Text(
                   dateTime,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
               ],
             ),
@@ -703,19 +493,11 @@ class _WalletScreenState
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: isPositive
-                      ? Colors.green
-                      : Colors.red,
+                  color: isPositive ? Colors.green : Colors.red,
                 ),
               ),
-              const SizedBox(
-                width: 4,
-              ),
-              Image.asset(
-                'assets/setup/coins.png',
-                width: 16,
-                height: 16,
-              ),
+              const SizedBox(width: 4),
+              Image.asset('assets/setup/coins.png', width: 16, height: 16),
             ],
           ),
         ],

@@ -2,8 +2,11 @@ const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const { generateReferralCode, awardCoins } = require('../utils/coinSystem');
 const phoneEmailService = require('../services/phoneEmailService');
+const authKeyService = require('../services/authkeyService');
+const googleAuthService = require('../services/googleAuthService');
 
 // In-memory OTP storage for tracking (in production, use Redis or database)
+// Stores: { identifier: { logId, expiresAt, attempts, createdAt } }
 const otpStore = new Map();
 
 // Generate 6-digit OTP (fallback only)
@@ -48,53 +51,97 @@ exports.sendOTP = async (req, res) => {
 
     const identifier = email || `${countryCode}${phone}`;
     
-    // Generate OTP locally for development/testing
-    const otp = generateOTP();
-    
-    // Store OTP
-    otpStore.set(identifier, {
-      otp,
-      expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
-      attempts: 0,
-      createdAt: Date.now(),
-    });
-
-    // Always show OTP in console for development
     console.log('╔════════════════════════════════════════╗');
-    console.log('║          🔐 OTP GENERATED             ║');
+    console.log('║          🔐 SENDING OTP               ║');
     console.log('╠════════════════════════════════════════╣');
     console.log(`║  Phone/Email: ${identifier.padEnd(23)} ║`);
-    console.log(`║  OTP Code:    ${otp.padEnd(23)} ║`);
-    console.log(`║  Valid for:   10 minutes              ║`);
     console.log('╚════════════════════════════════════════╝');
 
+    let logId = null;
+    let otpSent = false;
+
     try {
-      // Try to send OTP via phone.email service (but don't fail if it doesn't work)
       if (email) {
-        console.log(`📧 Attempting to send OTP to email: ${email}`);
-        await phoneEmailService.sendEmailOTP(email).catch(err => {
-          console.log('⚠️ Email service unavailable, using console OTP only');
+        // Send email OTP (using existing service)
+        console.log(`📧 Sending OTP to email: ${email}`);
+        await phoneEmailService.sendEmailOTP(email);
+        otpSent = true;
+        
+        // For email, generate and store OTP locally
+        const otp = generateOTP();
+        otpStore.set(identifier, {
+          otp,
+          logId: null,
+          expiresAt: Date.now() + 10 * 60 * 1000,
+          attempts: 0,
+          createdAt: Date.now(),
         });
+        
+        console.log(`║  OTP Code:    ${otp.padEnd(23)} ║`);
       } else {
-        const fullPhone = `${countryCode}${phone}`;
-        console.log(`📱 Attempting to send OTP to phone: ${fullPhone}`);
-        await phoneEmailService.sendPhoneOTP(fullPhone).catch(err => {
-          console.log('⚠️ SMS service unavailable, using console OTP only');
-        });
+        // Send phone OTP via AuthKey.io
+        console.log(`📱 Sending OTP to phone: +${countryCode} ${phone}`);
+        
+        const result = await authKeyService.sendOTP(phone, countryCode);
+        
+        if (result.success) {
+          logId = result.logId;
+          otpSent = true;
+          
+          // Store logId for verification
+          otpStore.set(identifier, {
+            logId: result.logId,
+            expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+            attempts: 0,
+            createdAt: Date.now(),
+          });
+          
+          console.log('✅ OTP sent via AuthKey.io');
+          console.log(`║  LogID:       ${result.logId.padEnd(23)} ║`);
+        }
       }
     } catch (otpError) {
-      console.log('⚠️ External OTP service error, using console OTP only');
+      console.error('⚠️ SMS service error:', otpError.message);
+      
+      // Fallback: Generate OTP locally for development
+      if (process.env.NODE_ENV === 'development') {
+        const otp = generateOTP();
+        otpStore.set(identifier, {
+          otp,
+          logId: null,
+          expiresAt: Date.now() + 10 * 60 * 1000,
+          attempts: 0,
+          createdAt: Date.now(),
+        });
+        
+        console.log('⚠️ Using fallback OTP (development only)');
+        console.log(`║  OTP Code:    ${otp.padEnd(23)} ║`);
+        otpSent = true;
+      } else {
+        throw otpError;
+      }
     }
 
-    // Always return success with OTP in development
+    console.log('╚════════════════════════════════════════╝');
+
+    if (!otpSent) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send OTP. Please try again.',
+      });
+    }
+
     res.status(200).json({
       success: true,
       message: 'OTP sent successfully',
       data: {
         identifier,
         expiresIn: 600, // 10 minutes in seconds
+        ...(logId && { logId }), // Include logId if available
         // Include OTP in response for development (remove in production)
-        ...(process.env.NODE_ENV === 'development' && { otp }),
+        ...(process.env.NODE_ENV === 'development' && otpStore.get(identifier).otp && { 
+          otp: otpStore.get(identifier).otp 
+        }),
       },
     });
   } catch (error) {
@@ -148,17 +195,55 @@ exports.verifyOTP = async (req, res) => {
       });
     }
 
-    // Verify OTP locally (since we're using console OTP)
     console.log('╔════════════════════════════════════════╗');
     console.log('║       🔍 VERIFYING OTP                ║');
     console.log('╠════════════════════════════════════════╣');
     console.log(`║  Phone/Email: ${identifier.padEnd(23)} ║`);
     console.log(`║  Entered OTP: ${otp.padEnd(23)} ║`);
-    console.log(`║  Stored OTP:  ${(storedSession.otp || 'N/A').padEnd(23)} ║`);
     console.log(`║  Attempts:    ${storedSession.attempts}/3${' '.repeat(18)} ║`);
     console.log('╚════════════════════════════════════════╝');
 
-    if (storedSession.otp !== otp) {
+    let isValid = false;
+
+    try {
+      if (storedSession.logId) {
+        // Verify via AuthKey.io 2FA API
+        console.log('🔍 Verifying OTP via AuthKey.io');
+        console.log(`   LogID: ${storedSession.logId}`);
+        
+        const result = await authKeyService.verifyOTP(storedSession.logId, otp, 'SMS');
+        
+        if (result.success) {
+          isValid = true;
+          console.log('✅ OTP verified via AuthKey.io');
+        } else {
+          console.log('❌ Invalid OTP (AuthKey.io)');
+        }
+      } else if (storedSession.otp) {
+        // Verify locally (for email or fallback)
+        console.log('🔍 Verifying OTP locally');
+        console.log(`   Stored OTP: ${storedSession.otp}`);
+        
+        if (storedSession.otp === otp) {
+          isValid = true;
+          console.log('✅ OTP verified locally');
+        } else {
+          console.log('❌ Invalid OTP (local)');
+        }
+      } else {
+        throw new Error('No OTP verification method available');
+      }
+    } catch (verifyError) {
+      console.error('⚠️ OTP verification error:', verifyError.message);
+      
+      // Fallback to local verification if available
+      if (storedSession.otp && storedSession.otp === otp) {
+        isValid = true;
+        console.log('✅ OTP verified via fallback');
+      }
+    }
+
+    if (!isValid) {
       storedSession.attempts += 1;
       
       console.log(`❌ Invalid OTP for ${identifier} (Attempt ${storedSession.attempts}/3)`);
@@ -490,7 +575,7 @@ exports.phoneLogin = async (req, res) => {
         countryCode: countryCode,
         isPhoneVerified: true, // Phone is verified by Phone.email
         accountStatus: 'active',
-        referralCode: generateReferralCode(),
+        referralCode: generateReferralCode(username),
       });
 
       console.log('✅ New user created:', user.username);
@@ -536,5 +621,374 @@ exports.phoneLogin = async (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+};
+
+// @desc    Verify Phone.email web button callback (Step 2 of integration)
+// @route   POST /api/auth/phone-email-verify
+// @access  Public
+exports.phoneEmailVerify = async (req, res) => {
+  console.log('╔════════════════════════════════════════╗');
+  console.log('║  phoneEmailVerify function called!     ║');
+  console.log('╚════════════════════════════════════════╝');
+  console.log('Method:', req.method);
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  
+  try {
+    const { user_json_url } = req.body;
+
+    if (!user_json_url) {
+      console.log('⚠️  Missing user_json_url in request body');
+      return res.status(400).json({
+        success: false,
+        message: 'user_json_url is required',
+      });
+    }
+
+    console.log('🔐 Phone.email verification callback received');
+    console.log('📄 Fetching user data from:', user_json_url);
+
+    // Fetch user data from Phone.email JSON URL
+    const https = require('https');
+    const userData = await new Promise((resolve, reject) => {
+      https.get(user_json_url, (response) => {
+        let data = '';
+        
+        response.on('data', (chunk) => {
+          data += chunk;
+        });
+        
+        response.on('end', () => {
+          try {
+            resolve(JSON.parse(data));
+          } catch (error) {
+            reject(new Error('Failed to parse user data'));
+          }
+        });
+      }).on('error', (error) => {
+        reject(error);
+      });
+    });
+
+    console.log('✅ User data fetched:', userData);
+
+    const { user_country_code, user_phone_number, user_first_name, user_last_name } = userData;
+
+    if (!user_phone_number || !user_country_code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user data received from Phone.email',
+      });
+    }
+
+    // Check if user exists with this phone number
+    let user = await User.findOne({ phone: user_phone_number });
+
+    if (!user) {
+      // Create new user
+      console.log('👤 Creating new user from Phone.email verification');
+      
+      const baseUsername = `user_${user_phone_number.slice(-6)}`;
+      let username = baseUsername;
+      let counter = 1;
+      
+      while (await User.findOne({ username: username.toLowerCase() })) {
+        username = `${baseUsername}_${counter}`;
+        counter++;
+      }
+
+      const displayName = user_first_name && user_last_name 
+        ? `${user_first_name} ${user_last_name}`.trim()
+        : user_first_name || `User ${user_phone_number.slice(-4)}`;
+
+      user = await User.create({
+        username: username.toLowerCase(),
+        displayName: displayName,
+        phone: user_phone_number,
+        countryCode: user_country_code,
+        isPhoneVerified: true,
+        accountStatus: 'active',
+        referralCode: generateReferralCode(username),
+      });
+
+      console.log('✅ New user created:', user.username);
+
+      // Award welcome bonus
+      await awardCoins(user._id, 50, 'welcome_bonus', 'Welcome bonus for new user');
+    } else {
+      console.log('✅ Existing user found:', user.username);
+      
+      if (!user.isPhoneVerified) {
+        user.isPhoneVerified = true;
+        await user.save();
+      }
+    }
+
+    // Update last login
+    user.lastLogin = Date.now();
+    await user.save();
+
+    // Generate JWT token
+    const token = generateToken(user._id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Phone verified and user authenticated successfully',
+      user: {
+        userId: user._id,
+        username: user.username,
+        displayName: user.displayName,
+        phoneNumber: user.phone,
+        countryCode: user.countryCode,
+        firstName: user_first_name,
+        lastName: user_last_name,
+        coinBalance: user.coinBalance,
+        isPhoneVerified: user.isPhoneVerified,
+      },
+      token: token,
+    });
+  } catch (error) {
+    console.error('❌ Phone.email verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to verify phone number',
+    });
+  }
+};
+
+
+// @desc    Google OAuth - Sign in or Sign up with Google ID Token
+// @route   POST /api/auth/google
+// @access  Public
+exports.googleAuth = async (req, res) => {
+  try {
+    const { idToken, accessToken } = req.body;
+
+    if (!idToken && !accessToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide Google ID token or access token',
+      });
+    }
+
+    console.log('🔐 Google OAuth Request');
+    console.log('   Has ID Token:', !!idToken);
+    console.log('   Has Access Token:', !!accessToken);
+
+    let googleUser;
+
+    try {
+      if (idToken) {
+        // Verify ID token
+        console.log('🔍 Verifying Google ID token...');
+        googleUser = await googleAuthService.verifyIdToken(idToken);
+      } else if (accessToken) {
+        // Get user info from access token
+        console.log('🔍 Getting user info from access token...');
+        googleUser = await googleAuthService.getUserInfo(accessToken);
+      }
+
+      console.log('✅ Google user verified:', googleUser.email);
+    } catch (error) {
+      console.error('❌ Google verification failed:', error.message);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid Google credentials',
+      });
+    }
+
+    // Check if user exists with this Google ID
+    let user = await User.findOne({ googleId: googleUser.sub || googleUser.id });
+
+    if (!user) {
+      // Check if user exists with this email
+      user = await User.findOne({ email: googleUser.email });
+
+      if (user) {
+        // Link Google account to existing user
+        console.log('🔗 Linking Google account to existing user');
+        user.googleId = googleUser.sub || googleUser.id;
+        user.isEmailVerified = googleUser.emailVerified || googleUser.verifiedEmail;
+        if (googleUser.picture && !user.profilePicture) {
+          user.profilePicture = googleUser.picture;
+        }
+        await user.save();
+      } else {
+        // Create new user
+        console.log('👤 Creating new user from Google account');
+
+        // Generate username from email
+        const baseUsername = googleUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
+        let username = baseUsername;
+        let counter = 1;
+
+        while (await User.findOne({ username: username.toLowerCase() })) {
+          username = `${baseUsername}${counter}`;
+          counter++;
+        }
+
+        // Create user
+        user = await User.create({
+          username: username.toLowerCase(),
+          displayName: googleUser.name || googleUser.givenName || username,
+          email: googleUser.email,
+          googleId: googleUser.sub || googleUser.id,
+          profilePicture: googleUser.picture,
+          isEmailVerified: googleUser.emailVerified || googleUser.verifiedEmail || true,
+          accountStatus: 'active',
+          referralCode: generateReferralCode(username),
+        });
+
+        console.log('✅ New user created:', user.username);
+
+        // Award welcome bonus
+        await awardCoins(user._id, 50, 'welcome_bonus', 'Welcome bonus for new user');
+      }
+    } else {
+      console.log('✅ Existing Google user found:', user.username);
+
+      // Update profile picture if changed
+      if (googleUser.picture && googleUser.picture !== user.profilePicture) {
+        user.profilePicture = googleUser.picture;
+        await user.save();
+      }
+    }
+
+    // Update last login
+    user.lastLogin = Date.now();
+    await user.save();
+
+    // Generate JWT token
+    const token = generateToken(user._id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Google authentication successful',
+      data: {
+        user: {
+          id: user._id,
+          username: user.username,
+          displayName: user.displayName,
+          email: user.email,
+          profilePicture: user.profilePicture,
+          bio: user.bio,
+          coinBalance: user.coinBalance,
+          isVerified: user.isVerified,
+          isEmailVerified: user.isEmailVerified,
+          isProfileComplete: user.isProfileComplete,
+          accountStatus: user.accountStatus,
+        },
+        token: token,
+      },
+    });
+  } catch (error) {
+    console.error('❌ Google auth error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Google authentication failed',
+    });
+  }
+};
+
+// @desc    Google OAuth Web Flow - Redirect to Google
+// @route   GET /api/auth/google/redirect
+// @access  Public
+exports.googleRedirect = (req, res) => {
+  try {
+    const state = Math.random().toString(36).substring(7);
+    const authUrl = googleAuthService.getAuthUrl(state);
+
+    console.log('🔗 Redirecting to Google OAuth');
+    console.log('   Auth URL:', authUrl);
+
+    res.redirect(authUrl);
+  } catch (error) {
+    console.error('❌ Google redirect error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to initiate Google authentication',
+    });
+  }
+};
+
+// @desc    Google OAuth Web Flow - Callback
+// @route   GET /api/auth/google/callback
+// @access  Public
+exports.googleCallback = async (req, res) => {
+  try {
+    const { code, error } = req.query;
+
+    if (error) {
+      console.error('❌ Google OAuth error:', error);
+      return res.redirect('/login?error=google_auth_failed');
+    }
+
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Authorization code not provided',
+      });
+    }
+
+    console.log('🔐 Google OAuth callback received');
+    console.log('   Code:', code.substring(0, 20) + '...');
+
+    // Exchange code for tokens
+    const tokens = await googleAuthService.exchangeCodeForTokens(code);
+    console.log('✅ Tokens received from Google');
+
+    // Get user info
+    const googleUser = await googleAuthService.getUserInfo(tokens.accessToken);
+    console.log('✅ User info received:', googleUser.email);
+
+    // Find or create user (same logic as googleAuth)
+    let user = await User.findOne({ googleId: googleUser.id });
+
+    if (!user) {
+      user = await User.findOne({ email: googleUser.email });
+
+      if (user) {
+        user.googleId = googleUser.id;
+        user.isEmailVerified = googleUser.verifiedEmail;
+        if (googleUser.picture && !user.profilePicture) {
+          user.profilePicture = googleUser.picture;
+        }
+        await user.save();
+      } else {
+        const baseUsername = googleUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
+        let username = baseUsername;
+        let counter = 1;
+
+        while (await User.findOne({ username: username.toLowerCase() })) {
+          username = `${baseUsername}${counter}`;
+          counter++;
+        }
+
+        user = await User.create({
+          username: username.toLowerCase(),
+          displayName: googleUser.name || googleUser.givenName || username,
+          email: googleUser.email,
+          googleId: googleUser.id,
+          profilePicture: googleUser.picture,
+          isEmailVerified: googleUser.verifiedEmail || true,
+          accountStatus: 'active',
+          referralCode: generateReferralCode(username),
+        });
+
+        await awardCoins(user._id, 50, 'welcome_bonus', 'Welcome bonus for new user');
+      }
+    }
+
+    user.lastLogin = Date.now();
+    await user.save();
+
+    const token = generateToken(user._id);
+
+    // Redirect to frontend with token
+    res.redirect(`/auth-success?token=${token}`);
+  } catch (error) {
+    console.error('❌ Google callback error:', error);
+    res.redirect('/login?error=google_auth_failed');
   }
 };

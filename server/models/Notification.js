@@ -6,10 +6,14 @@ const notificationSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
   sender: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    required: false, // Not required for system/admin notifications
   },
   type: {
     type: String,
@@ -24,6 +28,7 @@ const notificationSchema = new mongoose.Schema({
       'vote',
       'post_upload',
       'system',
+      'admin_announcement',
     ],
     required: true,
   },

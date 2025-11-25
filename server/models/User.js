@@ -16,9 +16,13 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
     minlength: 6,
     select: false,
+  },
+  googleId: {
+    type: String,
+    sparse: true,
+    unique: true,
   },
   
   // Profile Information
@@ -193,6 +197,22 @@ const userSchema = new mongoose.Schema({
     documentType: String,
     documentNumber: String,
     documentImages: [String],
+    submittedAt: Date,
+    verifiedAt: Date,
+  },
+  
+  // Withdrawal Tracking
+  hasCompletedFirstWithdrawal: {
+    type: Boolean,
+    default: false,
+  },
+  lastWithdrawalMonth: {
+    type: String, // Format: "YYYY-MM"
+    default: null,
+  },
+  totalWithdrawals: {
+    type: Number,
+    default: 0,
   },
   
   // Badges & Achievements
@@ -307,8 +327,9 @@ const userSchema = new mongoose.Schema({
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) {
-    next();
+  // Skip if password is not modified or not set (Google OAuth users)
+  if (!this.isModified('password') || !this.password) {
+    return next();
   }
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);

@@ -10,125 +10,55 @@ import 'providers/auth_provider.dart';
 import 'providers/profile_provider.dart';
 import 'services/api_service.dart';
 
-class ProfileScreen
-    extends
-        StatefulWidget {
-  const ProfileScreen({
-    super.key,
-  });
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
 
   @override
-  State<
-    ProfileScreen
-  >
-  createState() => _ProfileScreenState();
+  State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState
-    extends
-        State<
-          ProfileScreen
-        > {
-  List<
-    Map<
-      String,
-      dynamic
-    >
-  >
-  _posts = [];
-  List<
-    Map<
-      String,
-      dynamic
-    >
-  >
-  _sytPosts = [];
-  List<
-    Map<
-      String,
-      dynamic
-    >
-  >
-  _likedPosts = [];
-  bool
-  _isLoading = true;
-  String
-  selectedTab = 'Reels';
+class _ProfileScreenState extends State<ProfileScreen> {
+  List<Map<String, dynamic>> _posts = [];
+  List<Map<String, dynamic>> _sytPosts = [];
+  List<Map<String, dynamic>> _likedPosts = [];
+  bool _isLoading = true;
+  String selectedTab = 'Reels';
 
   @override
-  void
-  initState() {
+  void initState() {
     super.initState();
     _loadUserData();
   }
 
-  Future<
-    void
-  >
-  _loadLikedPosts() async {
+  Future<void> _loadLikedPosts() async {
     try {
-      print(
-        'Loading liked posts...',
-      );
+      print('Loading liked posts...');
       // Get multiple pages of feed to find liked posts
-      List<
-        Map<
-          String,
-          dynamic
-        >
-      >
-      allLikedPosts = [];
+      List<Map<String, dynamic>> allLikedPosts = [];
 
-      for (
-        int page = 1;
-        page <=
-            5;
-        page++
-      ) {
+      for (int page = 1; page <= 5; page++) {
         // Check first 5 pages
-        final feedResponse = await ApiService.getFeed(
-          page: page,
-          limit: 20,
-        );
+        final feedResponse = await ApiService.getFeed(page: page, limit: 20);
         if (feedResponse['success']) {
-          final posts =
-              List<
-                Map<
-                  String,
-                  dynamic
-                >
-              >.from(
-                feedResponse['data'] ??
-                    [],
-              );
+          final posts = List<Map<String, dynamic>>.from(
+            feedResponse['data'] ?? [],
+          );
 
           // Check each post's like status
           for (final post in posts) {
             try {
-              final statsResponse = await ApiService.getPostStats(
-                post['_id'],
-              );
+              final statsResponse = await ApiService.getPostStats(post['_id']);
               if (statsResponse['success'] &&
-                  statsResponse['data']['isLiked'] ==
-                      true) {
-                allLikedPosts.add(
-                  post,
-                );
-                print(
-                  'Found liked post: ${post['_id']}',
-                );
+                  statsResponse['data']['isLiked'] == true) {
+                allLikedPosts.add(post);
+                print('Found liked post: ${post['_id']}');
               }
-            } catch (
-              e
-            ) {
-              print(
-                'Error checking post stats for ${post['_id']}: $e',
-              );
+            } catch (e) {
+              print('Error checking post stats for ${post['_id']}: $e');
             }
           }
 
-          if (posts.length <
-              20) {
+          if (posts.length < 20) {
             break; // No more posts
           }
         } else {
@@ -136,588 +66,429 @@ class _ProfileScreenState
         }
       }
 
-      setState(
-        () {
-          _likedPosts = allLikedPosts;
-        },
-      );
+      setState(() {
+        _likedPosts = allLikedPosts;
+      });
 
-      print(
-        'Total liked posts found: ${_likedPosts.length}',
-      );
-    } catch (
-      e
-    ) {
-      print(
-        'Error loading liked posts: $e',
-      );
-      setState(
-        () {
-          _likedPosts = [];
-        },
-      );
+      print('Total liked posts found: ${_likedPosts.length}');
+    } catch (e) {
+      print('Error loading liked posts: $e');
+      setState(() {
+        _likedPosts = [];
+      });
     }
   }
 
-  Future<
-    void
-  >
-  _loadUserData() async {
-    final authProvider =
-        Provider.of<
-          AuthProvider
-        >(
-          context,
-          listen: false,
-        );
-    final profileProvider =
-        Provider.of<
-          ProfileProvider
-        >(
-          context,
-          listen: false,
-        );
+  Future<void> _loadUserData() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final profileProvider = Provider.of<ProfileProvider>(
+      context,
+      listen: false,
+    );
 
     await authProvider.refreshUser();
     await profileProvider.getStats();
 
     // Debug: Check user data
-    print(
-      'User data: ${authProvider.user}',
-    );
-    print(
-      'Profile picture: ${authProvider.user?['profilePicture']}',
-    );
+    print('User data: ${authProvider.user}');
+    print('Profile picture: ${authProvider.user?['profilePicture']}');
 
     // Load user posts
-    if (authProvider.user !=
-        null) {
+    if (authProvider.user != null) {
       try {
         final userId =
-            authProvider.user!['_id'] ??
-            authProvider.user!['id'] ??
-            '';
+            authProvider.user!['_id'] ?? authProvider.user!['id'] ?? '';
         if (userId.isNotEmpty) {
           // Load regular posts
-          final response = await ApiService.getUserPosts(
-            userId,
-          );
+          final response = await ApiService.getUserPosts(userId);
           if (response['success']) {
-            setState(
-              () {
-                _posts =
-                    List<
-                      Map<
-                        String,
-                        dynamic
-                      >
-                    >.from(
-                      response['data'] ??
-                          [],
-                    );
-              },
-            );
+            setState(() {
+              _posts = List<Map<String, dynamic>>.from(response['data'] ?? []);
+            });
           }
 
           // Load SYT posts
           final sytResponse = await ApiService.getSYTEntries();
           if (sytResponse['success']) {
-            final allSYTEntries =
-                List<
-                  Map<
-                    String,
-                    dynamic
-                  >
-                >.from(
-                  sytResponse['data'] ??
-                      [],
-                );
-            final userSYTEntries = allSYTEntries.where(
-              (
-                entry,
-              ) {
-                final entryUserId =
-                    entry['user']?['_id'] ??
-                    entry['user']?['id'];
-                return entryUserId ==
-                    userId;
-              },
-            ).toList();
-
-            setState(
-              () {
-                _sytPosts = userSYTEntries;
-              },
+            final allSYTEntries = List<Map<String, dynamic>>.from(
+              sytResponse['data'] ?? [],
             );
+            final userSYTEntries = allSYTEntries.where((entry) {
+              final entryUserId = entry['user']?['_id'] ?? entry['user']?['id'];
+              return entryUserId == userId;
+            }).toList();
+
+            setState(() {
+              _sytPosts = userSYTEntries;
+            });
           }
 
           // Load liked posts - get feed and filter liked ones
           await _loadLikedPosts();
 
-          setState(
-            () => _isLoading = false,
-          );
+          setState(() => _isLoading = false);
         } else {
-          setState(
-            () => _isLoading = false,
-          );
+          setState(() => _isLoading = false);
         }
-      } catch (
-        e
-      ) {
-        print(
-          'Error loading posts: $e',
-        );
-        setState(
-          () => _isLoading = false,
-        );
+      } catch (e) {
+        print('Error loading posts: $e');
+        setState(() => _isLoading = false);
       }
     } else {
-      setState(
-        () => _isLoading = false,
-      );
+      setState(() => _isLoading = false);
     }
   }
 
   @override
-  Widget
-  build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child:
-            Consumer<
-              AuthProvider
-            >(
-              builder:
-                  (
-                    context,
-                    authProvider,
-                    _,
-                  ) {
-                    if (authProvider.user ==
-                            null ||
-                        _isLoading) {
-                      return const Center(
-                        child: CircularProgressIndicator(),
-                      );
-                    }
+        child: Consumer<AuthProvider>(
+          builder: (context, authProvider, _) {
+            if (authProvider.user == null || _isLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-                    final user = authProvider.user!;
+            final user = authProvider.user!;
 
-                    return Column(
-                      children: [
-                        // Profile header section
-                        Padding(
-                          padding: const EdgeInsets.all(
-                            20,
-                          ),
-                          child: Column(
-                            children: [
-                              // Profile picture and stats row
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  // Profile picture
-                                  Container(
-                                    width: 90,
-                                    height: 90,
-                                    decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: ClipOval(
-                                      child:
-                                          user['profilePicture'] !=
-                                                  null &&
-                                              user['profilePicture'].isNotEmpty
-                                          ? Image.network(
-                                              ApiService.getImageUrl(
-                                                user['profilePicture'],
-                                              ),
-                                              width: 90,
-                                              height: 90,
-                                              fit: BoxFit.cover,
-                                              loadingBuilder:
-                                                  (
-                                                    context,
-                                                    child,
-                                                    loadingProgress,
-                                                  ) {
-                                                    if (loadingProgress ==
-                                                        null) {
-                                                      return child;
-                                                    }
-                                                    return const Center(
-                                                      child: CircularProgressIndicator(),
-                                                    );
-                                                  },
-                                              errorBuilder:
-                                                  (
-                                                    context,
-                                                    error,
-                                                    stackTrace,
-                                                  ) {
-                                                    print(
-                                                      'Error loading profile picture: $error',
-                                                    );
-                                                    print(
-                                                      'URL: ${ApiService.getImageUrl(user['profilePicture'])}',
-                                                    );
-                                                    return Container(
-                                                      decoration: const BoxDecoration(
-                                                        gradient: LinearGradient(
-                                                          colors: [
-                                                            Colors.orange,
-                                                            Colors.yellow,
-                                                          ],
-                                                          begin: Alignment.topLeft,
-                                                          end: Alignment.bottomRight,
-                                                        ),
-                                                      ),
-                                                      child: const Icon(
-                                                        Icons.person,
-                                                        color: Colors.white,
-                                                        size: 45,
-                                                      ),
-                                                    );
-                                                  },
-                                            )
-                                          : Container(
-                                              decoration: const BoxDecoration(
-                                                gradient: LinearGradient(
-                                                  colors: [
-                                                    Colors.orange,
-                                                    Colors.yellow,
-                                                  ],
-                                                  begin: Alignment.topLeft,
-                                                  end: Alignment.bottomRight,
-                                                ),
-                                              ),
-                                              child: const Icon(
-                                                Icons.person,
-                                                color: Colors.white,
-                                                size: 45,
-                                              ),
-                                            ),
-                                    ),
-                                  ),
-
-                                  const SizedBox(
-                                    width: 40,
-                                  ),
-
-                                  // Stats - properly aligned
-                                  Expanded(
-                                    child:
-                                        Consumer<
-                                          ProfileProvider
-                                        >(
-                                          builder:
-                                              (
-                                                context,
-                                                profileProvider,
-                                                _,
-                                              ) {
-                                                final stats = profileProvider.stats;
-                                                return Row(
-                                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                                  children: [
-                                                    _buildStatColumn(
-                                                      stats?['postsCount']?.toString() ??
-                                                          '0',
-                                                      'Posts',
-                                                    ),
-                                                    _buildStatColumn(
-                                                      stats?['followersCount']?.toString() ??
-                                                          '0',
-                                                      'Followers',
-                                                    ),
-                                                    _buildStatColumn(
-                                                      stats?['followingCount']?.toString() ??
-                                                          '0',
-                                                      'Following',
-                                                    ),
-                                                  ],
-                                                );
-                                              },
-                                        ),
-                                  ),
-                                ],
-                              ),
-
-                              const SizedBox(
-                                height: 20,
-                              ),
-
-                              // Name and buttons row - properly aligned
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Text(
-                                        user['displayName'] ??
-                                            'User',
-                                        style: const TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.black,
-                                        ),
+            return Column(
+              children: [
+                // Profile header section
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      // Profile picture and stats row
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Profile picture
+                          Container(
+                            width: 90,
+                            height: 90,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                            ),
+                            child: ClipOval(
+                              child:
+                                  user['profilePicture'] != null &&
+                                      user['profilePicture'].isNotEmpty
+                                  ? Image.network(
+                                      ApiService.getImageUrl(
+                                        user['profilePicture'],
                                       ),
-                                      if (user['isVerified'] ==
-                                          true)
-                                        const Padding(
-                                          padding: EdgeInsets.only(
-                                            left: 8,
-                                          ),
-                                          child: Icon(
-                                            Icons.verified,
-                                            size: 20,
-                                            color: Color(
-                                              0xFF701CF5,
+                                      width: 90,
+                                      height: 90,
+                                      fit: BoxFit.cover,
+                                      loadingBuilder:
+                                          (context, child, loadingProgress) {
+                                            if (loadingProgress == null) {
+                                              return child;
+                                            }
+                                            return const Center(
+                                              child:
+                                                  CircularProgressIndicator(),
+                                            );
+                                          },
+                                      errorBuilder: (context, error, stackTrace) {
+                                        print(
+                                          'Error loading profile picture: $error',
+                                        );
+                                        print(
+                                          'URL: ${ApiService.getImageUrl(user['profilePicture'])}',
+                                        );
+                                        return Container(
+                                          decoration: const BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                Colors.orange,
+                                                Colors.yellow,
+                                              ],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
                                             ),
                                           ),
-                                        ),
-                                    ],
-                                  ),
-
-                                  const Spacer(),
-
-                                  // Edit button
-                                  GestureDetector(
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (
-                                                context,
-                                              ) => const EditProfileScreen(),
-                                        ),
-                                      ).then(
-                                        (
-                                          _,
-                                        ) => _loadUserData(),
-                                      );
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 30,
-                                        vertical: 8,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[200],
-                                        borderRadius: BorderRadius.circular(
-                                          20,
-                                        ),
-                                      ),
-                                      child: const Text(
-                                        'Edit',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w500,
-                                          color: Colors.black,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-
-                                  const SizedBox(
-                                    width: 12,
-                                  ),
-
-                                  // Settings button
-                                  GestureDetector(
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (
-                                                context,
-                                              ) => const SettingsScreen(),
-                                        ),
-                                      );
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.all(
-                                        8,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[200],
-                                        borderRadius: BorderRadius.circular(
-                                          20,
+                                          child: const Icon(
+                                            Icons.person,
+                                            color: Colors.white,
+                                            size: 45,
+                                          ),
+                                        );
+                                      },
+                                    )
+                                  : Container(
+                                      decoration: const BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Colors.orange,
+                                            Colors.yellow,
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
                                         ),
                                       ),
                                       child: const Icon(
-                                        Icons.settings,
-                                        color: Colors.black,
-                                        size: 24,
+                                        Icons.person,
+                                        color: Colors.white,
+                                        size: 45,
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
+                            ),
+                          ),
 
-                              const SizedBox(
-                                height: 16,
-                              ),
+                          const SizedBox(width: 40),
 
-                              // Bio text - left aligned
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  user['bio'] ??
-                                      'No bio yet',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.black,
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(
-                                height: 20,
-                              ),
-
-                              // Purple action buttons
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 20,
-                                  horizontal: 16,
-                                ),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(
-                                        0xFF701CF5,
-                                      ),
-                                      Color(
-                                        0xFF701CF5,
-                                      ),
-                                    ],
-                                    begin: Alignment.centerLeft,
-                                    end: Alignment.centerRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(
-                                    20,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          // Stats - properly aligned
+                          Expanded(
+                            child: Consumer<ProfileProvider>(
+                              builder: (context, profileProvider, _) {
+                                final stats = profileProvider.stats;
+                                return Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceAround,
                                   children: [
-                                    GestureDetector(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder:
-                                                (
-                                                  context,
-                                                ) => const AchievementsScreen(),
-                                          ),
-                                        );
-                                      },
-                                      child: _buildActionButtonWithImage(
-                                        'assets/profile/achievement.png',
-                                      ),
+                                    _buildStatColumn(
+                                      stats?['postsCount']?.toString() ?? '0',
+                                      'Posts',
                                     ),
-                                    GestureDetector(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder:
-                                                (
-                                                  context,
-                                                ) => const StoreScreen(),
-                                          ),
-                                        );
-                                      },
-                                      child: _buildActionButtonWithImage(
-                                        'assets/profile/store.png',
-                                      ),
+                                    _buildStatColumn(
+                                      stats?['followersCount']?.toString() ??
+                                          '0',
+                                      'Followers',
                                     ),
-                                    GestureDetector(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder:
-                                                (
-                                                  context,
-                                                ) => const EnhancedCommunityScreen(),
-                                          ),
-                                        );
-                                      },
-                                      child: _buildActionButtonWithImage(
-                                        'assets/profile/community.png',
-                                      ),
+                                    _buildStatColumn(
+                                      stats?['followingCount']?.toString() ??
+                                          '0',
+                                      'Following',
                                     ),
                                   ],
-                                ),
-                              ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
 
-                              const SizedBox(
-                                height: 20,
-                              ),
+                      const SizedBox(height: 20),
 
-                              // Tab bar - centered
+                      // Name and buttons row - properly aligned
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  _buildTab(
-                                    'Reels',
+                                  Text(
+                                    user['displayName'] ?? 'User',
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black,
+                                    ),
                                   ),
-                                  const SizedBox(
-                                    width: 30,
-                                  ),
-                                  _buildTab(
-                                    'SYT',
-                                  ),
-                                  const SizedBox(
-                                    width: 30,
-                                  ),
-                                  _buildTab(
-                                    'Likes',
-                                  ),
+                                  if (user['isVerified'] == true)
+                                    const Padding(
+                                      padding: EdgeInsets.only(left: 8),
+                                      child: Icon(
+                                        Icons.verified,
+                                        size: 20,
+                                        color: Color(0xFF701CF5),
+                                      ),
+                                    ),
                                 ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '@${user['username'] ?? 'user'}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
+                                  color: Colors.grey[600],
+                                ),
                               ),
                             ],
                           ),
-                        ),
 
-                        // Content grid
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
+                          const Spacer(),
+
+                          // Edit button
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const EditProfileScreen(),
+                                ),
+                              ).then((_) => _loadUserData());
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 30,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Text(
+                                'Edit',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black,
+                                ),
+                              ),
                             ),
-                            child: _buildTabContent(),
+                          ),
+
+                          const SizedBox(width: 12),
+
+                          // Settings button
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const SettingsScreen(),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Icon(
+                                Icons.settings,
+                                color: Colors.black,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Bio text - left aligned
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          user['bio'] ?? 'No bio yet',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.black,
+                            height: 1.4,
                           ),
                         ),
+                      ),
 
-                        // Space for navbar
-                        const SizedBox(
-                          height: 100,
+                      const SizedBox(height: 20),
+
+                      // Purple action buttons
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 20,
+                          horizontal: 16,
                         ),
-                      ],
-                    );
-                  },
-            ),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF701CF5), Color(0xFF701CF5)],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const AchievementsScreen(),
+                                  ),
+                                );
+                              },
+                              child: _buildActionButtonWithImage(
+                                'assets/profile/achievement.png',
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const StoreScreen(),
+                                  ),
+                                );
+                              },
+                              child: _buildActionButtonWithImage(
+                                'assets/profile/store.png',
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const EnhancedCommunityScreen(),
+                                  ),
+                                );
+                              },
+                              child: _buildActionButtonWithImage(
+                                'assets/profile/community.png',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Tab bar - centered
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildTab('Reels'),
+                          const SizedBox(width: 30),
+                          _buildTab('SYT'),
+                          const SizedBox(width: 30),
+                          _buildTab('Likes'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Content grid
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _buildTabContent(),
+                  ),
+                ),
+
+                // Space for navbar
+                const SizedBox(height: 100),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 
-  Widget
-  _buildStatColumn(
-    String number,
-    String label,
-  ) {
+  Widget _buildStatColumn(String number, String label) {
     return Column(
       children: [
         Text(
@@ -728,24 +499,13 @@ class _ProfileScreenState
             color: Colors.black,
           ),
         ),
-        const SizedBox(
-          height: 4,
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-        ),
+        const SizedBox(height: 4),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
       ],
     );
   }
 
-  Widget
-  _buildActionButtonWithImage(
-    String imagePath,
-  ) {
+  Widget _buildActionButtonWithImage(String imagePath) {
     return SizedBox(
       width: 90,
       height: 90,
@@ -759,8 +519,7 @@ class _ProfileScreenState
     );
   }
 
-  Widget
-  _buildTabContent() {
+  Widget _buildTabContent() {
     switch (selectedTab) {
       case 'Reels':
         return _buildReelsGrid();
@@ -773,21 +532,14 @@ class _ProfileScreenState
     }
   }
 
-  Widget
-  _buildReelsGrid() {
+  Widget _buildReelsGrid() {
     if (_posts.isEmpty) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.video_library_outlined,
-              size: 64,
-              color: Colors.grey,
-            ),
-            SizedBox(
-              height: 16,
-            ),
+            Icon(Icons.video_library_outlined, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
             Text(
               'No reels yet',
               style: TextStyle(
@@ -796,15 +548,10 @@ class _ProfileScreenState
                 fontWeight: FontWeight.w500,
               ),
             ),
-            SizedBox(
-              height: 8,
-            ),
+            SizedBox(height: 8),
             Text(
               'Your reels will appear here',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
           ],
@@ -820,76 +567,48 @@ class _ProfileScreenState
         childAspectRatio: 1,
       ),
       itemCount: _posts.length,
-      itemBuilder:
-          (
-            context,
-            index,
-          ) {
-            final post = _posts[index];
-            return GestureDetector(
-              onTap: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder:
-                        (
-                          context,
-                        ) => MainScreen(
-                          initialIndex: 0,
-                          initialPostId: post['_id'],
-                        ),
-                  ),
-                );
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  color: _getGridItemColor(
-                    index,
-                  ),
-                  borderRadius: BorderRadius.circular(
-                    12,
-                  ),
-                  image:
-                      post['thumbnailUrl'] !=
-                          null
-                      ? DecorationImage(
-                          image: NetworkImage(
-                            ApiService.getImageUrl(
-                              post['thumbnailUrl'],
-                            ),
-                          ),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.play_arrow,
-                    color: Colors.white,
-                    size: 30,
-                  ),
-                ),
+      itemBuilder: (context, index) {
+        final post = _posts[index];
+        return GestureDetector(
+          onTap: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    MainScreen(initialIndex: 0, initialPostId: post['_id']),
               ),
             );
           },
+          child: Container(
+            decoration: BoxDecoration(
+              color: _getGridItemColor(index),
+              borderRadius: BorderRadius.circular(12),
+              image: post['thumbnailUrl'] != null
+                  ? DecorationImage(
+                      image: NetworkImage(
+                        ApiService.getImageUrl(post['thumbnailUrl']),
+                      ),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: const Center(
+              child: Icon(Icons.play_arrow, color: Colors.white, size: 30),
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget
-  _buildSYTGrid() {
+  Widget _buildSYTGrid() {
     if (_sytPosts.isEmpty) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.emoji_events_outlined,
-              size: 64,
-              color: Colors.grey,
-            ),
-            SizedBox(
-              height: 16,
-            ),
+            Icon(Icons.emoji_events_outlined, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
             Text(
               'No SYT entries yet',
               style: TextStyle(
@@ -898,15 +617,10 @@ class _ProfileScreenState
                 fontWeight: FontWeight.w500,
               ),
             ),
-            SizedBox(
-              height: 8,
-            ),
+            SizedBox(height: 8),
             Text(
               'Your Show Your Talent entries will appear here',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
           ],
@@ -922,153 +636,113 @@ class _ProfileScreenState
         childAspectRatio: 1,
       ),
       itemCount: _sytPosts.length,
-      itemBuilder:
-          (
-            context,
-            index,
-          ) {
-            final sytPost = _sytPosts[index];
-            return GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder:
-                        (
-                          context,
-                        ) => MainScreen(
-                          initialIndex: 1, // SYT tab
-                          initialPostId: sytPost['_id'],
-                        ),
-                  ),
-                );
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.purple[100],
-                  borderRadius: BorderRadius.circular(
-                    12,
-                  ),
-                  image:
-                      sytPost['thumbnailUrl'] !=
-                          null
-                      ? DecorationImage(
-                          image: NetworkImage(
-                            ApiService.getImageUrl(
-                              sytPost['thumbnailUrl'],
-                            ),
-                          ),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
-                ),
-                child: Stack(
-                  children: [
-                    // SYT badge
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [
-                              Color(
-                                0xFF701CF5,
-                              ),
-                              Color(
-                                0xFF3E98E4,
-                              ),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(
-                            8,
-                          ),
-                        ),
-                        child: const Text(
-                          'SYT',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Center(
-                      child: Icon(
-                        Icons.play_arrow,
-                        color: Colors.white,
-                        size: 30,
-                      ),
-                    ),
-                    // Vote count
-                    Positioned(
-                      bottom: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(
-                            0.7,
-                          ),
-                          borderRadius: BorderRadius.circular(
-                            4,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.thumb_up,
-                              color: Colors.white,
-                              size: 10,
-                            ),
-                            const SizedBox(
-                              width: 2,
-                            ),
-                            Text(
-                              sytPost['votesCount']?.toString() ??
-                                  '0',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+      itemBuilder: (context, index) {
+        final sytPost = _sytPosts[index];
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MainScreen(
+                  initialIndex: 1, // SYT tab
+                  initialPostId: sytPost['_id'],
                 ),
               ),
             );
           },
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.purple[100],
+              borderRadius: BorderRadius.circular(12),
+              image: sytPost['thumbnailUrl'] != null
+                  ? DecorationImage(
+                      image: NetworkImage(
+                        ApiService.getImageUrl(sytPost['thumbnailUrl']),
+                      ),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: Stack(
+              children: [
+                // SYT badge
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF701CF5), Color(0xFF3E98E4)],
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'SYT',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const Center(
+                  child: Icon(Icons.play_arrow, color: Colors.white, size: 30),
+                ),
+                // Vote count
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.thumb_up,
+                          color: Colors.white,
+                          size: 10,
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          sytPost['votesCount']?.toString() ?? '0',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget
-  _buildLikesGrid() {
+  Widget _buildLikesGrid() {
     if (_likedPosts.isEmpty) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.favorite_outline,
-              size: 64,
-              color: Colors.grey,
-            ),
-            SizedBox(
-              height: 16,
-            ),
+            Icon(Icons.favorite_outline, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
             Text(
               'No liked posts yet',
               style: TextStyle(
@@ -1077,15 +751,10 @@ class _ProfileScreenState
                 fontWeight: FontWeight.w500,
               ),
             ),
-            SizedBox(
-              height: 8,
-            ),
+            SizedBox(height: 8),
             Text(
               'Posts you like will appear here',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
           ],
@@ -1101,140 +770,107 @@ class _ProfileScreenState
         childAspectRatio: 1,
       ),
       itemCount: _likedPosts.length,
-      itemBuilder:
-          (
-            context,
-            index,
-          ) {
-            final likedPost = _likedPosts[index];
-            return GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder:
-                        (
-                          context,
-                        ) => MainScreen(
-                          initialIndex: 0, // Reels tab
-                          initialPostId: likedPost['_id'],
-                        ),
-                  ),
-                );
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.pink[100],
-                  borderRadius: BorderRadius.circular(
-                    12,
-                  ),
-                  image:
-                      likedPost['thumbnailUrl'] !=
-                          null
-                      ? DecorationImage(
-                          image: NetworkImage(
-                            ApiService.getImageUrl(
-                              likedPost['thumbnailUrl'],
-                            ),
-                          ),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
-                ),
-                child: Stack(
-                  children: [
-                    // Liked badge
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.pink,
-                          borderRadius: BorderRadius.circular(
-                            8,
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.favorite,
-                          color: Colors.white,
-                          size: 12,
-                        ),
-                      ),
-                    ),
-                    const Center(
-                      child: Icon(
-                        Icons.play_arrow,
-                        color: Colors.white,
-                        size: 30,
-                      ),
-                    ),
-                    // Like count
-                    Positioned(
-                      bottom: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(
-                            0.7,
-                          ),
-                          borderRadius: BorderRadius.circular(
-                            4,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.favorite,
-                              color: Colors.pink,
-                              size: 10,
-                            ),
-                            const SizedBox(
-                              width: 2,
-                            ),
-                            Text(
-                              likedPost['likesCount']?.toString() ??
-                                  '0',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+      itemBuilder: (context, index) {
+        final likedPost = _likedPosts[index];
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MainScreen(
+                  initialIndex: 0, // Reels tab
+                  initialPostId: likedPost['_id'],
                 ),
               ),
             );
           },
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.pink[100],
+              borderRadius: BorderRadius.circular(12),
+              image: likedPost['thumbnailUrl'] != null
+                  ? DecorationImage(
+                      image: NetworkImage(
+                        ApiService.getImageUrl(likedPost['thumbnailUrl']),
+                      ),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: Stack(
+              children: [
+                // Liked badge
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.pink,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.favorite,
+                      color: Colors.white,
+                      size: 12,
+                    ),
+                  ),
+                ),
+                const Center(
+                  child: Icon(Icons.play_arrow, color: Colors.white, size: 30),
+                ),
+                // Like count
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.favorite,
+                          color: Colors.pink,
+                          size: 10,
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          likedPost['likesCount']?.toString() ?? '0',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget
-  _buildTab(
-    String title,
-  ) {
-    final isActive =
-        selectedTab ==
-        title;
+  Widget _buildTab(String title) {
+    final isActive = selectedTab == title;
     return GestureDetector(
       onTap: () {
-        setState(
-          () {
-            selectedTab = title;
-          },
-        );
+        setState(() {
+          selectedTab = title;
+        });
       },
       child: Column(
         children: [
@@ -1243,23 +879,17 @@ class _ProfileScreenState
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: isActive
-                  ? Colors.black
-                  : Colors.grey,
+              color: isActive ? Colors.black : Colors.grey,
             ),
           ),
-          const SizedBox(
-            height: 4,
-          ),
+          const SizedBox(height: 4),
           if (isActive)
             Container(
               width: 30,
               height: 2,
               decoration: BoxDecoration(
                 color: Colors.black,
-                borderRadius: BorderRadius.circular(
-                  1,
-                ),
+                borderRadius: BorderRadius.circular(1),
               ),
             ),
         ],
@@ -1267,37 +897,19 @@ class _ProfileScreenState
     );
   }
 
-  Color
-  _getGridItemColor(
-    int index,
-  ) {
+  Color _getGridItemColor(int index) {
     // Different colors for grid items to match the screenshot
     final colors = [
       Colors.black,
-      const Color(
-        0xFF8B4513,
-      ), // Brown
-      const Color(
-        0xFF1E90FF,
-      ), // Blue
-      const Color(
-        0xFF32CD32,
-      ), // Green
-      const Color(
-        0xFFFF8C00,
-      ), // Orange
+      const Color(0xFF8B4513), // Brown
+      const Color(0xFF1E90FF), // Blue
+      const Color(0xFF32CD32), // Green
+      const Color(0xFFFF8C00), // Orange
       Colors.grey,
-      const Color(
-        0xFF8B5CF6,
-      ), // Purple
-      const Color(
-        0xFF20B2AA,
-      ), // Teal
-      const Color(
-        0xFF4169E1,
-      ), // Royal Blue
+      const Color(0xFF8B5CF6), // Purple
+      const Color(0xFF20B2AA), // Teal
+      const Color(0xFF4169E1), // Royal Blue
     ];
-    return colors[index %
-        colors.length];
+    return colors[index % colors.length];
   }
 }

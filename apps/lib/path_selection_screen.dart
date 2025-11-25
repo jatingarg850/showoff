@@ -1,68 +1,63 @@
 import 'package:flutter/material.dart';
 import 'camera_screen.dart';
 import 'daily_selfie_screen.dart';
+import 'services/api_service.dart';
 
-class PathSelectionScreen
-    extends
-        StatefulWidget {
-  const PathSelectionScreen({
-    super.key,
-  });
+class PathSelectionScreen extends StatefulWidget {
+  const PathSelectionScreen({super.key});
 
   @override
-  State<
-    PathSelectionScreen
-  >
-  createState() => _PathSelectionScreenState();
+  State<PathSelectionScreen> createState() => _PathSelectionScreenState();
 }
 
-class _PathSelectionScreenState
-    extends
-        State<
-          PathSelectionScreen
-        > {
-  String?
-  selectedPath;
+class _PathSelectionScreenState extends State<PathSelectionScreen> {
+  String? selectedPath;
+  bool _hasSubmittedSYT = false;
+  bool _isLoadingSYTStatus = true;
 
   @override
-  Widget
-  build(
-    BuildContext context,
-  ) {
+  void initState() {
+    super.initState();
+    _checkSYTSubmissionStatus();
+  }
+
+  Future<void> _checkSYTSubmissionStatus() async {
+    try {
+      final response = await ApiService.checkUserWeeklySubmission();
+      if (response['success']) {
+        setState(() {
+          _hasSubmittedSYT = response['data']['hasSubmitted'] ?? false;
+          _isLoadingSYTStatus = false;
+        });
+      }
+    } catch (e) {
+      print('Error checking SYT submission: $e');
+      setState(() {
+        _hasSubmittedSYT = false;
+        _isLoadingSYTStatus = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(
-            20,
-          ),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(
-                height: 40,
-              ),
+              const SizedBox(height: 40),
 
               // Title
               ShaderMask(
-                shaderCallback:
-                    (
-                      bounds,
-                    ) =>
-                        const LinearGradient(
-                          colors: [
-                            Color(
-                              0xFF701CF5,
-                            ),
-                            Color(
-                              0xFF701CF5,
-                            ),
-                          ],
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                        ).createShader(
-                          bounds,
-                        ),
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Color(0xFF701CF5), Color(0xFF701CF5)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ).createShader(bounds),
                 child: const Text(
                   'Select a path',
                   style: TextStyle(
@@ -73,21 +68,14 @@ class _PathSelectionScreenState
                 ),
               ),
 
-              const SizedBox(
-                height: 8,
-              ),
+              const SizedBox(height: 8),
 
               const Text(
                 'Where will you like to upload to?',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
 
-              const SizedBox(
-                height: 60,
-              ),
+              const SizedBox(height: 60),
 
               // Path Options - Three columns
               Column(
@@ -97,44 +85,31 @@ class _PathSelectionScreenState
                     children: [
                       // Reels Option
                       Expanded(
+                        flex: 1,
                         child: GestureDetector(
                           onTap: () {
-                            setState(
-                              () {
-                                selectedPath = 'reels';
-                              },
-                            );
+                            setState(() {
+                              selectedPath = 'reels';
+                            });
                           },
                           child: Container(
                             height: 160,
                             decoration: BoxDecoration(
-                              gradient:
-                                  selectedPath ==
-                                      'reels'
+                              gradient: selectedPath == 'reels'
                                   ? const LinearGradient(
                                       colors: [
-                                        Color(
-                                          0xFF701CF5,
-                                        ),
-                                        Color(
-                                          0xFF701CF5,
-                                        ),
+                                        Color(0xFF701CF5),
+                                        Color(0xFF701CF5),
                                       ],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                     )
                                   : null,
-                              color:
-                                  selectedPath ==
-                                      'reels'
+                              color: selectedPath == 'reels'
                                   ? null
                                   : Colors.white,
-                              borderRadius: BorderRadius.circular(
-                                20,
-                              ),
-                              border:
-                                  selectedPath ==
-                                      'reels'
+                              borderRadius: BorderRadius.circular(20),
+                              border: selectedPath == 'reels'
                                   ? null
                                   : Border.all(
                                       color: const Color.fromRGBO(
@@ -147,9 +122,7 @@ class _PathSelectionScreenState
                                     ),
                             ),
                             child: Padding(
-                              padding: const EdgeInsets.all(
-                                16,
-                              ),
+                              padding: const EdgeInsets.all(16),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -157,38 +130,28 @@ class _PathSelectionScreenState
                                     'assets/navbar/1.png',
                                     width: 32,
                                     height: 32,
-                                    color:
-                                        selectedPath ==
-                                            'reels'
+                                    color: selectedPath == 'reels'
                                         ? Colors.white
                                         : Colors.black,
                                   ),
-                                  const SizedBox(
-                                    height: 12,
-                                  ),
+                                  const SizedBox(height: 12),
                                   Text(
                                     'Reels',
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
-                                      color:
-                                          selectedPath ==
-                                              'reels'
+                                      color: selectedPath == 'reels'
                                           ? Colors.white
                                           : Colors.black,
                                     ),
                                   ),
-                                  const SizedBox(
-                                    height: 6,
-                                  ),
+                                  const SizedBox(height: 6),
                                   Text(
                                     'Post like other members',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color:
-                                          selectedPath ==
-                                              'reels'
+                                      color: selectedPath == 'reels'
                                           ? Colors.white70
                                           : Colors.grey[600],
                                     ),
@@ -199,104 +162,110 @@ class _PathSelectionScreenState
                           ),
                         ),
                       ),
-                      const SizedBox(
-                        width: 15,
-                      ),
+                      const SizedBox(width: 15),
                       // SYT Option
                       Expanded(
+                        flex: 1,
                         child: GestureDetector(
-                          onTap: () {
-                            setState(
-                              () {
-                                selectedPath = 'SYT';
-                              },
-                            );
-                          },
+                          onTap: _hasSubmittedSYT
+                              ? null
+                              : () {
+                                  setState(() {
+                                    selectedPath = 'SYT';
+                                  });
+                                },
                           child: Container(
                             height: 160,
                             decoration: BoxDecoration(
-                              gradient:
-                                  selectedPath ==
-                                      'SYT'
+                              gradient: selectedPath == 'SYT'
                                   ? const LinearGradient(
                                       colors: [
-                                        Color(
-                                          0xFF701CF5,
-                                        ),
-                                        Color(
-                                          0xFF701CF5,
-                                        ),
+                                        Color(0xFF701CF5),
+                                        Color(0xFF701CF5),
                                       ],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                     )
                                   : null,
-                              color:
-                                  selectedPath ==
-                                      'SYT'
+                              color: selectedPath == 'SYT'
                                   ? null
+                                  : _hasSubmittedSYT
+                                  ? const Color(0xFFF5F5F5)
                                   : Colors.white,
-                              borderRadius: BorderRadius.circular(
-                                20,
-                              ),
+                              borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color:
-                                    selectedPath ==
-                                        'SYT'
+                                color: selectedPath == 'SYT'
                                     ? Colors.transparent
-                                    : const Color.fromRGBO(
-                                        68,
-                                        138,
-                                        255,
-                                        1,
-                                      ),
+                                    : _hasSubmittedSYT
+                                    ? const Color(0xFFE0E0E0)
+                                    : const Color.fromRGBO(68, 138, 255, 1),
                                 width: 2,
                               ),
                             ),
                             child: Padding(
-                              padding: const EdgeInsets.all(
-                                16,
-                              ),
+                              padding: const EdgeInsets.all(16),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Image.asset(
-                                    'assets/navbar/2.png',
-                                    width: 32,
-                                    height: 32,
-                                    color:
-                                        selectedPath ==
-                                            'SYT'
-                                        ? Colors.white
-                                        : Colors.black,
+                                  if (_hasSubmittedSYT)
+                                    Container(
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFF9800),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Text(
+                                        'submitted',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                          letterSpacing: 0.3,
+                                        ),
+                                      ),
+                                    ),
+                                  Opacity(
+                                    opacity: _hasSubmittedSYT ? 0.4 : 1.0,
+                                    child: Image.asset(
+                                      'assets/navbar/2.png',
+                                      width: 32,
+                                      height: 32,
+                                      color: selectedPath == 'SYT'
+                                          ? Colors.white
+                                          : _hasSubmittedSYT
+                                          ? Colors.grey[500]
+                                          : Colors.black,
+                                    ),
                                   ),
-                                  const SizedBox(
-                                    height: 12,
-                                  ),
+                                  const SizedBox(height: 12),
                                   Text(
                                     'SYT',
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
-                                      color:
-                                          selectedPath ==
-                                              'SYT'
+                                      color: selectedPath == 'SYT'
                                           ? Colors.white
+                                          : _hasSubmittedSYT
+                                          ? Colors.grey[500]
                                           : Colors.black,
                                     ),
                                   ),
-                                  const SizedBox(
-                                    height: 6,
-                                  ),
+                                  const SizedBox(height: 6),
                                   Text(
-                                    'Compete to win prizes',
+                                    _hasSubmittedSYT
+                                        ? 'Already submitted'
+                                        : 'Compete to win prizes',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color:
-                                          selectedPath ==
-                                              'SYT'
+                                      color: selectedPath == 'SYT'
                                           ? Colors.white70
+                                          : _hasSubmittedSYT
+                                          ? Colors.grey[400]
                                           : Colors.grey[600],
                                     ),
                                   ),
@@ -308,9 +277,7 @@ class _PathSelectionScreenState
                       ),
                     ],
                   ),
-                  const SizedBox(
-                    height: 20,
-                  ),
+                  const SizedBox(height: 20),
 
                   // Second row - Daily Selfie Challenge (full width)
                   GestureDetector(
@@ -318,13 +285,8 @@ class _PathSelectionScreenState
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder:
-                              (
-                                context,
-                              ) => const DailySelfieScreen(),
-                          settings: const RouteSettings(
-                            name: '/daily_selfie',
-                          ),
+                          builder: (context) => const DailySelfieScreen(),
+                          settings: const RouteSettings(name: '/daily_selfie'),
                         ),
                       );
                     },
@@ -334,35 +296,21 @@ class _PathSelectionScreenState
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [
-                            Color(
-                              0xFFFF6B35,
-                            ),
-                            Color(
-                              0xFFFF8E53,
-                            ),
-                            Color(
-                              0xFFFFB366,
-                            ),
+                            Color(0xFFFF6B35),
+                            Color(0xFFFF8E53),
+                            Color(0xFFFFB366),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                        borderRadius: BorderRadius.circular(
-                          24,
-                        ),
+                        borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
-                            color:
-                                const Color(
-                                  0xFFFF6B35,
-                                ).withValues(
-                                  alpha: 0.4,
-                                ),
+                            color: const Color(
+                              0xFFFF6B35,
+                            ).withValues(alpha: 0.4),
                             blurRadius: 20,
-                            offset: const Offset(
-                              0,
-                              8,
-                            ),
+                            offset: const Offset(0, 8),
                           ),
                         ],
                       ),
@@ -377,9 +325,7 @@ class _PathSelectionScreenState
                               height: 100,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: Colors.white.withValues(
-                                  alpha: 0.1,
-                                ),
+                                color: Colors.white.withValues(alpha: 0.1),
                               ),
                             ),
                           ),
@@ -391,18 +337,14 @@ class _PathSelectionScreenState
                               height: 60,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: Colors.white.withValues(
-                                  alpha: 0.08,
-                                ),
+                                color: Colors.white.withValues(alpha: 0.08),
                               ),
                             ),
                           ),
 
                           // Main content
                           Padding(
-                            padding: const EdgeInsets.all(
-                              20,
-                            ),
+                            padding: const EdgeInsets.all(20),
                             child: Row(
                               children: [
                                 // Icon container with enhanced design
@@ -410,12 +352,8 @@ class _PathSelectionScreenState
                                   width: 50,
                                   height: 50,
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withValues(
-                                      alpha: 0.25,
-                                    ),
-                                    borderRadius: BorderRadius.circular(
-                                      15,
-                                    ),
+                                    color: Colors.white.withValues(alpha: 0.25),
+                                    borderRadius: BorderRadius.circular(15),
                                     border: Border.all(
                                       color: Colors.white.withValues(
                                         alpha: 0.3,
@@ -429,17 +367,17 @@ class _PathSelectionScreenState
                                     color: Colors.white,
                                   ),
                                 ),
-                                const SizedBox(
-                                  width: 16,
-                                ),
+                                const SizedBox(width: 16),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       // Title with HOT badge
                                       Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           const Text(
                                             'Daily Selfie Challenge',
@@ -449,9 +387,7 @@ class _PathSelectionScreenState
                                               color: Colors.white,
                                             ),
                                           ),
-                                          const SizedBox(
-                                            height: 4,
-                                          ),
+                                          const SizedBox(height: 4),
                                           Container(
                                             padding: const EdgeInsets.symmetric(
                                               horizontal: 6,
@@ -461,9 +397,8 @@ class _PathSelectionScreenState
                                               color: Colors.white.withValues(
                                                 alpha: 0.2,
                                               ),
-                                              borderRadius: BorderRadius.circular(
-                                                8,
-                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                             ),
                                             child: const Row(
                                               mainAxisSize: MainAxisSize.min,
@@ -473,9 +408,7 @@ class _PathSelectionScreenState
                                                   size: 12,
                                                   color: Colors.white,
                                                 ),
-                                                SizedBox(
-                                                  width: 2,
-                                                ),
+                                                SizedBox(width: 2),
                                                 Text(
                                                   'HOT',
                                                   style: TextStyle(
@@ -489,9 +422,7 @@ class _PathSelectionScreenState
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(
-                                        height: 8,
-                                      ),
+                                      const SizedBox(height: 8),
                                       Text(
                                         'Build streaks, earn achievements,\nand compete with friends!',
                                         style: TextStyle(
@@ -502,9 +433,7 @@ class _PathSelectionScreenState
                                           height: 1.3,
                                         ),
                                       ),
-                                      const SizedBox(
-                                        height: 10,
-                                      ),
+                                      const SizedBox(height: 10),
                                       // Stats row with flexible layout
                                       Wrap(
                                         spacing: 6,
@@ -519,9 +448,8 @@ class _PathSelectionScreenState
                                               color: Colors.white.withValues(
                                                 alpha: 0.15,
                                               ),
-                                              borderRadius: BorderRadius.circular(
-                                                10,
-                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
                                             ),
                                             child: const Row(
                                               mainAxisSize: MainAxisSize.min,
@@ -531,9 +459,7 @@ class _PathSelectionScreenState
                                                   size: 10,
                                                   color: Colors.white,
                                                 ),
-                                                SizedBox(
-                                                  width: 3,
-                                                ),
+                                                SizedBox(width: 3),
                                                 Text(
                                                   '5 Levels',
                                                   style: TextStyle(
@@ -554,9 +480,8 @@ class _PathSelectionScreenState
                                               color: Colors.white.withValues(
                                                 alpha: 0.15,
                                               ),
-                                              borderRadius: BorderRadius.circular(
-                                                10,
-                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
                                             ),
                                             child: const Row(
                                               mainAxisSize: MainAxisSize.min,
@@ -566,9 +491,7 @@ class _PathSelectionScreenState
                                                   size: 10,
                                                   color: Colors.white,
                                                 ),
-                                                SizedBox(
-                                                  width: 3,
-                                                ),
+                                                SizedBox(width: 3),
                                                 Text(
                                                   'Leaderboard',
                                                   style: TextStyle(
@@ -587,16 +510,10 @@ class _PathSelectionScreenState
                                 ),
                                 // Arrow with enhanced design
                                 Container(
-                                  padding: const EdgeInsets.all(
-                                    10,
-                                  ),
+                                  padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withValues(
-                                      alpha: 0.2,
-                                    ),
-                                    borderRadius: BorderRadius.circular(
-                                      12,
-                                    ),
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
                                       color: Colors.white.withValues(
                                         alpha: 0.3,
@@ -620,9 +537,7 @@ class _PathSelectionScreenState
                 ],
               ),
 
-              const SizedBox(
-                height: 80,
-              ),
+              const SizedBox(height: 80),
 
               // Continue Button
               Center(
@@ -631,45 +546,24 @@ class _PathSelectionScreenState
                   height: 56,
 
                   decoration: BoxDecoration(
-                    gradient:
-                        selectedPath !=
-                            null
+                    gradient: selectedPath != null
                         ? const LinearGradient(
-                            colors: [
-                              Color(
-                                0xFF701CF5,
-                              ),
-                              Color(
-                                0xFF701CF5,
-                              ),
-                            ],
+                            colors: [Color(0xFF701CF5), Color(0xFF701CF5)],
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
                           )
                         : null,
-                    color:
-                        selectedPath !=
-                            null
-                        ? null
-                        : Colors.grey[300],
-                    borderRadius: BorderRadius.circular(
-                      28,
-                    ),
+                    color: selectedPath != null ? null : Colors.grey[300],
+                    borderRadius: BorderRadius.circular(28),
                   ),
                   child: ElevatedButton(
-                    onPressed:
-                        selectedPath !=
-                            null
+                    onPressed: selectedPath != null
                         ? () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder:
-                                    (
-                                      context,
-                                    ) => CameraScreen(
-                                      selectedPath: selectedPath!,
-                                    ),
+                                builder: (context) =>
+                                    CameraScreen(selectedPath: selectedPath!),
                               ),
                             );
                           }
@@ -679,9 +573,7 @@ class _PathSelectionScreenState
                       foregroundColor: Colors.white,
                       shadowColor: Colors.transparent,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          28,
-                        ),
+                        borderRadius: BorderRadius.circular(28),
                       ),
                     ),
                     child: const Text(
@@ -695,9 +587,7 @@ class _PathSelectionScreenState
                 ),
               ),
 
-              const SizedBox(
-                height: 80,
-              ), // Space for bottom navbar
+              const SizedBox(height: 80), // Space for bottom navbar
             ],
           ),
         ),

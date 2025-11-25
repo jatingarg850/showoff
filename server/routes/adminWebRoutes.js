@@ -665,4 +665,17 @@ router.get('/subscriptions', checkAdminWeb, async (req, res) => {
   }
 });
 
+// Notifications Management
+router.get('/notifications', checkAdminWeb, async (req, res) => {
+  try {
+    res.render('admin/notifications', {
+      currentPage: 'notifications',
+      pageTitle: 'Notification Center'
+    });
+  } catch (error) {
+    console.error('Notifications page error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
 module.exports = router;

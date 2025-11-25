@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in with Phone - Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .phone-button-wrapper {
+            margin: 30px 0;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .status-box {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: left;
+            display: none;
+        }
+        
+        .status-box.show {
+            display: block;
+        }
+        
+        .status-box.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-box.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status-box h3 {
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .status-box p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .status-box code {
+            background: rgba(0, 0, 0, 0.05);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+        
+        .loader.show {
+            display: block;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .info-box {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #004085;
+        }
+        
+        .credentials {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: left;
+        }
+        
+        .credentials h4 {
+            margin-bottom: 10px;
+            color: #856404;
+        }
+        
+        .credentials p {
+            margin: 5px 0;
+            font-size: 13px;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Sign in with Phone</h1>
+        <p class="subtitle">Verify your phone number to continue</p>
+        
+        <div class="credentials">
+            <h4>📱 Test Credentials</h4>
+            <p><strong>Client ID:</strong> 16687983578815655151</p>
+            <p><strong>Test Phone:</strong> +91 9811226924</p>
+        </div>
+        
+        <!-- Phone.email Sign In Button -->
+        <div class="phone-button-wrapper">
+            <div class="pe_signin_button" data-client-id="16687983578815655151">
+                <script src="https://www.phone.email/sign_in_button_v1.js" async></script>
+            </div>
+        </div>
+        
+        <div class="loader" id="loader"></div>
+        
+        <div class="status-box" id="statusBox">
+            <h3 id="statusTitle">Status</h3>
+            <div id="statusContent"></div>
+        </div>
+        
+        <div class="info-box">
+            <strong>ℹ️ How it works:</strong><br>
+            1. Click the "Sign in with Phone" button above<br>
+            2. Enter your phone number and verify with OTP<br>
+            3. Your verified phone number will be displayed below<br>
+            4. Backend will securely fetch and store your data
+        </div>
+    </div>
+
+    <script>
+        // This function is called by Phone.email after successful verification
+        function phoneEmailListener(userObj) {
+            console.log('📞 Phone verification callback received:', userObj);
+            
+            const loader = document.getElementById('loader');
+            const statusBox = document.getElementById('statusBox');
+            const statusTitle = document.getElementById('statusTitle');
+            const statusContent = document.getElementById('statusContent');
+            
+            // Show loader
+            loader.classList.add('show');
+            statusBox.classList.remove('show');
+            
+            // Send user_json_url to backend
+            fetch('/api/auth/phone-email-verify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_json_url: userObj.user_json_url
+                })
+            })
+            .then(response => {
+                // Check if response is ok
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Server returned non-JSON response. Is the server running?');
+                }
+                return response.json();
+            })
+            .then(data => {
+                loader.classList.remove('show');
+                statusBox.classList.add('show');
+                
+                if (data.success) {
+                    statusBox.classList.add('success');
+                    statusBox.classList.remove('error');
+                    statusTitle.textContent = '✅ Phone Verified Successfully!';
+                    
+                    statusContent.innerHTML = `
+                        <p><strong>Phone Number:</strong> ${data.user.countryCode} ${data.user.phoneNumber}</p>
+                        <p><strong>First Name:</strong> ${data.user.firstName || 'N/A'}</p>
+                        <p><strong>Last Name:</strong> ${data.user.lastName || 'N/A'}</p>
+                        <p><strong>User ID:</strong> <code>${data.user.userId}</code></p>
+                        <p><strong>Token:</strong> <code>${data.token.substring(0, 20)}...</code></p>
+                        <hr style="margin: 15px 0; border: none; border-top: 1px solid #ccc;">
+                        <p style="color: #28a745; font-weight: bold;">🎉 You are now logged in!</p>
+                        <p style="font-size: 12px; margin-top: 10px;">
+                            <a href="/admin" style="color: #667eea; text-decoration: none;">
+                                → Go to Dashboard
+                            </a>
+                        </p>
+                    `;
+                    
+                    // Store token in localStorage
+                    localStorage.setItem('authToken', data.token);
+                    
+                    // Optionally redirect after 2 seconds
+                    setTimeout(() => {
+                        // window.location.href = '/admin';
+                    }, 2000);
+                } else {
+                    statusBox.classList.add('error');
+                    statusBox.classList.remove('success');
+                    statusTitle.textContent = '❌ Verification Failed';
+                    statusContent.innerHTML = `
+                        <p><strong>Error:</strong> ${data.message}</p>
+                        <p style="font-size: 12px; margin-top: 10px;">Please try again or contact support.</p>
+                    `;
+                }
+            })
+            .catch(error => {
+                loader.classList.remove('show');
+                statusBox.classList.add('show', 'error');
+                statusBox.classList.remove('success');
+                statusTitle.textContent = '❌ Connection Error';
+                
+                let errorMessage = error.message;
+                let troubleshooting = '';
+                
+                if (error.message.includes('non-JSON response') || error.message.includes('Unexpected end of JSON')) {
+                    troubleshooting = `
+                        <p style="font-size: 12px; margin-top: 10px; font-weight: bold;">
+                            ⚠️ Server Issue Detected
+                        </p>
+                        <p style="font-size: 12px;">
+                            The server is not responding correctly. Please:
+                        </p>
+                        <ol style="font-size: 12px; margin: 10px 0; padding-left: 20px;">
+                            <li>Make sure the server is running: <code>cd server && npm start</code></li>
+                            <li>Check the server console for errors</li>
+                            <li>Verify the endpoint exists: <code>/api/auth/phone-email-verify</code></li>
+                            <li>Check MongoDB connection</li>
+                        </ol>
+                    `;
+                } else if (error.message.includes('Failed to fetch')) {
+                    troubleshooting = `
+                        <p style="font-size: 12px; margin-top: 10px;">
+                            Cannot connect to server. Please ensure:
+                        </p>
+                        <ol style="font-size: 12px; margin: 10px 0; padding-left: 20px;">
+                            <li>Server is running on port 3000</li>
+                            <li>You're accessing: http://localhost:3000</li>
+                            <li>No firewall is blocking the connection</li>
+                        </ol>
+                    `;
+                } else {
+                    troubleshooting = `
+                        <p style="font-size: 12px; margin-top: 10px;">
+                            Please check your internet connection and try again.
+                        </p>
+                    `;
+                }
+                
+                statusContent.innerHTML = `
+                    <p><strong>Error:</strong> ${errorMessage}</p>
+                    ${troubleshooting}
+                `;
+                console.error('❌ Error:', error);
+            });
+        }
+        
+        // Debug: Log when script loads
+        console.log('📱 Phone.email integration loaded');
+        console.log('🔑 Client ID: 16687983578815655151');
+    </script>
+</body>
+</html>

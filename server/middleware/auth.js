@@ -70,3 +70,15 @@ exports.adminOnly = (req, res, next) => {
   }
   next();
 };
+
+// Session-based admin check for web admin panel
+exports.checkAdminSession = (req, res, next) => {
+  if (req.session && req.session.isAdmin) {
+    next();
+  } else {
+    return res.status(401).json({
+      success: false,
+      message: 'Admin session required',
+    });
+  }
+};

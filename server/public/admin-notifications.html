@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Notification Center</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      color: #667eea;
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      color: #666;
+      font-size: 16px;
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+    }
+
+    .card {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .card h2 {
+      color: #333;
+      font-size: 24px;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      color: #555;
+      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.3s;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .targeting-options {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .targeting-option {
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-align: center;
+    }
+
+    .targeting-option:hover {
+      border-color: #667eea;
+      background: #f8f9ff;
+    }
+
+    .targeting-option.active {
+      border-color: #667eea;
+      background: #667eea;
+      color: white;
+    }
+
+    .advanced-criteria {
+      display: none;
+      margin-top: 15px;
+      padding: 15px;
+      background: #f8f9ff;
+      border-radius: 8px;
+    }
+
+    .advanced-criteria.show {
+      display: block;
+    }
+
+    .btn {
+      padding: 14px 28px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+
+    .recipient-count {
+      background: #f8f9ff;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+      text-align: center;
+    }
+
+    .recipient-count .count {
+      font-size: 32px;
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    .recipient-count .label {
+      color: #666;
+      font-size: 14px;
+      margin-top: 5px;
+    }
+
+    .notification-list {
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
+    .notification-item {
+      padding: 15px;
+      border: 2px solid #f0f0f0;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      transition: all 0.3s;
+    }
+
+    .notification-item:hover {
+      border-color: #667eea;
+      box-shadow: 0 3px 10px rgba(102, 126, 234, 0.1);
+    }
+
+    .notification-item h3 {
+      color: #333;
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+
+    .notification-item p {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    .notification-stats {
+      display: flex;
+      gap: 15px;
+      font-size: 12px;
+      color: #999;
+    }
+
+    .notification-stats span {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-sent {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status-scheduled {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .status-draft {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .alert {
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .alert-success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .alert-error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    @media (max-width: 768px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+
+      .targeting-options {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📢 Admin Notification Center</h1>
+      <p>Send custom notifications to users with advanced targeting options</p>
+    </div>
+
+    <div class="main-content">
+      <!-- Send Notification Form -->
+      <div class="card">
+        <h2>Send Notification</h2>
+        
+        <div id="alert-container"></div>
+
+        <form id="notification-form">
+          <div class="form-group">
+            <label for="title">Title *</label>
+            <input type="text" id="title" name="title" required maxlength="100" placeholder="Enter notification title">
+          </div>
+
+          <div class="form-group">
+            <label for="message">Message *</label>
+            <textarea id="message" name="message" required maxlength="500" placeholder="Enter notification message"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="imageUrl">Image URL (Optional)</label>
+            <input type="url" id="imageUrl" name="imageUrl" placeholder="https://example.com/image.jpg">
+          </div>
+
+          <div class="form-group">
+            <label>Target Audience *</label>
+            <div class="targeting-options">
+              <div class="targeting-option active" data-target="all">
+                <div>🌍 All Users</div>
+              </div>
+              <div class="targeting-option" data-target="verified">
+                <div>✅ Verified Users</div>
+              </div>
+              <div class="targeting-option" data-target="active">
+                <div>🔥 Active Users</div>
+              </div>
+              <div class="targeting-option" data-target="new">
+                <div>🆕 New Users</div>
+              </div>
+              <div class="targeting-option" data-target="custom">
+                <div>🎯 Custom</div>
+              </div>
+            </div>
+            <input type="hidden" id="targetType" name="targetType" value="all">
+          </div>
+
+          <div id="advanced-criteria" class="advanced-criteria">
+            <h3 style="margin-bottom: 15px; color: #667eea;">Advanced Targeting</h3>
+            
+            <div class="form-group">
+              <label for="minBalance">Minimum Balance</label>
+              <input type="number" id="minBalance" name="minBalance" placeholder="0">
+            </div>
+
+            <div class="form-group">
+              <label for="maxBalance">Maximum Balance</label>
+              <input type="number" id="maxBalance" name="maxBalance" placeholder="1000">
+            </div>
+
+            <div class="form-group">
+              <label for="registeredAfter">Registered After</label>
+              <input type="date" id="registeredAfter" name="registeredAfter">
+            </div>
+
+            <div class="form-group">
+              <label for="minFollowers">Minimum Followers</label>
+              <input type="number" id="minFollowers" name="minFollowers" placeholder="0">
+            </div>
+          </div>
+
+          <div class="recipient-count" id="recipient-count">
+            <div class="count">-</div>
+            <div class="label">Estimated Recipients</div>
+          </div>
+
+          <div class="form-group">
+            <label for="actionType">Action Type</label>
+            <select id="actionType" name="actionType">
+              <option value="none">None</option>
+              <option value="open_url">Open URL</option>
+              <option value="open_screen">Open Screen</option>
+              <option value="open_post">Open Post</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="actionData">Action Data</label>
+            <input type="text" id="actionData" name="actionData" placeholder="URL, screen name, or post ID">
+          </div>
+
+          <button type="button" class="btn btn-secondary" onclick="previewCount()">
+            🔍 Preview Recipient Count
+          </button>
+
+          <button type="submit" class="btn btn-primary">
+            📤 Send Notification
+          </button>
+        </form>
+      </div>
+
+      <!-- Notification History -->
+      <div class="card">
+        <h2>Recent Notifications</h2>
+        <div class="notification-list" id="notification-list">
+          <p style="text-align: center; color: #999; padding: 40px 0;">Loading...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentTargetType = 'all';
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      loadNotifications();
+      setupTargetingOptions();
+      setupForm();
+    });
+
+    // Setup targeting options
+    function setupTargetingOptions() {
+      const options = document.querySelectorAll('.targeting-option');
+      const advancedCriteria = document.getElementById('advanced-criteria');
+      const targetTypeInput = document.getElementById('targetType');
+
+      options.forEach(option => {
+        option.addEventListener('click', () => {
+          options.forEach(opt => opt.classList.remove('active'));
+          option.classList.add('active');
+          
+          const target = option.dataset.target;
+          currentTargetType = target;
+          targetTypeInput.value = target;
+
+          if (target === 'custom') {
+            advancedCriteria.classList.add('show');
+          } else {
+            advancedCriteria.classList.remove('show');
+          }
+
+          previewCount();
+        });
+      });
+    }
+
+    // Setup form submission
+    function setupForm() {
+      const form = document.getElementById('notification-form');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await sendNotification();
+      });
+    }
+
+    // Preview recipient count
+    async function previewCount() {
+      try {
+        const data = {
+          targetType: currentTargetType,
+        };
+
+        if (currentTargetType === 'custom') {
+          data.customCriteria = {
+            minBalance: document.getElementById('minBalance').value || undefined,
+            maxBalance: document.getElementById('maxBalance').value || undefined,
+            registeredAfter: document.getElementById('registeredAfter').value || undefined,
+            minFollowers: document.getElementById('minFollowers').value || undefined,
+          };
+        }
+
+        const response = await fetch('/api/notifications/admin-web/preview-count', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          document.querySelector('.recipient-count .count').textContent = result.data.recipientCount.toLocaleString();
+        }
+      } catch (error) {
+        console.error('Error previewing count:', error);
+      }
+    }
+
+    // Send notification
+    async function sendNotification() {
+      try {
+        const data = {
+          title: document.getElementById('title').value,
+          message: document.getElementById('message').value,
+          imageUrl: document.getElementById('imageUrl').value || undefined,
+          targetType: currentTargetType,
+          actionType: document.getElementById('actionType').value,
+          actionData: document.getElementById('actionData').value || undefined,
+        };
+
+        if (currentTargetType === 'custom') {
+          data.customCriteria = {
+            minBalance: parseInt(document.getElementById('minBalance').value) || undefined,
+            maxBalance: parseInt(document.getElementById('maxBalance').value) || undefined,
+            registeredAfter: document.getElementById('registeredAfter').value || undefined,
+            minFollowers: parseInt(document.getElementById('minFollowers').value) || undefined,
+          };
+        }
+
+        const response = await fetch('/api/notifications/admin-web/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showAlert('success', result.message);
+          document.getElementById('notification-form').reset();
+          currentTargetType = 'all';
+          document.querySelector('.targeting-option[data-target="all"]').click();
+          loadNotifications();
+        } else {
+          showAlert('error', result.message);
+        }
+      } catch (error) {
+        showAlert('error', 'Failed to send notification: ' + error.message);
+      }
+    }
+
+    // Load notifications
+    async function loadNotifications() {
+      try {
+        const response = await fetch('/api/notifications/admin-web/list?limit=10');
+        const result = await response.json();
+
+        if (result.success) {
+          displayNotifications(result.data);
+        }
+      } catch (error) {
+        console.error('Error loading notifications:', error);
+      }
+    }
+
+    // Display notifications
+    function displayNotifications(notifications) {
+      const container = document.getElementById('notification-list');
+      
+      if (notifications.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #999; padding: 40px 0;">No notifications yet</p>';
+        return;
+      }
+
+      container.innerHTML = notifications.map(notif => `
+        <div class="notification-item">
+          <h3>${notif.title}</h3>
+          <p>${notif.message}</p>
+          <div class="notification-stats">
+            <span class="status-badge status-${notif.status}">${notif.status}</span>
+            <span>📊 ${notif.totalRecipients} recipients</span>
+            <span>✅ ${notif.deliveredCount} delivered</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Show alert
+    function showAlert(type, message) {
+      const container = document.getElementById('alert-container');
+      const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
+      
+      container.innerHTML = `<div class="alert ${alertClass}">${message}</div>`;
+      
+      setTimeout(() => {
+        container.innerHTML = '';
+      }, 5000);
+    }
+  </script>
+</body>
+</html>

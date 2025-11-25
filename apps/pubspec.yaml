@@ -43,6 +43,9 @@ dependencies:
   # HTTP & API
   http: ^1.1.0
   
+  # Google Sign-In
+  google_sign_in: ^6.2.1
+  
   # WebSocket for real-time notifications
   socket_io_client: ^2.0.3+1
   

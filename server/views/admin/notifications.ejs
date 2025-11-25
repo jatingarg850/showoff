@@ -1,0 +1,626 @@
+<style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f5f7fa;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      color: #2c3e50;
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      color: #7f8c8d;
+      font-size: 14px;
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+    }
+
+    .card {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .card h2 {
+      color: #2c3e50;
+      font-size: 20px;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #ecf0f1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      color: #34495e;
+      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ecf0f1;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.3s;
+      font-family: inherit;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #3498db;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .targeting-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .target-option {
+      padding: 15px;
+      border: 2px solid #ecf0f1;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-align: center;
+      background: white;
+    }
+
+    .target-option:hover {
+      border-color: #3498db;
+      background: #ebf5fb;
+    }
+
+    .target-option.active {
+      border-color: #3498db;
+      background: #3498db;
+      color: white;
+    }
+
+    .target-option i {
+      font-size: 24px;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .target-option .label {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .advanced-section {
+      display: none;
+      margin-top: 20px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border: 2px dashed #dee2e6;
+    }
+
+    .advanced-section.show {
+      display: block;
+    }
+
+    .advanced-section h3 {
+      color: #3498db;
+      font-size: 16px;
+      margin-bottom: 15px;
+    }
+
+    .recipient-preview {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 25px;
+      border-radius: 12px;
+      margin: 20px 0;
+      text-align: center;
+      color: white;
+    }
+
+    .recipient-preview .count {
+      font-size: 48px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .recipient-preview .label {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .btn {
+      padding: 14px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      width: 100%;
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: #ecf0f1;
+      color: #2c3e50;
+    }
+
+    .btn-secondary:hover {
+      background: #bdc3c7;
+    }
+
+    .notification-list {
+      max-height: 700px;
+      overflow-y: auto;
+    }
+
+    .notification-item {
+      padding: 20px;
+      border: 2px solid #ecf0f1;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      transition: all 0.3s;
+    }
+
+    .notification-item:hover {
+      border-color: #3498db;
+      box-shadow: 0 3px 10px rgba(52, 152, 219, 0.1);
+    }
+
+    .notification-item h3 {
+      color: #2c3e50;
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+
+    .notification-item p {
+      color: #7f8c8d;
+      font-size: 14px;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .notification-meta {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: #95a5a6;
+    }
+
+    .notification-meta span {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-sent {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status-scheduled {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .status-draft {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .alert {
+      padding: 15px 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .alert-success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .alert-error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #95a5a6;
+    }
+
+    .empty-state i {
+      font-size: 64px;
+      margin-bottom: 20px;
+      opacity: 0.3;
+    }
+
+    @media (max-width: 1024px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .targeting-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+
+  <div class="container">
+    <div class="header">
+      <h1><i class="fas fa-bell"></i> <%= pageTitle %></h1>
+      <p>Send custom notifications to users with advanced targeting options</p>
+    </div>
+
+    <div class="main-content">
+      <!-- Send Notification Form -->
+      <div class="card">
+        <h2><i class="fas fa-paper-plane"></i> Send Notification</h2>
+        
+        <div id="alert-container"></div>
+
+        <form id="notification-form">
+          <div class="form-group">
+            <label for="title"><i class="fas fa-heading"></i> Title *</label>
+            <input type="text" id="title" name="title" required maxlength="100" placeholder="Enter notification title">
+          </div>
+
+          <div class="form-group">
+            <label for="message"><i class="fas fa-comment"></i> Message *</label>
+            <textarea id="message" name="message" required maxlength="500" placeholder="Enter notification message"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="imageUrl"><i class="fas fa-image"></i> Image URL (Optional)</label>
+            <input type="url" id="imageUrl" name="imageUrl" placeholder="https://example.com/image.jpg">
+          </div>
+
+          <div class="form-group">
+            <label><i class="fas fa-bullseye"></i> Target Audience *</label>
+            <div class="targeting-grid">
+              <div class="target-option active" data-target="all">
+                <i class="fas fa-globe"></i>
+                <div class="label">All Users</div>
+              </div>
+              <div class="target-option" data-target="verified">
+                <i class="fas fa-check-circle"></i>
+                <div class="label">Verified Users</div>
+              </div>
+              <div class="target-option" data-target="active">
+                <i class="fas fa-fire"></i>
+                <div class="label">Active Users</div>
+              </div>
+              <div class="target-option" data-target="new">
+                <i class="fas fa-user-plus"></i>
+                <div class="label">New Users</div>
+              </div>
+              <div class="target-option" data-target="custom">
+                <i class="fas fa-sliders-h"></i>
+                <div class="label">Custom</div>
+              </div>
+            </div>
+            <input type="hidden" id="targetType" name="targetType" value="all">
+          </div>
+
+          <div id="advanced-criteria" class="advanced-section">
+            <h3><i class="fas fa-filter"></i> Advanced Targeting</h3>
+            
+            <div class="form-group">
+              <label for="minBalance">Minimum Balance</label>
+              <input type="number" id="minBalance" name="minBalance" placeholder="0">
+            </div>
+
+            <div class="form-group">
+              <label for="maxBalance">Maximum Balance</label>
+              <input type="number" id="maxBalance" name="maxBalance" placeholder="1000">
+            </div>
+
+            <div class="form-group">
+              <label for="registeredAfter">Registered After</label>
+              <input type="date" id="registeredAfter" name="registeredAfter">
+            </div>
+
+            <div class="form-group">
+              <label for="minFollowers">Minimum Followers</label>
+              <input type="number" id="minFollowers" name="minFollowers" placeholder="0">
+            </div>
+          </div>
+
+          <div class="recipient-preview" id="recipient-count">
+            <div class="count">-</div>
+            <div class="label">Estimated Recipients</div>
+          </div>
+
+          <div class="form-group">
+            <label for="actionType"><i class="fas fa-mouse-pointer"></i> Action Type</label>
+            <select id="actionType" name="actionType">
+              <option value="none">None</option>
+              <option value="open_url">Open URL</option>
+              <option value="open_screen">Open Screen</option>
+              <option value="open_post">Open Post</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="actionData"><i class="fas fa-link"></i> Action Data</label>
+            <input type="text" id="actionData" name="actionData" placeholder="URL, screen name, or post ID">
+          </div>
+
+          <button type="button" class="btn btn-secondary" onclick="previewCount()">
+            <i class="fas fa-search"></i> Preview Recipient Count
+          </button>
+
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-paper-plane"></i> Send Notification
+          </button>
+        </form>
+      </div>
+
+      <!-- Notification History -->
+      <div class="card">
+        <h2><i class="fas fa-history"></i> Recent Notifications</h2>
+        <div class="notification-list" id="notification-list">
+          <div class="empty-state">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Loading notifications...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentTargetType = 'all';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadNotifications();
+      setupTargetingOptions();
+      setupForm();
+    });
+
+    function setupTargetingOptions() {
+      const options = document.querySelectorAll('.target-option');
+      const advancedCriteria = document.getElementById('advanced-criteria');
+      const targetTypeInput = document.getElementById('targetType');
+
+      options.forEach(option => {
+        option.addEventListener('click', () => {
+          options.forEach(opt => opt.classList.remove('active'));
+          option.classList.add('active');
+          
+          const target = option.dataset.target;
+          currentTargetType = target;
+          targetTypeInput.value = target;
+
+          if (target === 'custom') {
+            advancedCriteria.classList.add('show');
+          } else {
+            advancedCriteria.classList.remove('show');
+          }
+
+          previewCount();
+        });
+      });
+    }
+
+    function setupForm() {
+      const form = document.getElementById('notification-form');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await sendNotification();
+      });
+    }
+
+    async function previewCount() {
+      try {
+        const data = {
+          targetType: currentTargetType,
+        };
+
+        if (currentTargetType === 'custom') {
+          data.customCriteria = {
+            minBalance: document.getElementById('minBalance').value || undefined,
+            maxBalance: document.getElementById('maxBalance').value || undefined,
+            registeredAfter: document.getElementById('registeredAfter').value || undefined,
+            minFollowers: document.getElementById('minFollowers').value || undefined,
+          };
+        }
+
+        const response = await fetch('/api/notifications/admin-web/preview-count', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          document.querySelector('.recipient-preview .count').textContent = result.data.recipientCount.toLocaleString();
+        }
+      } catch (error) {
+        console.error('Error previewing count:', error);
+      }
+    }
+
+    async function sendNotification() {
+      try {
+        const data = {
+          title: document.getElementById('title').value,
+          message: document.getElementById('message').value,
+          imageUrl: document.getElementById('imageUrl').value || undefined,
+          targetType: currentTargetType,
+          actionType: document.getElementById('actionType').value,
+          actionData: document.getElementById('actionData').value || undefined,
+        };
+
+        if (currentTargetType === 'custom') {
+          data.customCriteria = {
+            minBalance: parseInt(document.getElementById('minBalance').value) || undefined,
+            maxBalance: parseInt(document.getElementById('maxBalance').value) || undefined,
+            registeredAfter: document.getElementById('registeredAfter').value || undefined,
+            minFollowers: parseInt(document.getElementById('minFollowers').value) || undefined,
+          };
+        }
+
+        const response = await fetch('/api/notifications/admin-web/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showAlert('success', result.message);
+          document.getElementById('notification-form').reset();
+          currentTargetType = 'all';
+          document.querySelector('.target-option[data-target="all"]').click();
+          loadNotifications();
+        } else {
+          showAlert('error', result.message);
+        }
+      } catch (error) {
+        showAlert('error', 'Failed to send notification: ' + error.message);
+      }
+    }
+
+    async function loadNotifications() {
+      try {
+        const response = await fetch('/api/notifications/admin-web/list?limit=20');
+        const result = await response.json();
+
+        if (result.success) {
+          displayNotifications(result.data);
+        }
+      } catch (error) {
+        console.error('Error loading notifications:', error);
+        document.getElementById('notification-list').innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p>Failed to load notifications</p>
+          </div>
+        `;
+      }
+    }
+
+    function displayNotifications(notifications) {
+      const container = document.getElementById('notification-list');
+      
+      if (notifications.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-bell-slash"></i>
+            <p>No notifications sent yet</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = notifications.map(notif => `
+        <div class="notification-item">
+          <h3>${notif.title}</h3>
+          <p>${notif.message}</p>
+          <div class="notification-meta">
+            <span class="status-badge status-${notif.status}">${notif.status}</span>
+            <span><i class="fas fa-users"></i> ${notif.totalRecipients} recipients</span>
+            <span><i class="fas fa-check"></i> ${notif.deliveredCount} delivered</span>
+            <span><i class="fas fa-clock"></i> ${new Date(notif.createdAt).toLocaleString()}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function showAlert(type, message) {
+      const container = document.getElementById('alert-container');
+      const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
+      const icon = type === 'success' ? 'check-circle' : 'exclamation-circle';
+      
+      container.innerHTML = `<div class="alert ${alertClass}"><i class="fas fa-${icon}"></i> ${message}</div>`;
+      
+      setTimeout(() => {
+        container.innerHTML = '';
+      }, 5000);
+    }
+  </script>

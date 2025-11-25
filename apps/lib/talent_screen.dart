@@ -6,205 +6,170 @@ import 'camera_screen.dart';
 import 'services/api_service.dart';
 import 'ai_chat_screen.dart';
 
-class TalentScreen
-    extends
-        StatefulWidget {
-  const TalentScreen({
-    super.key,
-  });
+class TalentScreen extends StatefulWidget {
+  const TalentScreen({super.key});
 
   @override
-  State<
-    TalentScreen
-  >
-  createState() => _TalentScreenState();
+  State<TalentScreen> createState() => _TalentScreenState();
 }
 
-class _TalentScreenState
-    extends
-        State<
-          TalentScreen
-        > {
-  String
-  selectedPeriod = 'Weekly';
+class _TalentScreenState extends State<TalentScreen> {
+  String selectedPeriod = 'Weekly';
 
-  final List<
-    String
-  >
-  periods = [
-    'Weekly',
-  ];
+  final List<String> periods = ['Weekly'];
 
-  List<
-    Map<
-      String,
-      dynamic
-    >
-  >
-  _entries = [];
-  bool
-  _isLoading = true;
-  bool
-  _hasSubmittedThisWeek = false;
+  List<Map<String, dynamic>> _entries = [];
+  bool _isLoading = true;
+  bool _hasSubmittedThisWeek = false;
+  Map<String, dynamic>? _currentCompetition;
+  String _competitionEndTime = 'Loading...';
 
   @override
-  void
-  initState() {
+  void initState() {
     super.initState();
+    _loadCompetitionInfo();
     _loadEntries();
     _checkUserWeeklySubmission();
   }
 
-  Future<
-    void
-  >
-  _loadEntries() async {
+  Future<void> _loadEntries() async {
     try {
       final filter = selectedPeriod.toLowerCase();
-      final response = await ApiService.getSYTEntries(
-        filter: filter,
-      );
+      final response = await ApiService.getSYTEntries(filter: filter);
       if (response['success']) {
-        setState(
-          () {
-            _entries =
-                List<
-                  Map<
-                    String,
-                    dynamic
-                  >
-                >.from(
-                  response['data'],
-                );
-            _isLoading = false;
-          },
-        );
+        setState(() {
+          _entries = List<Map<String, dynamic>>.from(response['data']);
+          _isLoading = false;
+        });
       }
-    } catch (
-      e
-    ) {
-      print(
-        'Error loading SYT entries: $e',
-      );
-      setState(
-        () => _isLoading = false,
-      );
+    } catch (e) {
+      print('Error loading SYT entries: $e');
+      setState(() => _isLoading = false);
     }
   }
 
-  Future<
-    void
-  >
-  _checkUserWeeklySubmission() async {
+  Future<void> _loadCompetitionInfo() async {
+    try {
+      final response = await ApiService.getCurrentCompetition(
+        type: selectedPeriod.toLowerCase(),
+      );
+      if (response['success'] && response['data']['hasActiveCompetition']) {
+        setState(() {
+          _currentCompetition = response['data']['competition'];
+          _updateCompetitionEndTime();
+        });
+      } else {
+        setState(() {
+          _currentCompetition = null;
+          _competitionEndTime = 'No active competition';
+        });
+      }
+    } catch (e) {
+      print('Error loading competition info: $e');
+      setState(() {
+        _currentCompetition = null;
+        _competitionEndTime = 'Error loading';
+      });
+    }
+  }
+
+  void _updateCompetitionEndTime() {
+    if (_currentCompetition == null) {
+      setState(() {
+        _competitionEndTime = 'No active competition';
+      });
+      return;
+    }
+
+    try {
+      final endDate = DateTime.parse(_currentCompetition!['endDate']);
+      final now = DateTime.now();
+      final difference = endDate.difference(now);
+
+      if (difference.isNegative) {
+        setState(() {
+          _competitionEndTime = 'Competition ended';
+        });
+      } else {
+        final days = difference.inDays;
+        final hours = difference.inHours % 24;
+        final minutes = difference.inMinutes % 60;
+
+        setState(() {
+          if (days > 0) {
+            _competitionEndTime = 'Ends ${days}d ${hours}h';
+          } else if (hours > 0) {
+            _competitionEndTime = 'Ends ${hours}h ${minutes}m';
+          } else {
+            _competitionEndTime = 'Ends ${minutes}m';
+          }
+        });
+      }
+    } catch (e) {
+      print('Error calculating end time: $e');
+      setState(() {
+        _competitionEndTime = 'Error';
+      });
+    }
+  }
+
+  Future<void> _checkUserWeeklySubmission() async {
     try {
       final response = await ApiService.checkUserWeeklySubmission();
       if (response['success']) {
-        setState(
-          () {
-            _hasSubmittedThisWeek =
-                response['data']['hasSubmitted'] ??
-                false;
-          },
-        );
+        setState(() {
+          _hasSubmittedThisWeek = response['data']['hasSubmitted'] ?? false;
+        });
       }
-    } catch (
-      e
-    ) {
-      print(
-        'Error checking weekly submission: $e',
-      );
+    } catch (e) {
+      print('Error checking weekly submission: $e');
       // Default to false if there's an error
-      setState(
-        () {
-          _hasSubmittedThisWeek = false;
-        },
-      );
+      setState(() {
+        _hasSubmittedThisWeek = false;
+      });
     }
   }
 
-  Future<
-    void
-  >
-  _refreshData() async {
-    setState(
-      () {
-        _isLoading = true;
-      },
-    );
-    await Future.wait(
-      [
-        _loadEntries(),
-        _checkUserWeeklySubmission(),
-      ],
-    );
+  Future<void> _refreshData() async {
+    setState(() {
+      _isLoading = true;
+    });
+    await Future.wait([
+      _loadCompetitionInfo(),
+      _loadEntries(),
+      _checkUserWeeklySubmission(),
+    ]);
   }
 
-  final List<
-    Map<
-      String,
-      dynamic
-    >
-  >
-  competitions = [
+  final List<Map<String, dynamic>> competitions = [
     {
       'username': '@james9898',
       'category': 'Dance',
       'likes': '23424',
-      'gradient': [
-        const Color(
-          0xFFE8A87C,
-        ),
-        const Color(
-          0xFFC27D38,
-        ),
-      ],
+      'gradient': [const Color(0xFFE8A87C), const Color(0xFFC27D38)],
     },
     {
       'username': '@yuyttt666',
       'category': 'Art',
       'likes': '23624',
-      'gradient': [
-        const Color(
-          0xFF8B4513,
-        ),
-        const Color(
-          0xFFD2691E,
-        ),
-      ],
+      'gradient': [const Color(0xFF8B4513), const Color(0xFFD2691E)],
     },
     {
       'username': 'Fr',
       'category': 'Dance',
       'likes': '23424',
-      'gradient': [
-        const Color(
-          0xFF1E90FF,
-        ),
-        const Color(
-          0xFF000080,
-        ),
-      ],
+      'gradient': [const Color(0xFF1E90FF), const Color(0xFF000080)],
     },
     {
       'username': '@yuyttt666',
       'category': 'Art',
       'likes': '23624',
-      'gradient': [
-        const Color(
-          0xFF228B22,
-        ),
-        const Color(
-          0xFF006400,
-        ),
-      ],
+      'gradient': [const Color(0xFF228B22), const Color(0xFF006400)],
     },
   ];
 
   @override
-  Widget
-  build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -212,31 +177,16 @@ class _TalentScreenState
           children: [
             // Header
             Padding(
-              padding: const EdgeInsets.all(
-                20,
-              ),
+              padding: const EdgeInsets.all(20),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   ShaderMask(
-                    shaderCallback:
-                        (
-                          bounds,
-                        ) =>
-                            const LinearGradient(
-                              colors: [
-                                Color(
-                                  0xFF701CF5,
-                                ),
-                                Color(
-                                  0xFF3E98E4,
-                                ),
-                              ],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            ).createShader(
-                              bounds,
-                            ),
+                    shaderCallback: (bounds) => const LinearGradient(
+                      colors: [Color(0xFF701CF5), Color(0xFF3E98E4)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ).createShader(bounds),
                     child: const Text(
                       'Show your Talent',
                       style: TextStyle(
@@ -252,13 +202,9 @@ class _TalentScreenState
                       vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(
-                        25,
-                      ),
+                      borderRadius: BorderRadius.circular(25),
                       image: const DecorationImage(
-                        image: AssetImage(
-                          'assets/syttop/back.png',
-                        ),
+                        image: AssetImage('assets/syttop/back.png'),
                         fit: BoxFit.cover,
                       ),
                     ),
@@ -270,10 +216,7 @@ class _TalentScreenState
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder:
-                                    (
-                                      context,
-                                    ) => const LeaderboardScreen(),
+                                builder: (context) => const LeaderboardScreen(),
                               ),
                             );
                           },
@@ -284,18 +227,13 @@ class _TalentScreenState
                             color: Colors.black,
                           ),
                         ),
-                        const SizedBox(
-                          width: 12,
-                        ),
+                        const SizedBox(width: 12),
                         GestureDetector(
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder:
-                                    (
-                                      context,
-                                    ) => const AIChatScreen(),
+                                builder: (context) => const AIChatScreen(),
                               ),
                             );
                           },
@@ -306,18 +244,14 @@ class _TalentScreenState
                             color: Colors.black,
                           ),
                         ),
-                        const SizedBox(
-                          width: 12,
-                        ),
+                        const SizedBox(width: 12),
                         GestureDetector(
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder:
-                                    (
-                                      context,
-                                    ) => const NotificationScreen(),
+                                builder: (context) =>
+                                    const NotificationScreen(),
                               ),
                             );
                           },
@@ -337,18 +271,10 @@ class _TalentScreenState
 
             // Period Selection
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  ...periods.map(
-                    (
-                      period,
-                    ) => _buildPeriodTab(
-                      period,
-                    ),
-                  ),
+                  ...periods.map((period) => _buildPeriodTab(period)),
                   const Spacer(),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -356,16 +282,12 @@ class _TalentScreenState
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(
-                        0xFF701CF5,
-                      ),
-                      borderRadius: BorderRadius.circular(
-                        20,
-                      ),
+                      color: const Color(0xFF701CF5),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Text(
-                      'Ends 3days 17hrs',
-                      style: TextStyle(
+                    child: Text(
+                      _competitionEndTime,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -376,55 +298,32 @@ class _TalentScreenState
               ),
             ),
 
-            const SizedBox(
-              height: 20,
-            ),
+            const SizedBox(height: 20),
 
             // Message Box - Show only if user hasn't submitted this week
             if (!_hasSubmittedThisWeek)
               Container(
                 width: double.infinity,
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                ),
+                margin: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(
-                    16,
-                  ),
+                  borderRadius: BorderRadius.circular(16),
                   gradient: const LinearGradient(
-                    colors: [
-                      Color(
-                        0xFF701CF5,
-                      ),
-                      Color(
-                        0xFF74B9FF,
-                      ),
-                    ],
+                    colors: [Color(0xFF701CF5), Color(0xFF74B9FF)],
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                   ),
                 ),
                 child: Container(
-                  margin: const EdgeInsets.all(
-                    2,
-                  ),
+                  margin: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(
-                      14,
-                    ),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(
-                      14,
-                    ),
+                    borderRadius: BorderRadius.circular(14),
                     child: Stack(
                       children: [
                         // White background
-                        Positioned.fill(
-                          child: Container(
-                            color: Colors.white,
-                          ),
-                        ),
+                        Positioned.fill(child: Container(color: Colors.white)),
                         // Subtle background pattern
                         Positioned.fill(
                           child: Opacity(
@@ -447,24 +346,15 @@ class _TalentScreenState
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               ShaderMask(
-                                shaderCallback:
-                                    (
-                                      bounds,
-                                    ) =>
-                                        const LinearGradient(
-                                          colors: [
-                                            Color(
-                                              0xFF701CF5,
-                                            ),
-                                            Color(
-                                              0xFF74B9FF,
-                                            ),
-                                          ],
-                                          begin: Alignment.centerLeft,
-                                          end: Alignment.centerRight,
-                                        ).createShader(
-                                          bounds,
-                                        ),
+                                shaderCallback: (bounds) =>
+                                    const LinearGradient(
+                                      colors: [
+                                        Color(0xFF701CF5),
+                                        Color(0xFF74B9FF),
+                                      ],
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                    ).createShader(bounds),
                                 child: const Text(
                                   'You have not shared your\ntalent to the world',
                                   textAlign: TextAlign.center,
@@ -476,9 +366,7 @@ class _TalentScreenState
                                   ),
                                 ),
                               ),
-                              const SizedBox(
-                                height: 8,
-                              ),
+                              const SizedBox(height: 8),
                               const Text(
                                 'Click the button below to showoff',
                                 textAlign: TextAlign.center,
@@ -487,36 +375,26 @@ class _TalentScreenState
                                   fontSize: 14,
                                 ),
                               ),
-                              const SizedBox(
-                                height: 20,
-                              ),
+                              const SizedBox(height: 20),
                               Container(
                                 decoration: BoxDecoration(
                                   gradient: const LinearGradient(
                                     colors: [
-                                      Color(
-                                        0xFF701CF5,
-                                      ),
-                                      Color(
-                                        0xFF74B9FF,
-                                      ),
+                                      Color(0xFF701CF5),
+                                      Color(0xFF74B9FF),
                                     ],
                                     begin: Alignment.centerLeft,
                                     end: Alignment.centerRight,
                                   ),
-                                  borderRadius: BorderRadius.circular(
-                                    25,
-                                  ),
+                                  borderRadius: BorderRadius.circular(25),
                                 ),
                                 child: ElevatedButton(
                                   onPressed: () {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder:
-                                            (
-                                              context,
-                                            ) => const CameraScreen(
+                                        builder: (context) =>
+                                            const CameraScreen(
                                               selectedPath: 'SYT',
                                             ),
                                       ),
@@ -531,9 +409,7 @@ class _TalentScreenState
                                       vertical: 12,
                                     ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(
-                                        25,
-                                      ),
+                                      borderRadius: BorderRadius.circular(25),
                                     ),
                                   ),
                                   child: const Text(
@@ -554,11 +430,7 @@ class _TalentScreenState
                 ),
               ),
 
-            SizedBox(
-              height: _hasSubmittedThisWeek
-                  ? 0
-                  : 20,
-            ),
+            SizedBox(height: _hasSubmittedThisWeek ? 0 : 20),
 
             // Competition Grid with Floating Button
             Expanded(
@@ -566,108 +438,91 @@ class _TalentScreenState
                 children: [
                   // Competition Grid
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      20,
-                      0,
-                      20,
-                      120,
-                    ),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
                     child: _isLoading
                         ? const Center(
                             child: CircularProgressIndicator(
-                              valueColor:
-                                  AlwaysStoppedAnimation<
-                                    Color
-                                  >(
-                                    Color(
-                                      0xFF701CF5,
-                                    ),
-                                  ),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Color(0xFF701CF5),
+                              ),
                             ),
                           )
                         : RefreshIndicator(
                             onRefresh: _refreshData,
                             child: GridView.builder(
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                childAspectRatio: 0.8,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                              ),
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    childAspectRatio: 0.8,
+                                    crossAxisSpacing: 16,
+                                    mainAxisSpacing: 16,
+                                  ),
                               itemCount: _entries.length,
-                              itemBuilder:
-                                  (
-                                    context,
-                                    index,
-                                  ) {
-                                    // Use loaded entries from database
-                                    final entry = _entries[index];
-                                    final competition = {
-                                      'username': '@${entry['user']?['username'] ?? 'user'}',
-                                      'category':
-                                          entry['category'] ??
-                                          'Other',
-                                      'likes':
-                                          entry['likesCount']?.toString() ??
-                                          '0',
-                                      'gradient':
-                                          competitions[index %
-                                              competitions.length]['gradient'],
-                                      'entryId': entry['_id'],
-                                      'thumbnailUrl': entry['thumbnailUrl'],
-                                      'videoUrl': entry['videoUrl'],
-                                    };
+                              itemBuilder: (context, index) {
+                                // Use loaded entries from database
+                                final entry = _entries[index];
+                                final competition = {
+                                  'username':
+                                      '@${entry['user']?['username'] ?? 'user'}',
+                                  'category': entry['category'] ?? 'Other',
+                                  'likes':
+                                      entry['likesCount']?.toString() ?? '0',
+                                  'gradient':
+                                      competitions[index %
+                                          competitions.length]['gradient'],
+                                  'entryId': entry['_id'],
+                                  'thumbnailUrl': entry['thumbnailUrl'],
+                                  'videoUrl': entry['videoUrl'],
+                                };
 
-                                    return GestureDetector(
-                                      onTap: () {
-                                        // Create real competition data for reel screen
-                                        final realCompetitions = _entries
-                                            .map(
-                                              (
-                                                entry,
-                                              ) => {
-                                                'username': '@${entry['user']?['username'] ?? 'user'}',
-                                                'category':
-                                                    entry['category'] ??
-                                                    'Other',
-                                                'likes':
-                                                    entry['likesCount']?.toString() ??
-                                                    '0',
-                                                'gradient':
-                                                    competitions[_entries.indexOf(
-                                                          entry,
-                                                        ) %
-                                                        competitions.length]['gradient'],
-                                                'entryId': entry['_id'],
-                                                'user': entry['user'],
-                                                'title': entry['title'],
-                                                'description': entry['description'],
-                                                'thumbnailUrl': entry['thumbnailUrl'],
-                                                'videoUrl': entry['videoUrl'],
-                                                '_id': entry['_id'],
-                                              },
-                                            )
-                                            .toList();
+                                return GestureDetector(
+                                  onTap: () {
+                                    // Create real competition data for reel screen
+                                    final realCompetitions = _entries
+                                        .map(
+                                          (entry) => {
+                                            'username':
+                                                '@${entry['user']?['username'] ?? 'user'}',
+                                            'category':
+                                                entry['category'] ?? 'Other',
+                                            'likes':
+                                                entry['likesCount']
+                                                    ?.toString() ??
+                                                '0',
+                                            'gradient':
+                                                competitions[_entries.indexOf(
+                                                      entry,
+                                                    ) %
+                                                    competitions
+                                                        .length]['gradient'],
+                                            'entryId': entry['_id'],
+                                            'user': entry['user'],
+                                            'title': entry['title'],
+                                            'description': entry['description'],
+                                            'thumbnailUrl':
+                                                entry['thumbnailUrl'],
+                                            'videoUrl': entry['videoUrl'],
+                                            '_id': entry['_id'],
+                                          },
+                                        )
+                                        .toList();
 
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder:
-                                                (
-                                                  context,
-                                                ) => SYTReelScreen(
-                                                  competitions: realCompetitions,
-                                                  initialIndex: index,
-                                                ),
-                                          ),
-                                        );
-                                      },
-                                      child: _buildCompetitionCard(
-                                        competition,
-                                        index,
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => SYTReelScreen(
+                                          competitions: realCompetitions,
+                                          initialIndex: index,
+                                        ),
                                       ),
                                     );
                                   },
+                                  child: _buildCompetitionCard(
+                                    competition,
+                                    index,
+                                  ),
+                                );
+                              },
                             ),
                           ),
                   ),
@@ -678,39 +533,24 @@ class _TalentScreenState
                     right: 40,
                     bottom: 140,
                     child: Opacity(
-                      opacity: _hasSubmittedThisWeek
-                          ? 0.5
-                          : 1.0,
+                      opacity: _hasSubmittedThisWeek ? 0.5 : 1.0,
                       child: Container(
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [
-                              Color(
-                                0xFF5A9FFF,
-                              ),
-                              Color(
-                                0xFF701CF5,
-                              ),
-                              Color(
-                                0xFF4A7FFF,
-                              ),
+                              Color(0xFF5A9FFF),
+                              Color(0xFF701CF5),
+                              Color(0xFF4A7FFF),
                             ],
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
                           ),
-                          borderRadius: BorderRadius.circular(
-                            12,
-                          ),
+                          borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(
-                                alpha: 0.2,
-                              ),
+                              color: Colors.black.withValues(alpha: 0.2),
                               blurRadius: 10,
-                              offset: const Offset(
-                                0,
-                                4,
-                              ),
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
@@ -721,12 +561,9 @@ class _TalentScreenState
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder:
-                                          (
-                                            context,
-                                          ) => const CameraScreen(
-                                            selectedPath: 'SYT',
-                                          ),
+                                      builder: (context) => const CameraScreen(
+                                        selectedPath: 'SYT',
+                                      ),
                                     ),
                                   );
                                 },
@@ -734,13 +571,9 @@ class _TalentScreenState
                             backgroundColor: Colors.transparent,
                             foregroundColor: Colors.white,
                             shadowColor: Colors.transparent,
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 16,
-                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                12,
-                              ),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                           child: Text(
@@ -751,9 +584,7 @@ class _TalentScreenState
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                               color: _hasSubmittedThisWeek
-                                  ? Colors.white.withValues(
-                                      alpha: 0.6,
-                                    )
+                                  ? Colors.white.withValues(alpha: 0.6)
                                   : Colors.white,
                             ),
                           ),
@@ -770,37 +601,23 @@ class _TalentScreenState
     );
   }
 
-  Widget
-  _buildPeriodTab(
-    String period,
-  ) {
-    final isSelected =
-        period ==
-        selectedPeriod;
+  Widget _buildPeriodTab(String period) {
+    final isSelected = period == selectedPeriod;
     return GestureDetector(
       onTap: () {
-        setState(
-          () {
-            selectedPeriod = period;
-            _isLoading = true;
-          },
-        );
+        setState(() {
+          selectedPeriod = period;
+          _isLoading = true;
+        });
         _loadEntries();
       },
       child: Container(
-        margin: const EdgeInsets.only(
-          right: 24,
-        ),
-        padding: const EdgeInsets.only(
-          bottom: 8,
-        ),
+        margin: const EdgeInsets.only(right: 24),
+        padding: const EdgeInsets.only(bottom: 8),
         decoration: isSelected
             ? const BoxDecoration(
                 border: Border(
-                  bottom: BorderSide(
-                    color: Colors.transparent,
-                    width: 2,
-                  ),
+                  bottom: BorderSide(color: Colors.transparent, width: 2),
                 ),
               )
             : null,
@@ -811,38 +628,21 @@ class _TalentScreenState
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: isSelected
-                    ? const Color(
-                        0xFF701CF5,
-                      )
-                    : Colors.black54,
+                color: isSelected ? const Color(0xFF701CF5) : Colors.black54,
               ),
             ),
             if (isSelected)
               Container(
-                margin: const EdgeInsets.only(
-                  top: 8,
-                ),
+                margin: const EdgeInsets.only(top: 8),
                 height: 2,
                 width: 40,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      Color(
-                        0xFF701CF5,
-                      ),
-                      Color(
-                        0xFF3E98E4,
-                      ),
-                    ],
+                    colors: [Color(0xFF701CF5), Color(0xFF3E98E4)],
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                   ),
-                  borderRadius: BorderRadius.all(
-                    Radius.circular(
-                      1,
-                    ),
-                  ),
+                  borderRadius: BorderRadius.all(Radius.circular(1)),
                 ),
               ),
           ],
@@ -851,20 +651,10 @@ class _TalentScreenState
     );
   }
 
-  Widget
-  _buildCompetitionCard(
-    Map<
-      String,
-      dynamic
-    >
-    competition,
-    int index,
-  ) {
+  Widget _buildCompetitionCard(Map<String, dynamic> competition, int index) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(
-          16,
-        ),
+        borderRadius: BorderRadius.circular(16),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -874,65 +664,43 @@ class _TalentScreenState
       child: Stack(
         children: [
           // Thumbnail image if available
-          if (competition['thumbnailUrl'] !=
-              null)
+          if (competition['thumbnailUrl'] != null)
             ClipRRect(
-              borderRadius: BorderRadius.circular(
-                16,
-              ),
+              borderRadius: BorderRadius.circular(16),
               child: Image.network(
-                ApiService.getImageUrl(
-                  competition['thumbnailUrl'],
-                ),
+                ApiService.getImageUrl(competition['thumbnailUrl']),
                 width: double.infinity,
                 height: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder:
-                    (
-                      context,
-                      error,
-                      stackTrace,
-                    ) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(
-                            16,
-                          ),
-                          color: Colors.black.withValues(
-                            alpha: 0.3,
-                          ),
-                        ),
-                      );
-                    },
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      color: Colors.black.withValues(alpha: 0.3),
+                    ),
+                  );
+                },
               ),
             )
           else
             // Background pattern/texture fallback
             Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(
-                  16,
-                ),
-                color: Colors.black.withValues(
-                  alpha: 0.3,
-                ),
+                borderRadius: BorderRadius.circular(16),
+                color: Colors.black.withValues(alpha: 0.3),
               ),
             ),
 
           // Dark overlay for text readability
           Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(
-                16,
-              ),
+              borderRadius: BorderRadius.circular(16),
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
                   Colors.transparent,
-                  Colors.black.withValues(
-                    alpha: 0.7,
-                  ),
+                  Colors.black.withValues(alpha: 0.7),
                 ],
               ),
             ),
@@ -940,9 +708,7 @@ class _TalentScreenState
 
           // Content
           Padding(
-            padding: const EdgeInsets.all(
-              16,
-            ),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -953,32 +719,15 @@ class _TalentScreenState
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(
-                      alpha: 0.9,
-                    ),
-                    borderRadius: BorderRadius.circular(
-                      12,
-                    ),
+                    color: Colors.white.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: ShaderMask(
-                    shaderCallback:
-                        (
-                          bounds,
-                        ) =>
-                            const LinearGradient(
-                              colors: [
-                                Color(
-                                  0xFF701CF5,
-                                ),
-                                Color(
-                                  0xFF74B9FF,
-                                ),
-                              ],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            ).createShader(
-                              bounds,
-                            ),
+                    shaderCallback: (bounds) => const LinearGradient(
+                      colors: [Color(0xFF701CF5), Color(0xFF74B9FF)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ).createShader(bounds),
                     child: const Text(
                       'In competition',
                       style: TextStyle(
@@ -1003,27 +752,16 @@ class _TalentScreenState
                 ),
                 Text(
                   competition['category'],
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
 
-                const SizedBox(
-                  height: 8,
-                ),
+                const SizedBox(height: 8),
 
                 // Likes
                 Row(
                   children: [
-                    const Icon(
-                      Icons.thumb_up,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                    const SizedBox(
-                      width: 4,
-                    ),
+                    const Icon(Icons.thumb_up, color: Colors.white, size: 16),
+                    const SizedBox(width: 4),
                     Text(
                       competition['likes'],
                       style: const TextStyle(

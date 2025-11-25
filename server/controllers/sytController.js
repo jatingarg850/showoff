@@ -2,6 +2,7 @@ const SYTEntry = require('../models/SYTEntry');
 const Vote = require('../models/Vote');
 const Like = require('../models/Like');
 const User = require('../models/User');
+const CompetitionSettings = require('../models/CompetitionSettings');
 const { awardCoins } = require('../utils/coinSystem');
 
 // Helper to get current competition period
@@ -19,6 +20,11 @@ const getCurrentPeriod = (type) => {
     const quarter = Math.ceil((now.getMonth() + 1) / 3);
     return `${year}-Q${quarter}`;
   }
+};
+
+// Helper to get current active competition
+const getCurrentCompetition = async (type) => {
+  return await CompetitionSettings.getCurrentCompetition(type);
 };
 
 // @desc    Submit SYT entry
@@ -39,18 +45,41 @@ exports.submitEntry = async (req, res) => {
       });
     }
 
-    // Check if user already submitted for this period
-    const period = getCurrentPeriod(competitionType);
+    // Get current active competition
+    const competition = await getCurrentCompetition(competitionType);
+    
+    if (!competition) {
+      return res.status(400).json({
+        success: false,
+        message: `No active ${competitionType} competition at this time`,
+      });
+    }
+
+    // Check if competition is currently active
+    if (!competition.isCurrentlyActive()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Competition is not currently active',
+      });
+    }
+
+    // Check if user already submitted for this competition period
     const existingEntry = await SYTEntry.findOne({
       user: req.user.id,
       competitionType,
-      competitionPeriod: period,
+      competitionPeriod: competition.periodId,
+      isActive: true,
     });
 
     if (existingEntry) {
       return res.status(400).json({
         success: false,
         message: `You have already submitted an entry for this ${competitionType} competition`,
+        existingEntry: {
+          id: existingEntry._id,
+          title: existingEntry.title,
+          submittedAt: existingEntry.createdAt,
+        },
       });
     }
 
@@ -89,7 +118,7 @@ exports.submitEntry = async (req, res) => {
       description,
       category,
       competitionType,
-      competitionPeriod: period,
+      competitionPeriod: competition.periodId,
     });
 
     await entry.populate('user', 'username displayName profilePicture isVerified');
@@ -121,12 +150,20 @@ exports.getEntries = async (req, res) => {
     // Filter: weekly, monthly, all, winners
     if (filter === 'winners') {
       query.isWinner = true;
-    } else if (filter === 'weekly') {
-      query.competitionType = 'weekly';
-      query.competitionPeriod = getCurrentPeriod('weekly');
-    } else if (filter === 'monthly') {
-      query.competitionType = 'monthly';
-      query.competitionPeriod = getCurrentPeriod('monthly');
+    } else if (filter === 'weekly' || filter === 'monthly' || filter === 'quarterly') {
+      // Get current active competition for this type
+      const competition = await getCurrentCompetition(filter);
+      if (competition) {
+        query.competitionType = filter;
+        query.competitionPeriod = competition.periodId;
+      } else {
+        // No active competition, return empty array
+        return res.status(200).json({
+          success: true,
+          data: [],
+          message: `No active ${filter} competition`,
+        });
+      }
     }
 
     const entries = await SYTEntry.find(query)
@@ -219,11 +256,22 @@ exports.voteEntry = async (req, res) => {
 exports.getLeaderboard = async (req, res) => {
   try {
     const { type } = req.query; // weekly, monthly, quarterly
-    const period = getCurrentPeriod(type || 'weekly');
+    const competitionType = type || 'weekly';
+    
+    // Get current active competition
+    const competition = await getCurrentCompetition(competitionType);
+    
+    if (!competition) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        message: `No active ${competitionType} competition`,
+      });
+    }
 
     const entries = await SYTEntry.find({
-      competitionType: type || 'weekly',
-      competitionPeriod: period,
+      competitionType,
+      competitionPeriod: competition.periodId,
       isActive: true,
       isApproved: true,
     })
@@ -234,7 +282,12 @@ exports.getLeaderboard = async (req, res) => {
     res.status(200).json({
       success: true,
       data: entries,
-      period,
+      period: competition.periodId,
+      competition: {
+        title: competition.title,
+        startDate: competition.startDate,
+        endDate: competition.endDate,
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -412,48 +465,298 @@ exports.toggleBookmark = async (req, res) => {
   }
 };
 
-// @desc    Check if user has submitted for current week
-// @route   GET /api/syt/weekly-check
+// @desc    Check if user has submitted for current competition
+// @route   GET /api/syt/check-submission
 // @access  Private
-exports.checkUserWeeklySubmission = async (req, res) => {
+exports.checkUserSubmission = async (req, res) => {
   try {
-    // Get current week period (Monday to Sunday)
-    const now = new Date();
-    
-    // Calculate the start of the current week (Monday)
-    const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // If Sunday, go back 6 days
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - daysToMonday);
-    startOfWeek.setHours(0, 0, 0, 0);
-    
-    // Calculate the end of the current week (Sunday)
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
+    const { type } = req.query; // weekly, monthly, quarterly
+    const competitionType = type || 'weekly';
 
-    // Check if user has submitted any SYT entry this week
-    const weeklySubmission = await SYTEntry.findOne({
+    // Get current active competition
+    const competition = await getCurrentCompetition(competitionType);
+    
+    if (!competition) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          hasCompetition: false,
+          hasSubmitted: false,
+          message: `No active ${competitionType} competition at this time`,
+        },
+      });
+    }
+
+    // Check if user has submitted for this competition
+    const submission = await SYTEntry.findOne({
       user: req.user.id,
-      createdAt: {
-        $gte: startOfWeek,
-        $lte: endOfWeek,
-      },
+      competitionType,
+      competitionPeriod: competition.periodId,
       isActive: true,
     });
 
     res.status(200).json({
       success: true,
       data: {
-        hasSubmitted: !!weeklySubmission,
-        weekStart: startOfWeek,
-        weekEnd: endOfWeek,
-        submission: weeklySubmission ? {
-          id: weeklySubmission._id,
-          title: weeklySubmission.title,
-          category: weeklySubmission.category,
-          submittedAt: weeklySubmission.createdAt,
+        hasCompetition: true,
+        hasSubmitted: !!submission,
+        competition: {
+          id: competition._id,
+          title: competition.title,
+          type: competition.type,
+          startDate: competition.startDate,
+          endDate: competition.endDate,
+          isActive: competition.isCurrentlyActive(),
+        },
+        submission: submission ? {
+          id: submission._id,
+          title: submission.title,
+          category: submission.category,
+          submittedAt: submission.createdAt,
+          votesCount: submission.votesCount,
         } : null,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// Legacy endpoint for backward compatibility
+exports.checkUserWeeklySubmission = exports.checkUserSubmission;
+
+
+// ==================== ADMIN ENDPOINTS ====================
+
+// @desc    Get all competitions
+// @route   GET /api/syt/admin/competitions
+// @access  Admin
+exports.getCompetitions = async (req, res) => {
+  try {
+    const competitions = await CompetitionSettings.find()
+      .sort({ startDate: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: competitions,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Create new competition
+// @route   POST /api/syt/admin/competitions
+// @access  Admin
+exports.createCompetition = async (req, res) => {
+  try {
+    const { type, title, description, startDate, endDate, prizes } = req.body;
+
+    if (!type || !title || !startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide type, title, startDate, and endDate',
+      });
+    }
+
+    // Validate dates
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (start >= end) {
+      return res.status(400).json({
+        success: false,
+        message: 'End date must be after start date',
+      });
+    }
+
+    // Generate period ID
+    const periodId = `${type}-${start.getFullYear()}-${start.getMonth() + 1}-${start.getDate()}`;
+
+    // Check for overlapping competitions of same type
+    const overlapping = await CompetitionSettings.findOne({
+      type,
+      isActive: true,
+      $or: [
+        { startDate: { $lte: end }, endDate: { $gte: start } },
+      ],
+    });
+
+    if (overlapping) {
+      return res.status(400).json({
+        success: false,
+        message: 'There is already an active competition overlapping with these dates',
+      });
+    }
+
+    const competition = await CompetitionSettings.create({
+      type,
+      title,
+      description,
+      startDate: start,
+      endDate: end,
+      periodId,
+      prizes: prizes || [
+        { position: 1, coins: 1000, badge: 'Gold' },
+        { position: 2, coins: 500, badge: 'Silver' },
+        { position: 3, coins: 250, badge: 'Bronze' },
+      ],
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Competition created successfully',
+      data: competition,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Update competition
+// @route   PUT /api/syt/admin/competitions/:id
+// @access  Admin
+exports.updateCompetition = async (req, res) => {
+  try {
+    const { title, description, startDate, endDate, prizes, isActive } = req.body;
+
+    const competition = await CompetitionSettings.findById(req.params.id);
+
+    if (!competition) {
+      return res.status(404).json({
+        success: false,
+        message: 'Competition not found',
+      });
+    }
+
+    // Update fields
+    if (title) competition.title = title;
+    if (description !== undefined) competition.description = description;
+    if (startDate) competition.startDate = new Date(startDate);
+    if (endDate) competition.endDate = new Date(endDate);
+    if (prizes) competition.prizes = prizes;
+    if (isActive !== undefined) competition.isActive = isActive;
+
+    // Validate dates if changed
+    if (competition.startDate >= competition.endDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'End date must be after start date',
+      });
+    }
+
+    await competition.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Competition updated successfully',
+      data: competition,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Delete competition
+// @route   DELETE /api/syt/admin/competitions/:id
+// @access  Admin
+exports.deleteCompetition = async (req, res) => {
+  try {
+    const competition = await CompetitionSettings.findById(req.params.id);
+
+    if (!competition) {
+      return res.status(404).json({
+        success: false,
+        message: 'Competition not found',
+      });
+    }
+
+    await competition.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      message: 'Competition deleted successfully',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Get current active competition info
+// @route   GET /api/syt/current-competition
+// @access  Public
+exports.getCurrentCompetitionInfo = async (req, res) => {
+  try {
+    const { type } = req.query;
+    const competitionType = type || 'weekly';
+
+    const competition = await getCurrentCompetition(competitionType);
+
+    if (!competition) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          hasActiveCompetition: false,
+          message: `No active ${competitionType} competition at this time`,
+        },
+      });
+    }
+
+    // If user is authenticated, check if they've submitted
+    let hasSubmitted = false;
+    let userSubmission = null;
+
+    if (req.user) {
+      const submission = await SYTEntry.findOne({
+        user: req.user.id,
+        competitionType,
+        competitionPeriod: competition.periodId,
+        isActive: true,
+      });
+
+      hasSubmitted = !!submission;
+      if (submission) {
+        userSubmission = {
+          id: submission._id,
+          title: submission.title,
+          category: submission.category,
+          submittedAt: submission.createdAt,
+          votesCount: submission.votesCount,
+        };
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        hasActiveCompetition: true,
+        competition: {
+          id: competition._id,
+          title: competition.title,
+          description: competition.description,
+          type: competition.type,
+          startDate: competition.startDate,
+          endDate: competition.endDate,
+          prizes: competition.prizes,
+          isActive: competition.isCurrentlyActive(),
+        },
+        hasSubmitted,
+        userSubmission,
       },
     });
   } catch (error) {

@@ -49,12 +49,12 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://www.phone.email"],
       scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers for admin panel
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
       imgSrc: ["'self'", "data:", "https:", "http:", "https://s3.ap-southeast-1.wasabisys.com", "https://via.placeholder.com"],
       mediaSrc: ["'self'", "https:", "http:", "https://s3.ap-southeast-1.wasabisys.com"],
-      connectSrc: ["'self'", "https:", "http:", "ws:", "wss:"],
+      connectSrc: ["'self'", "https:", "http:", "ws:", "wss:", "https://www.phone.email", "https://user.phone.email"],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: []
     }
@@ -191,8 +191,8 @@ io.on('connection', (socket) => {
   });
 });
 
-// Make io available to other modules
-module.exports.io = io;
+// Make io available globally for other modules to access
+global.io = io;
 
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
@@ -224,9 +224,17 @@ app.use('/admin', require('./routes/adminWebRoutes'));
 // Serve admin panel static files (after authentication routes)
 app.use('/admin/assets', express.static('public/admin'));
 
+// Serve public files (for phone-login-demo.html and other static assets)
+app.use('/public', express.static('public'));
+
 // Test admin panel page
 app.get('/test-admin', (req, res) => {
   res.sendFile(__dirname + '/test-admin.html');
+});
+
+// Phone.email web login demo page
+app.get('/phone-login-demo', (req, res) => {
+  res.sendFile(__dirname + '/public/phone-login-demo.html');
 });
 
 // Test media loading page
@@ -445,4 +453,6 @@ server.listen(PORT, async () => {
   }
 });
 
+// Export both app and io
 module.exports = app;
+module.exports.io = io;

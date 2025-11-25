@@ -6,20 +6,31 @@ const activeConnections = new Map();
 // Send real-time notification via WebSocket
 exports.sendWebSocketNotification = async (userId, notification) => {
   try {
-    const io = require('../server').io;
-    if (io) {
-      // Send to specific user room
-      io.to(`user_${userId}`).emit('newNotification', {
-        notification: notification.toObject ? notification.toObject() : notification,
-        timestamp: new Date().toISOString(),
-      });
-      
-      console.log(`✅ WebSocket notification sent to user ${userId}`);
-      return true;
+    // Get io instance from global (set in server.js)
+    const io = global.io;
+
+    if (!io) {
+      console.error('❌ Socket.IO not initialized - io is null/undefined');
+      console.error('   Make sure server.js has set global.io');
+      return false;
     }
-    return false;
+
+    // Convert notification to plain object if it's a Mongoose document
+    const notificationData = notification.toObject ? notification.toObject() : notification;
+    
+    // Send to specific user room
+    const roomName = `user_${userId}`;
+    io.to(roomName).emit('newNotification', {
+      notification: notificationData,
+      timestamp: new Date().toISOString(),
+    });
+    
+    console.log(`✅ WebSocket notification sent to user ${userId} in room ${roomName}`);
+    console.log(`   Type: ${notificationData.type}, Title: ${notificationData.title}`);
+    return true;
   } catch (error) {
-    console.error('Error sending WebSocket notification:', error);
+    console.error('❌ Error sending WebSocket notification:', error.message);
+    console.error('   Stack:', error.stack);
     return false;
   }
 };

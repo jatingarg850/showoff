@@ -1,92 +1,38 @@
 const express = require('express');
 const router = express.Router();
 const {
-  getNotifications,
-  getUnreadCount,
-  markAsRead,
-  markAllAsRead,
+  sendCustomNotification,
+  getAdminNotifications,
+  getNotificationStats,
   deleteNotification,
-  updateNotificationSettings,
-  registerDevice,
+  getRecipientCount,
+  getUserNotifications,
+  markNotificationAsRead,
+  markAllAsRead,
+  deleteUserNotification,
+  getUnreadCount,
 } = require('../controllers/notificationController');
-const { protect } = require('../middleware/auth');
+const { protect, adminOnly, checkAdminSession } = require('../middleware/auth');
 
-router.get('/', protect, getNotifications);
+// User routes (for Flutter app)
+router.get('/', protect, getUserNotifications);
 router.get('/unread-count', protect, getUnreadCount);
-router.put('/:id/read', protect, markAsRead);
+router.put('/:id/read', protect, markNotificationAsRead);
 router.put('/mark-all-read', protect, markAllAsRead);
-router.delete('/:id', protect, deleteNotification);
-router.put('/settings', protect, updateNotificationSettings);
-router.post('/register-device', protect, registerDevice);
+router.delete('/:id', protect, deleteUserNotification);
 
-// Test routes (remove in production)
-router.post('/test/create', protect, async (req, res) => {
-  try {
-    const { createTestNotifications } = require('../utils/testNotifications');
-    await createTestNotifications(req.user.id);
-    res.json({ success: true, message: 'Test notifications created' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
+// Admin routes (JWT-based for API)
+router.post('/admin/send', protect, adminOnly, sendCustomNotification);
+router.get('/admin/list', protect, adminOnly, getAdminNotifications);
+router.get('/admin/:id/stats', protect, adminOnly, getNotificationStats);
+router.delete('/admin/:id', protect, adminOnly, deleteNotification);
+router.post('/admin/preview-count', protect, adminOnly, getRecipientCount);
 
-router.post('/test/like', protect, async (req, res) => {
-  try {
-    const { createTestLikeNotification } = require('../utils/testNotifications');
-    await createTestLikeNotification(req.user.id);
-    res.json({ success: true, message: 'Test like notification created' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-router.post('/test/comment', protect, async (req, res) => {
-  try {
-    const { createTestCommentNotification } = require('../utils/testNotifications');
-    await createTestCommentNotification(req.user.id);
-    res.json({ success: true, message: 'Test comment notification created' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-router.post('/test/follow', protect, async (req, res) => {
-  try {
-    const { createTestFollowNotification } = require('../utils/testNotifications');
-    await createTestFollowNotification(req.user.id);
-    res.json({ success: true, message: 'Test follow notification created' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Simple direct test route
-router.post('/test/direct', protect, async (req, res) => {
-  try {
-    console.log('🧪 Direct test notification requested for user:', req.user.id);
-    
-    const { createNotification } = require('../controllers/notificationController');
-    
-    const notification = await createNotification({
-      recipient: req.user.id,
-      sender: req.user.id,
-      type: 'system',
-      title: '🧪 Direct Test',
-      message: 'This is a direct test notification to verify the system is working!',
-      data: { test: true },
-    });
-    
-    console.log('✅ Direct test notification created:', notification._id);
-    
-    res.json({ 
-      success: true, 
-      message: 'Direct test notification created successfully',
-      notificationId: notification._id 
-    });
-  } catch (error) {
-    console.error('❌ Error in direct test:', error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
+// Admin routes (Session-based for web admin panel)
+router.post('/admin-web/send', checkAdminSession, sendCustomNotification);
+router.get('/admin-web/list', checkAdminSession, getAdminNotifications);
+router.get('/admin-web/:id/stats', checkAdminSession, getNotificationStats);
+router.delete('/admin-web/:id', checkAdminSession, deleteNotification);
+router.post('/admin-web/preview-count', checkAdminSession, getRecipientCount);
 
 module.exports = router;

@@ -1,0 +1,20 @@
+{
+  "title": "🎉 Welcome Bonus!",
+  "message": "Congratulations! You've received 50 bonus coins for being an active user. Keep engaging with our community!",
+  "imageUrl": "https://example.com/bonus-image.jpg",
+  "actionType": "open_screen",
+  "actionData": "wallet",
+  "adminId": null,
+  "targeting": {
+    "type": "custom",
+    "criteria": {
+      "isVerified": true,
+      "minBalance": 0,
+      "maxBalance": 500,
+      "registeredAfter": "2024-01-01",
+      "lastActiveAfter": "2024-11-01",
+      "minFollowers": 5,
+      "excludeUserIds": []
+    }
+  }
+}

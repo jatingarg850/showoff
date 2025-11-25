@@ -178,5 +178,13 @@ exports.awardViewCoins = async (userId, views) => {
 // Generate unique referral code
 exports.generateReferralCode = (username) => {
   const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-  return `${username.substring(0, 4).toUpperCase()}${random}`;
+  
+  // If username is provided, use first 4 characters
+  if (username && username.length > 0) {
+    const prefix = username.substring(0, Math.min(4, username.length)).toUpperCase();
+    return `${prefix}${random}`;
+  }
+  
+  // If no username, just use random code
+  return `USER${random}`;
 };

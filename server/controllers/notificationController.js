@@ -1,39 +1,226 @@
+const AdminNotification = require('../models/AdminNotification');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
-const { sendInAppNotification } = require('../utils/pushNotifications');
 
-// @desc    Get user notifications
-// @route   GET /api/notifications
-// @access  Private
-exports.getNotifications = async (req, res) => {
+// @desc    Send custom notification (Admin)
+// @route   POST /api/admin/notifications/send
+// @access  Admin
+exports.sendCustomNotification = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
+    const { 
+      title, 
+      message, 
+      targetType, 
+      targetUserIds, 
+      imageUrl, 
+      actionType, 
+      actionData, 
+      scheduledFor,
+      customCriteria 
+    } = req.body;
 
-    const notifications = await Notification.find({ recipient: req.user.id })
-      .populate('sender', 'username displayName profilePicture isVerified')
-      .populate('data.postId', 'thumbnailUrl')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    if (!title || !message) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title and message are required',
+      });
+    }
 
-    const total = await Notification.countDocuments({ recipient: req.user.id });
-    const unreadCount = await Notification.countDocuments({ 
-      recipient: req.user.id, 
-      isRead: false 
+    // Get target users based on type
+    let targetUsers = [];
+    let query = { isActive: true };
+    
+    if (targetType === 'all') {
+      targetUsers = await User.find(query).select('_id');
+    } else if (targetType === 'selected') {
+      if (!targetUserIds || targetUserIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please select at least one user',
+        });
+      }
+      targetUsers = await User.find({ _id: { $in: targetUserIds }, ...query }).select('_id');
+    } else if (targetType === 'verified') {
+      targetUsers = await User.find({ isVerified: true, ...query }).select('_id');
+    } else if (targetType === 'active') {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      targetUsers = await User.find({ 
+        lastActive: { $gte: sevenDaysAgo },
+        ...query 
+      }).select('_id');
+    } else if (targetType === 'new') {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      targetUsers = await User.find({ 
+        createdAt: { $gte: thirtyDaysAgo },
+        ...query 
+      }).select('_id');
+    } else if (targetType === 'custom' && customCriteria) {
+      // Advanced targeting with custom criteria
+      if (customCriteria.isVerified !== undefined) {
+        query.isVerified = customCriteria.isVerified;
+      }
+      if (customCriteria.minBalance !== undefined) {
+        query['wallet.balance'] = { ...query['wallet.balance'], $gte: customCriteria.minBalance };
+      }
+      if (customCriteria.maxBalance !== undefined) {
+        query['wallet.balance'] = { ...query['wallet.balance'], $lte: customCriteria.maxBalance };
+      }
+      if (customCriteria.registeredAfter) {
+        query.createdAt = { ...query.createdAt, $gte: new Date(customCriteria.registeredAfter) };
+      }
+      if (customCriteria.registeredBefore) {
+        query.createdAt = { ...query.createdAt, $lte: new Date(customCriteria.registeredBefore) };
+      }
+      if (customCriteria.lastActiveAfter) {
+        query.lastActive = { $gte: new Date(customCriteria.lastActiveAfter) };
+      }
+      if (customCriteria.minFollowers !== undefined) {
+        query.followersCount = { $gte: customCriteria.minFollowers };
+      }
+      if (customCriteria.excludeUserIds && customCriteria.excludeUserIds.length > 0) {
+        query._id = { $nin: customCriteria.excludeUserIds };
+      }
+      
+      targetUsers = await User.find(query).select('_id');
+    }
+
+    const totalRecipients = targetUsers.length;
+
+    if (totalRecipients === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No users match the selected criteria',
+      });
+    }
+
+    // Create admin notification record
+    const adminNotification = await AdminNotification.create({
+      title,
+      message,
+      imageUrl,
+      targetType,
+      targetUsers: targetType === 'selected' ? targetUserIds : [],
+      actionType: actionType || 'none',
+      actionData,
+      scheduledFor: scheduledFor ? new Date(scheduledFor) : null,
+      status: scheduledFor ? 'scheduled' : 'sent',
+      sentAt: scheduledFor ? null : new Date(),
+      totalRecipients,
+      createdBy: req.user?.id || null,
     });
+
+    // If not scheduled, send immediately
+    if (!scheduledFor) {
+      let deliveredCount = 0;
+      const { sendWebSocketNotification } = require('../utils/pushNotifications');
+
+      // Send in batches for better performance
+      const batchSize = 100;
+      for (let i = 0; i < targetUsers.length; i += batchSize) {
+        const batch = targetUsers.slice(i, i + batchSize);
+        const notifications = batch.map(user => ({
+          recipient: user._id, // Use recipient field as per model
+          user: user._id, // Also set user for compatibility
+          sender: req.user?.id || null, // Admin who sent it
+          type: 'admin_announcement',
+          title,
+          message,
+          imageUrl,
+          actionType: actionType || 'none',
+          actionData,
+          data: {
+            metadata: {
+              actionType: actionType || 'none',
+              actionData: actionData || null,
+            },
+          },
+        }));
+
+        try {
+          const createdNotifications = await Notification.insertMany(notifications, { ordered: false });
+          deliveredCount += batch.length;
+          console.log(`✅ Batch ${Math.floor(i / batchSize) + 1}: Created ${createdNotifications.length} notifications in database`);
+
+          // Send real-time WebSocket notifications
+          let wsCount = 0;
+          createdNotifications.forEach(notification => {
+            const sent = sendWebSocketNotification(notification.recipient || notification.user, notification);
+            if (sent) wsCount++;
+          });
+          console.log(`📡 Batch ${Math.floor(i / batchSize) + 1}: Sent ${wsCount} WebSocket notifications`);
+        } catch (error) {
+          const successCount = batch.length - (error.writeErrors?.length || 0);
+          deliveredCount += successCount;
+          console.error(`❌ Batch ${Math.floor(i / batchSize) + 1} partial failure:`, error.writeErrors?.length || 0);
+          if (error.writeErrors && error.writeErrors.length > 0) {
+            console.error('   First error:', error.writeErrors[0].err.errmsg);
+          }
+        }
+      }
+
+      adminNotification.deliveredCount = deliveredCount;
+      await adminNotification.save();
+
+      console.log(`✅ Admin notification sent to ${deliveredCount} users (${targetUsers.length} total)`);
+
+      return res.status(201).json({
+        success: true,
+        message: `Notification sent to ${deliveredCount} users successfully`,
+        data: {
+          notificationId: adminNotification._id,
+          totalRecipients,
+          deliveredCount,
+        },
+      });
+    } else {
+      // Scheduled for later
+      return res.status(201).json({
+        success: true,
+        message: `Notification scheduled for ${new Date(scheduledFor).toLocaleString()}`,
+        data: {
+          notificationId: adminNotification._id,
+          totalRecipients,
+          scheduledFor,
+        },
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Get all admin notifications
+// @route   GET /api/admin/notifications
+// @access  Admin
+exports.getAdminNotifications = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, status } = req.query;
+    
+    let query = {};
+    if (status) {
+      query.status = status;
+    }
+
+    const notifications = await AdminNotification.find(query)
+      .populate('createdBy', 'username displayName')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await AdminNotification.countDocuments(query);
 
     res.status(200).json({
       success: true,
       data: notifications,
       pagination: {
-        page,
-        limit,
+        page: parseInt(page),
+        limit: parseInt(limit),
         total,
         pages: Math.ceil(total / limit),
       },
-      unreadCount,
     });
   } catch (error) {
     res.status(500).json({
@@ -43,19 +230,121 @@ exports.getNotifications = async (req, res) => {
   }
 };
 
-// @desc    Get unread notifications count
-// @route   GET /api/notifications/unread-count
-// @access  Private
-exports.getUnreadCount = async (req, res) => {
+// @desc    Get notification statistics
+// @route   GET /api/admin/notifications/:id/stats
+// @access  Admin
+exports.getNotificationStats = async (req, res) => {
   try {
-    const unreadCount = await Notification.countDocuments({
-      recipient: req.user.id,
-      isRead: false,
+    const notification = await AdminNotification.findById(req.params.id);
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: 'Notification not found',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalRecipients: notification.totalRecipients,
+        deliveredCount: notification.deliveredCount,
+        readCount: notification.readCount,
+        clickCount: notification.clickCount,
+        deliveryRate: ((notification.deliveredCount / notification.totalRecipients) * 100).toFixed(2),
+        readRate: ((notification.readCount / notification.deliveredCount) * 100).toFixed(2),
+        clickRate: ((notification.clickCount / notification.deliveredCount) * 100).toFixed(2),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Delete notification
+// @route   DELETE /api/admin/notifications/:id
+// @access  Admin
+exports.deleteNotification = async (req, res) => {
+  try {
+    const notification = await AdminNotification.findById(req.params.id);
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: 'Notification not found',
+      });
+    }
+
+    await notification.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      message: 'Notification deleted successfully',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Get user notifications
+// @route   GET /api/notifications
+// @access  Private
+exports.getUserNotifications = async (req, res) => {
+  try {
+    const { page = 1, limit = 50 } = req.query;
+    
+    const notifications = await Notification.find({ 
+      recipient: req.user.id 
+    })
+      .populate('sender', 'username displayName profilePicture isVerified')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Notification.countDocuments({ recipient: req.user.id });
+    const unread = await Notification.countDocuments({ 
+      recipient: req.user.id, 
+      isRead: false 
     });
 
     res.status(200).json({
       success: true,
-      unreadCount,
+      data: notifications,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+      unreadCount: unread,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Get unread notification count
+// @route   GET /api/notifications/unread-count
+// @access  Private
+exports.getUnreadCount = async (req, res) => {
+  try {
+    const count = await Notification.countDocuments({ 
+      recipient: req.user.id, 
+      isRead: false 
+    });
+
+    res.status(200).json({
+      success: true,
+      unreadCount: count,
     });
   } catch (error) {
     res.status(500).json({
@@ -68,7 +357,7 @@ exports.getUnreadCount = async (req, res) => {
 // @desc    Mark notification as read
 // @route   PUT /api/notifications/:id/read
 // @access  Private
-exports.markAsRead = async (req, res) => {
+exports.markNotificationAsRead = async (req, res) => {
   try {
     const notification = await Notification.findOne({
       _id: req.params.id,
@@ -82,11 +371,25 @@ exports.markAsRead = async (req, res) => {
       });
     }
 
-    await notification.markAsRead();
+    notification.isRead = true;
+    notification.readAt = new Date();
+    await notification.save();
+
+    // Send updated unread count via WebSocket
+    const unreadCount = await Notification.countDocuments({ 
+      recipient: req.user.id, 
+      isRead: false 
+    });
+
+    const io = require('../server').io;
+    if (io) {
+      io.to(`user_${req.user.id}`).emit('unreadCountUpdate', { unreadCount });
+    }
 
     res.status(200).json({
       success: true,
-      message: 'Notification marked as read',
+      data: notification,
+      unreadCount,
     });
   } catch (error) {
     res.status(500).json({
@@ -106,9 +409,16 @@ exports.markAllAsRead = async (req, res) => {
       { isRead: true, readAt: new Date() }
     );
 
+    // Send updated unread count via WebSocket
+    const io = require('../server').io;
+    if (io) {
+      io.to(`user_${req.user.id}`).emit('unreadCountUpdate', { unreadCount: 0 });
+    }
+
     res.status(200).json({
       success: true,
       message: 'All notifications marked as read',
+      unreadCount: 0,
     });
   } catch (error) {
     res.status(500).json({
@@ -118,12 +428,12 @@ exports.markAllAsRead = async (req, res) => {
   }
 };
 
-// @desc    Delete notification
+// @desc    Delete user notification
 // @route   DELETE /api/notifications/:id
 // @access  Private
-exports.deleteNotification = async (req, res) => {
+exports.deleteUserNotification = async (req, res) => {
   try {
-    const notification = await Notification.findOneAndDelete({
+    const notification = await Notification.findOne({
       _id: req.params.id,
       recipient: req.user.id,
     });
@@ -135,9 +445,11 @@ exports.deleteNotification = async (req, res) => {
       });
     }
 
+    await notification.deleteOne();
+
     res.status(200).json({
       success: true,
-      message: 'Notification deleted',
+      message: 'Notification deleted successfully',
     });
   } catch (error) {
     res.status(500).json({
@@ -147,120 +459,75 @@ exports.deleteNotification = async (req, res) => {
   }
 };
 
-// @desc    Create notification (internal use)
-exports.createNotification = async (notificationData) => {
+// @desc    Get recipient count for targeting criteria
+// @route   POST /api/admin/notifications/preview-count
+// @access  Admin
+exports.getRecipientCount = async (req, res) => {
   try {
-    console.log('📝 Creating notification:', notificationData);
-    
-    const notification = await Notification.create(notificationData);
-    console.log('✅ Notification created in database:', notification._id);
-    
-    // Populate sender data
-    await notification.populate('sender', 'username displayName profilePicture isVerified');
-    console.log('✅ Notification populated with sender data');
-    
-    // Send push notification if user has enabled notifications
-    const recipient = await User.findById(notificationData.recipient);
-    if (recipient && recipient.notificationSettings?.push !== false) {
-      console.log('📱 Sending in-app notification to:', recipient.username);
-      await sendInAppNotification(recipient, notification);
-    } else {
-      console.log('⚠️ Push notifications disabled for user or user not found');
-    }
+    const { targetType, targetUserIds, customCriteria } = req.body;
 
-    // Emit real-time notification via WebSocket
-    const io = require('../server').io;
-    if (io) {
-      const unreadCount = await Notification.countDocuments({
-        recipient: notificationData.recipient,
-        isRead: false,
+    let query = { isActive: true };
+    let count = 0;
+
+    if (targetType === 'all') {
+      count = await User.countDocuments(query);
+    } else if (targetType === 'selected') {
+      if (!targetUserIds || targetUserIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please select at least one user',
+        });
+      }
+      count = await User.countDocuments({ _id: { $in: targetUserIds }, ...query });
+    } else if (targetType === 'verified') {
+      count = await User.countDocuments({ isVerified: true, ...query });
+    } else if (targetType === 'active') {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      count = await User.countDocuments({ 
+        lastActive: { $gte: sevenDaysAgo },
+        ...query 
       });
-      
-      console.log(`🔌 Emitting WebSocket notification to user_${notificationData.recipient}, unread count: ${unreadCount}`);
-      
-      io.to(`user_${notificationData.recipient}`).emit('newNotification', {
-        notification: notification.toObject(),
-        unreadCount: unreadCount,
+    } else if (targetType === 'new') {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      count = await User.countDocuments({ 
+        createdAt: { $gte: thirtyDaysAgo },
+        ...query 
       });
+    } else if (targetType === 'custom' && customCriteria) {
+      if (customCriteria.isVerified !== undefined) {
+        query.isVerified = customCriteria.isVerified;
+      }
+      if (customCriteria.minBalance !== undefined) {
+        query['wallet.balance'] = { ...query['wallet.balance'], $gte: customCriteria.minBalance };
+      }
+      if (customCriteria.maxBalance !== undefined) {
+        query['wallet.balance'] = { ...query['wallet.balance'], $lte: customCriteria.maxBalance };
+      }
+      if (customCriteria.registeredAfter) {
+        query.createdAt = { ...query.createdAt, $gte: new Date(customCriteria.registeredAfter) };
+      }
+      if (customCriteria.registeredBefore) {
+        query.createdAt = { ...query.createdAt, $lte: new Date(customCriteria.registeredBefore) };
+      }
+      if (customCriteria.lastActiveAfter) {
+        query.lastActive = { $gte: new Date(customCriteria.lastActiveAfter) };
+      }
+      if (customCriteria.minFollowers !== undefined) {
+        query.followersCount = { $gte: customCriteria.minFollowers };
+      }
+      if (customCriteria.excludeUserIds && customCriteria.excludeUserIds.length > 0) {
+        query._id = { $nin: customCriteria.excludeUserIds };
+      }
       
-      console.log('✅ WebSocket notification emitted successfully');
-    } else {
-      console.log('❌ WebSocket server not available');
+      count = await User.countDocuments(query);
     }
-
-    return notification;
-  } catch (error) {
-    console.error('❌ Error creating notification:', error);
-    throw error;
-  }
-};
-
-// @desc    Update notification settings
-// @route   PUT /api/notifications/settings
-// @access  Private
-exports.updateNotificationSettings = async (req, res) => {
-  try {
-    const { push, email, sms, types } = req.body;
-
-    const user = await User.findById(req.user.id);
-    
-    if (push !== undefined) user.notificationSettings.push = push;
-    if (email !== undefined) user.notificationSettings.email = email;
-    if (sms !== undefined) user.notificationSettings.sms = sms;
-    if (types) user.notificationSettings.types = types;
-
-    await user.save();
 
     res.status(200).json({
       success: true,
-      message: 'Notification settings updated',
-      settings: user.notificationSettings,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
-// @desc    Register device for push notifications
-// @route   POST /api/notifications/register-device
-// @access  Private
-exports.registerDevice = async (req, res) => {
-  try {
-    const { deviceToken, platform } = req.body;
-
-    if (!deviceToken) {
-      return res.status(400).json({
-        success: false,
-        message: 'Device token is required',
-      });
-    }
-
-    const user = await User.findById(req.user.id);
-    
-    // Add or update device token
-    const existingDeviceIndex = user.deviceTokens?.findIndex(
-      device => device.token === deviceToken
-    );
-
-    if (existingDeviceIndex >= 0) {
-      user.deviceTokens[existingDeviceIndex].lastUsed = new Date();
-    } else {
-      if (!user.deviceTokens) user.deviceTokens = [];
-      user.deviceTokens.push({
-        token: deviceToken,
-        platform: platform || 'unknown',
-        lastUsed: new Date(),
-      });
-    }
-
-    await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Device registered for push notifications',
+      data: {
+        targetType,
+        recipientCount: count,
+      },
     });
   } catch (error) {
     res.status(500).json({
