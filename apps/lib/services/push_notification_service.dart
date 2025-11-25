@@ -1,25 +1,21 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class PushNotificationService {
-  static PushNotificationService?
-  _instance;
-  static PushNotificationService
-  get instance => _instance ??= PushNotificationService._();
+  static PushNotificationService? _instance;
+  static PushNotificationService get instance =>
+      _instance ??= PushNotificationService._();
 
   PushNotificationService._();
 
-  final FlutterLocalNotificationsPlugin
-  _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
 
-  bool
-  _isInitialized = false;
+  bool _isInitialized = false;
 
-  Future<
-    void
-  >
-  initialize() async {
+  Future<void> initialize() async {
     if (_isInitialized) return;
 
     try {
@@ -30,67 +26,48 @@ class PushNotificationService {
       await _initializePlugin();
 
       _isInitialized = true;
-      print(
-        '✅ Push notification service initialized',
-      );
-    } catch (
-      e
-    ) {
-      print(
-        '❌ Error initializing push notifications: $e',
-      );
+      print('✅ Push notification service initialized');
+    } catch (e) {
+      print('❌ Error initializing push notifications: $e');
     }
   }
 
-  Future<
-    void
-  >
-  _requestPermissions() async {
-    if (defaultTargetPlatform ==
-        TargetPlatform.android) {
+  Future<void> _requestPermissions() async {
+    if (defaultTargetPlatform == TargetPlatform.android) {
       // Request notification permission for Android 13+
       final status = await Permission.notification.request();
       if (status.isDenied) {
-        print(
-          '⚠️ Notification permission denied',
-        );
+        print('⚠️ Notification permission denied');
       }
-    } else if (defaultTargetPlatform ==
-        TargetPlatform.iOS) {
+    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
       // Request iOS permissions
       await _flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
             IOSFlutterLocalNotificationsPlugin
           >()
-          ?.requestPermissions(
-            alert: true,
-            badge: true,
-            sound: true,
-          );
+          ?.requestPermissions(alert: true, badge: true, sound: true);
     }
   }
 
-  Future<
-    void
-  >
-  _initializePlugin() async {
+  Future<void> _initializePlugin() async {
     // Android initialization settings
-    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
-    );
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@drawable/ic_notification');
 
     // iOS initialization settings
-    const DarwinInitializationSettings initializationSettingsIOS = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
+    const DarwinInitializationSettings initializationSettingsIOS =
+        DarwinInitializationSettings(
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        );
 
     // Combined initialization settings
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsIOS,
-    );
+    const InitializationSettings initializationSettings =
+        InitializationSettings(
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsIOS,
+        );
 
     // Initialize the plugin
     await _flutterLocalNotificationsPlugin.initialize(
@@ -99,35 +76,21 @@ class PushNotificationService {
     );
   }
 
-  void
-  _onNotificationTapped(
-    NotificationResponse notificationResponse,
-  ) {
+  void _onNotificationTapped(NotificationResponse notificationResponse) {
     final payload = notificationResponse.payload;
-    if (payload !=
-        null) {
-      print(
-        'Notification tapped with payload: $payload',
-      );
+    if (payload != null) {
+      print('Notification tapped with payload: $payload');
       // Handle notification tap - navigate to specific screen
-      _handleNotificationTap(
-        payload,
-      );
+      _handleNotificationTap(payload);
     }
   }
 
-  void
-  _handleNotificationTap(
-    String payload,
-  ) {
+  void _handleNotificationTap(String payload) {
     try {
       // Parse the payload to determine action
       // Format: "type:postId" or "type:userId" etc.
-      final parts = payload.split(
-        ':',
-      );
-      if (parts.length >=
-          2) {
+      final parts = payload.split(':');
+      if (parts.length >= 2) {
         final type = parts[0];
         final id = parts[1];
 
@@ -135,40 +98,27 @@ class PushNotificationService {
           case 'like':
           case 'comment':
             // Navigate to post
-            print(
-              'Navigate to post: $id',
-            );
+            print('Navigate to post: $id');
             // NavigationService.navigateToPost(id);
             break;
           case 'follow':
             // Navigate to user profile
-            print(
-              'Navigate to user profile: $id',
-            );
+            print('Navigate to user profile: $id');
             // NavigationService.navigateToProfile(id);
             break;
           case 'achievement':
             // Navigate to achievements
-            print(
-              'Navigate to achievements',
-            );
+            print('Navigate to achievements');
             // NavigationService.navigateToAchievements();
             break;
         }
       }
-    } catch (
-      e
-    ) {
-      print(
-        'Error handling notification tap: $e',
-      );
+    } catch (e) {
+      print('Error handling notification tap: $e');
     }
   }
 
-  Future<
-    void
-  >
-  showNotification({
+  Future<void> showNotification({
     required String title,
     required String body,
     String? payload,
@@ -179,56 +129,49 @@ class PushNotificationService {
     }
 
     try {
-      const AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
-        'showoff_notifications',
-        'ShowOff.life Notifications',
-        channelDescription: 'Notifications for likes, comments, and follows',
-        importance: Importance.high,
-        priority: Priority.high,
-        showWhen: true,
-        enableVibration: true,
-        playSound: true,
-        icon: '@mipmap/ic_launcher',
-      );
+      final AndroidNotificationDetails androidPlatformChannelSpecifics =
+          AndroidNotificationDetails(
+            'showoff_notifications',
+            'ShowOff.life Notifications',
+            channelDescription:
+                'Notifications for likes, comments, and follows',
+            importance: Importance.high,
+            priority: Priority.high,
+            showWhen: true,
+            enableVibration: true,
+            playSound: true,
+            icon: '@drawable/ic_notification',
+            color: Color(0xFF9C27B0),
+          );
 
-      const DarwinNotificationDetails iOSPlatformChannelSpecifics = DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true,
-      );
+      const DarwinNotificationDetails iOSPlatformChannelSpecifics =
+          DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          );
 
-      const NotificationDetails platformChannelSpecifics = NotificationDetails(
+      final NotificationDetails platformChannelSpecifics = NotificationDetails(
         android: androidPlatformChannelSpecifics,
         iOS: iOSPlatformChannelSpecifics,
       );
 
       await _flutterLocalNotificationsPlugin.show(
-        DateTime.now().millisecondsSinceEpoch.remainder(
-          100000,
-        ),
+        DateTime.now().millisecondsSinceEpoch.remainder(100000),
         title,
         body,
         platformChannelSpecifics,
         payload: payload,
       );
 
-      print(
-        '✅ Push notification sent: $title',
-      );
-    } catch (
-      e
-    ) {
-      print(
-        '❌ Error showing notification: $e',
-      );
+      print('✅ Push notification sent: $title');
+    } catch (e) {
+      print('❌ Error showing notification: $e');
     }
   }
 
   // Specific notification methods for different types
-  Future<
-    void
-  >
-  showLikeNotification({
+  Future<void> showLikeNotification({
     required String username,
     required String postId,
   }) async {
@@ -239,17 +182,12 @@ class PushNotificationService {
     );
   }
 
-  Future<
-    void
-  >
-  showCommentNotification({
+  Future<void> showCommentNotification({
     required String username,
     required String comment,
     required String postId,
   }) async {
-    final truncatedComment =
-        comment.length >
-            50
+    final truncatedComment = comment.length > 50
         ? '${comment.substring(0, 50)}...'
         : comment;
 
@@ -260,10 +198,7 @@ class PushNotificationService {
     );
   }
 
-  Future<
-    void
-  >
-  showFollowNotification({
+  Future<void> showFollowNotification({
     required String username,
     required String userId,
   }) async {
@@ -274,10 +209,7 @@ class PushNotificationService {
     );
   }
 
-  Future<
-    void
-  >
-  showAchievementNotification({
+  Future<void> showAchievementNotification({
     required String title,
     required String description,
   }) async {
@@ -288,10 +220,7 @@ class PushNotificationService {
     );
   }
 
-  Future<
-    void
-  >
-  showGiftNotification({
+  Future<void> showGiftNotification({
     required String username,
     required int amount,
     required String giftType,
@@ -303,10 +232,7 @@ class PushNotificationService {
     );
   }
 
-  Future<
-    void
-  >
-  showVoteNotification({
+  Future<void> showVoteNotification({
     required String username,
     required String entryId,
   }) async {
@@ -317,10 +243,7 @@ class PushNotificationService {
     );
   }
 
-  Future<
-    void
-  >
-  showSystemNotification({
+  Future<void> showSystemNotification({
     required String title,
     required String message,
   }) async {
@@ -332,32 +255,17 @@ class PushNotificationService {
   }
 
   // Cancel all notifications
-  Future<
-    void
-  >
-  cancelAllNotifications() async {
+  Future<void> cancelAllNotifications() async {
     await _flutterLocalNotificationsPlugin.cancelAll();
   }
 
   // Cancel specific notification
-  Future<
-    void
-  >
-  cancelNotification(
-    int id,
-  ) async {
-    await _flutterLocalNotificationsPlugin.cancel(
-      id,
-    );
+  Future<void> cancelNotification(int id) async {
+    await _flutterLocalNotificationsPlugin.cancel(id);
   }
 
   // Get pending notifications
-  Future<
-    List<
-      PendingNotificationRequest
-    >
-  >
-  getPendingNotifications() async {
+  Future<List<PendingNotificationRequest>> getPendingNotifications() async {
     return await _flutterLocalNotificationsPlugin.pendingNotificationRequests();
   }
 }

@@ -29,6 +29,7 @@ const notificationSchema = new mongoose.Schema({
       'post_upload',
       'system',
       'admin_announcement',
+      'message',
     ],
     required: true,
   },

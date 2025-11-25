@@ -43,6 +43,14 @@ exports.followUser = async (req, res) => {
       $inc: { followersCount: 1 },
     });
 
+    // Create follow notification
+    try {
+      const { createFollowNotification } = require('../utils/notificationHelper');
+      await createFollowNotification(req.user.id, userToFollow);
+    } catch (notificationError) {
+      console.error('❌ Error creating follow notification:', notificationError);
+    }
+
     res.status(200).json({
       success: true,
       message: 'User followed successfully',

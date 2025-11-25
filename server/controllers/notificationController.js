@@ -116,6 +116,8 @@ exports.sendCustomNotification = async (req, res) => {
 
       // Send in batches for better performance
       const batchSize = 100;
+      const { sendFCMNotification } = require('../utils/fcmService');
+      
       for (let i = 0; i < targetUsers.length; i += batchSize) {
         const batch = targetUsers.slice(i, i + batchSize);
         const notifications = batch.map(user => ({
@@ -141,13 +143,23 @@ exports.sendCustomNotification = async (req, res) => {
           deliveredCount += batch.length;
           console.log(`✅ Batch ${Math.floor(i / batchSize) + 1}: Created ${createdNotifications.length} notifications in database`);
 
-          // Send real-time WebSocket notifications
+          // Send real-time WebSocket notifications and FCM
           let wsCount = 0;
-          createdNotifications.forEach(notification => {
-            const sent = sendWebSocketNotification(notification.recipient || notification.user, notification);
-            if (sent) wsCount++;
-          });
-          console.log(`📡 Batch ${Math.floor(i / batchSize) + 1}: Sent ${wsCount} WebSocket notifications`);
+          let fcmCount = 0;
+          
+          for (const notification of createdNotifications) {
+            const userId = notification.recipient || notification.user;
+            
+            // Try WebSocket first (for foreground users)
+            const wsSent = sendWebSocketNotification(userId, notification);
+            if (wsSent) wsCount++;
+            
+            // Also send via FCM (for background/closed app)
+            const fcmSent = await sendFCMNotification(userId, notification);
+            if (fcmSent) fcmCount++;
+          }
+          
+          console.log(`📡 Batch ${Math.floor(i / batchSize) + 1}: WebSocket: ${wsCount}, FCM: ${fcmCount}`);
         } catch (error) {
           const successCount = batch.length - (error.writeErrors?.length || 0);
           deliveredCount += successCount;

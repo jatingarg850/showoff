@@ -4,6 +4,7 @@ import 'email_signup_screen.dart';
 import 'auth/signin_choice_screen.dart';
 import 'services/google_auth_service.dart';
 import 'account_setup/display_name_screen.dart';
+import 'main_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SignUpScreen extends StatelessWidget {
@@ -173,17 +174,34 @@ class SignUpScreen extends StatelessWidget {
 
                         print('✅ Token saved');
 
-                        // For Google Sign-Up, always go to account setup
-                        // (they skip password but need to complete profile)
-                        print('📝 Navigating to account setup...');
+                        // Check if user already exists and profile is complete
+                        final isProfileComplete =
+                            result['user']['isProfileComplete'] ?? false;
 
                         if (context.mounted) {
-                          Navigator.of(context).pushAndRemoveUntil(
-                            MaterialPageRoute(
-                              builder: (context) => const DisplayNameScreen(),
-                            ),
-                            (route) => false,
-                          );
+                          if (isProfileComplete) {
+                            // User already exists with complete profile - go to reels
+                            print(
+                              '✅ Existing user with complete profile, navigating to reels...',
+                            );
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(
+                                builder: (context) => const MainScreen(),
+                              ),
+                              (route) => false,
+                            );
+                          } else {
+                            // New user or incomplete profile - go to account setup
+                            print(
+                              '📝 New user or incomplete profile, navigating to account setup...',
+                            );
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(
+                                builder: (context) => const DisplayNameScreen(),
+                              ),
+                              (route) => false,
+                            );
+                          }
                         }
                       } else {
                         // Show error

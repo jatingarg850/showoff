@@ -64,6 +64,14 @@ exports.sendMessage = async (req, res) => {
       .populate('sender', 'username displayName profilePicture')
       .populate('recipient', 'username displayName profilePicture');
 
+    // Create message notification
+    try {
+      const { createMessageNotification } = require('../utils/notificationHelper');
+      await createMessageNotification(currentUserId, userId, text.trim());
+    } catch (notificationError) {
+      console.error('❌ Error creating message notification:', notificationError);
+    }
+
     res.status(201).json({
       success: true,
       data: populatedMessage,

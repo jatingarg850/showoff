@@ -321,6 +321,12 @@ const userSchema = new mongoose.Schema({
   statusUpdatedAt: Date,
   statusReason: String,
   
+  // Firebase Cloud Messaging
+  fcmToken: {
+    type: String,
+    default: null,
+  },
+  
 }, {
   timestamps: true,
 });

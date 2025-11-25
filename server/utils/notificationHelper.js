@@ -269,3 +269,34 @@ exports.createShareNotification = async (postId, sharerId, postOwnerId) => {
     console.error('❌ Error creating share notification:', error);
   }
 };
+
+// Message notification
+exports.createMessageNotification = async (senderId, recipientId, messageText) => {
+  if (senderId === recipientId.toString()) {
+    console.log('Skipping message notification - user messaged themselves');
+    return; // Don't notify self
+  }
+  
+  try {
+    console.log(`Creating message notification: sender=${senderId}, recipient=${recipientId}`);
+    
+    const truncatedMessage = messageText.length > 50 
+      ? messageText.substring(0, 50) + '...' 
+      : messageText;
+    
+    await createNotification({
+      recipient: recipientId,
+      sender: senderId,
+      type: 'message',
+      title: 'New Message',
+      message: truncatedMessage,
+      data: {
+        senderId: senderId.toString(),
+      },
+    });
+    
+    console.log('✅ Message notification created successfully');
+  } catch (error) {
+    console.error('❌ Error creating message notification:', error);
+  }
+};

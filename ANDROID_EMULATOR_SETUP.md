@@ -12,19 +12,19 @@ The app now automatically detects the platform and uses the correct URL:
 
 | Platform | API URL | WebSocket URL |
 |----------|---------|---------------|
-| **Android Emulator** | `http://10.0.2.2:3000/api` | `http://10.0.2.2:3000` |
+| **Android Emulator** | `http://192.168.0.122:3000/api` | `http://192.168.0.122:3000` |
 | **iOS Simulator** | `http://localhost:3000/api` | `http://localhost:3000` |
 | **Web/Desktop** | `http://localhost:3000/api` | `http://localhost:3000` |
 
 ### Special Android Emulator IP
 
-**`10.0.2.2`** is a special alias in Android Emulator that maps to your host machine's `127.0.0.1` (localhost).
+**`192.168.0.122`** is a special alias in Android Emulator that maps to your host machine's `127.0.0.1` (localhost).
 
 ## Files Updated
 
 ### 1. `apps/lib/config/api_config.dart`
 - Added automatic platform detection
-- Uses `10.0.2.2` for Android
+- Uses `192.168.0.122` for Android
 - Uses `localhost` for iOS/Web
 - Centralized WebSocket URL configuration
 
@@ -52,7 +52,7 @@ cd apps
 flutter run
 ```
 
-The app will automatically connect to `http://10.0.2.2:3000`
+The app will automatically connect to `http://192.168.0.122:3000`
 
 ### 3. Verify Connection
 - Check server logs for incoming requests
@@ -77,7 +77,7 @@ If testing on a physical Android device:
      
      // Comment out the platform detection
      // if (Platform.isAndroid) {
-     //   return 'http://10.0.2.2:3000/api';
+     //   return 'http://192.168.0.122:3000/api';
      // }
    }
    ```
@@ -148,8 +148,8 @@ If testing on a physical Android device:
 
 ```dart
 // Android Emulator
-API: http://10.0.2.2:3000/api
-WebSocket: http://10.0.2.2:3000
+API: http://192.168.0.122:3000/api
+WebSocket: http://192.168.0.122:3000
 
 // iOS Simulator  
 API: http://localhost:3000/api
@@ -169,7 +169,7 @@ curl http://localhost:3000/health
 
 # From Android Emulator (using adb shell)
 adb shell
-curl http://10.0.2.2:3000/health
+curl http://192.168.0.122:3000/health
 ```
 
 ### Common Ports
@@ -204,7 +204,7 @@ When deploying to production:
 
 ## Status
 
-✅ Android Emulator: Configured (`10.0.2.2`)
+✅ Android Emulator: Configured (`192.168.0.122`)
 ✅ iOS Simulator: Configured (`localhost`)
 ✅ Platform Auto-Detection: Enabled
 ✅ WebSocket: Configured

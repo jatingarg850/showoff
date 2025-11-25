@@ -5,7 +5,8 @@ const {
   updatePrivacySettings,
   updateNotificationSettings,
   deleteAccount,
-  downloadUserData
+  downloadUserData,
+  updateFCMToken
 } = require('../controllers/userController');
 const { protect } = require('../middleware/auth');
 
@@ -14,5 +15,6 @@ router.put('/privacy-settings', protect, updatePrivacySettings);
 router.put('/notification-settings', protect, updateNotificationSettings);
 router.delete('/delete-account', protect, deleteAccount);
 router.get('/download-data', protect, downloadUserData);
+router.post('/fcm-token', protect, updateFCMToken);
 
 module.exports = router;

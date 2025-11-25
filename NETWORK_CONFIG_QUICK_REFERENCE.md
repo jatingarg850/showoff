@@ -8,7 +8,7 @@ Your app is configured with **automatic platform detection**!
 
 | Platform | What to Use | Example |
 |----------|-------------|---------|
-| **Android Emulator** | `10.0.2.2` | `http://10.0.2.2:3000` |
+| **Android Emulator** | `192.168.0.122` | `http://192.168.0.122:3000` |
 | **iOS Simulator** | `localhost` | `http://localhost:3000` |
 | **Real Android Device** | Your Computer IP | `http://192.168.1.100:3000` |
 | **Real iOS Device** | Your Computer IP | `http://192.168.1.100:3000` |
@@ -61,7 +61,7 @@ static String get baseUrl {
   
   // Comment out auto-detection:
   // if (Platform.isAndroid) {
-  //   return 'http://10.0.2.2:3000/api';
+  //   return 'http://192.168.0.122:3000/api';
   // }
 }
 ```
@@ -81,7 +81,7 @@ static String get baseUrl {
    ```
 
 2. **Verify correct URL:**
-   - Emulator: `10.0.2.2`
+   - Emulator: `192.168.0.122`
    - Real device: Your computer's IP
    - Same WiFi network
 
@@ -109,7 +109,7 @@ Then use the ngrok URL in your config.
 
 | IP | What It Means |
 |----|---------------|
-| `10.0.2.2` | Android Emulator → Host machine |
+| `192.168.0.122` | Android Emulator → Host machine |
 | `127.0.0.1` | Localhost (same device) |
 | `localhost` | Same as 127.0.0.1 |
 | `0.0.0.0` | All network interfaces |

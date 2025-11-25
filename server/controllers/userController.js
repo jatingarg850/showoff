@@ -204,3 +204,35 @@ exports.deleteAccount = async (req, res) => {
     });
   }
 };
+
+// @desc    Update FCM token
+// @route   POST /api/users/fcm-token
+// @access  Private
+exports.updateFCMToken = async (req, res) => {
+  try {
+    const { fcmToken } = req.body;
+
+    if (!fcmToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'FCM token is required',
+      });
+    }
+
+    await User.findByIdAndUpdate(req.user.id, {
+      fcmToken,
+    });
+
+    console.log(`✅ FCM token updated for user ${req.user.username}`);
+
+    res.json({
+      success: true,
+      message: 'FCM token updated successfully',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

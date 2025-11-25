@@ -4,16 +4,15 @@ class ApiConfig {
   // Change this to your server URL
 
   // For local development:
-  // - Android Emulator: use 10.0.2.2
+  // - Android Emulator: use 192.168.0.122
   // - iOS Simulator: use localhost
   // - Real Device: use your computer's IP address
 
   // Automatic platform detection
-  static String
-  get baseUrl {
+  static String get baseUrl {
     if (Platform.isAndroid) {
       // Android Emulator
-      return 'http://10.0.2.2:3000/api';
+      return 'http://192.168.0.122:3000/api';
     } else if (Platform.isIOS) {
       // iOS Simulator
       return 'http://localhost:3000/api';
@@ -29,16 +28,13 @@ class ApiConfig {
   // For production (uncomment when deploying)
   // static const String baseUrl = 'https://your-domain.com/api';
 
-  static const int
-  connectionTimeout = 30000; // 30 seconds
-  static const int
-  receiveTimeout = 30000; // 30 seconds
+  static const int connectionTimeout = 30000; // 30 seconds
+  static const int receiveTimeout = 30000; // 30 seconds
 
   // WebSocket URL (without /api suffix)
-  static String
-  get wsUrl {
+  static String get wsUrl {
     if (Platform.isAndroid) {
-      return 'http://10.0.2.2:3000';
+      return 'http://192.168.0.122:3000';
     } else if (Platform.isIOS) {
       return 'http://localhost:3000';
     } else {

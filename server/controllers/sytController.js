@@ -237,6 +237,14 @@ exports.voteEntry = async (req, res) => {
       { relatedSYTEntry: entry._id }
     );
 
+    // Create vote notification
+    try {
+      const { createVoteNotification } = require('../utils/notificationHelper');
+      await createVoteNotification(entry._id, req.user.id, entry.user);
+    } catch (notificationError) {
+      console.error('❌ Error creating vote notification:', notificationError);
+    }
+
     res.status(200).json({
       success: true,
       message: 'Vote recorded successfully',
@@ -332,6 +340,16 @@ exports.toggleLike = async (req, res) => {
       });
       entry.likesCount += 1;
       isLiked = true;
+
+      // Create like notification (only when liking, not unliking)
+      if (entry.user.toString() !== req.user.id) {
+        try {
+          const { createLikeNotification } = require('../utils/notificationHelper');
+          await createLikeNotification(entry._id, req.user.id, entry.user);
+        } catch (notificationError) {
+          console.error('❌ Error creating SYT like notification:', notificationError);
+        }
+      }
     }
 
     await entry.save();

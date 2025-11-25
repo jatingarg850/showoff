@@ -8,7 +8,7 @@ Your Flutter app is now configured with automatic platform detection for network
 
 ### 1. API Configuration (`apps/lib/config/api_config.dart`)
 - ✅ Added automatic platform detection
-- ✅ Android Emulator uses `10.0.2.2`
+- ✅ Android Emulator uses `192.168.0.122`
 - ✅ iOS Simulator uses `localhost`
 - ✅ Centralized WebSocket URL
 - ✅ Import `dart:io` for Platform detection
@@ -27,7 +27,7 @@ Your Flutter app is now configured with automatic platform detection for network
 
 ```dart
 // Automatic Platform Detection
-Android Emulator → http://10.0.2.2:3000/api
+Android Emulator → http://192.168.0.122:3000/api
 iOS Simulator   → http://localhost:3000/api
 Web/Desktop     → http://localhost:3000/api
 ```
@@ -65,7 +65,7 @@ curl http://localhost:3000/health
 ```bash
 # Using adb shell
 adb shell
-curl http://10.0.2.2:3000/health
+curl http://192.168.0.122:3000/health
 ```
 
 ## Features

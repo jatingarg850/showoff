@@ -209,22 +209,22 @@ class _PathSelectionScreenState extends State<PathSelectionScreen> {
                                 children: [
                                   if (_hasSubmittedSYT)
                                     Container(
-                                      margin: const EdgeInsets.only(bottom: 8),
+                                      margin: const EdgeInsets.only(bottom: 4),
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 6,
+                                        horizontal: 8,
+                                        vertical: 3,
                                       ),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFFFF9800),
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: const Text(
                                         'submitted',
                                         style: TextStyle(
-                                          fontSize: 10,
+                                          fontSize: 9,
                                           fontWeight: FontWeight.w600,
                                           color: Colors.white,
-                                          letterSpacing: 0.3,
+                                          letterSpacing: 0.2,
                                         ),
                                       ),
                                     ),
@@ -232,8 +232,8 @@ class _PathSelectionScreenState extends State<PathSelectionScreen> {
                                     opacity: _hasSubmittedSYT ? 0.4 : 1.0,
                                     child: Image.asset(
                                       'assets/navbar/2.png',
-                                      width: 32,
-                                      height: 32,
+                                      width: 28,
+                                      height: 28,
                                       color: selectedPath == 'SYT'
                                           ? Colors.white
                                           : _hasSubmittedSYT
@@ -241,11 +241,11 @@ class _PathSelectionScreenState extends State<PathSelectionScreen> {
                                           : Colors.black,
                                     ),
                                   ),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 8),
                                   Text(
                                     'SYT',
                                     style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: 14,
                                       fontWeight: FontWeight.bold,
                                       color: selectedPath == 'SYT'
                                           ? Colors.white
@@ -254,14 +254,16 @@ class _PathSelectionScreenState extends State<PathSelectionScreen> {
                                           : Colors.black,
                                     ),
                                   ),
-                                  const SizedBox(height: 6),
+                                  const SizedBox(height: 4),
                                   Text(
                                     _hasSubmittedSYT
                                         ? 'Already submitted'
                                         : 'Compete to win prizes',
                                     textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                      fontSize: 11,
+                                      fontSize: 10,
                                       color: selectedPath == 'SYT'
                                           ? Colors.white70
                                           : _hasSubmittedSYT
@@ -381,17 +383,19 @@ class _PathSelectionScreenState extends State<PathSelectionScreen> {
                                         children: [
                                           const Text(
                                             'Daily Selfie Challenge',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
-                                              fontSize: 18,
+                                              fontSize: 16,
                                               fontWeight: FontWeight.bold,
                                               color: Colors.white,
                                             ),
                                           ),
-                                          const SizedBox(height: 4),
+                                          const SizedBox(height: 2),
                                           Container(
                                             padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 2,
+                                              horizontal: 4,
+                                              vertical: 1,
                                             ),
                                             decoration: BoxDecoration(
                                               color: Colors.white.withValues(
@@ -422,15 +426,17 @@ class _PathSelectionScreenState extends State<PathSelectionScreen> {
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 8),
+                                      const SizedBox(height: 6),
                                       Text(
                                         'Build streaks, earn achievements,\nand compete with friends!',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
-                                          fontSize: 13,
+                                          fontSize: 12,
+                                          height: 1.2,
                                           color: Colors.white.withValues(
                                             alpha: 0.95,
                                           ),
-                                          height: 1.3,
                                         ),
                                       ),
                                       const SizedBox(height: 10),
