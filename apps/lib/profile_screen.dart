@@ -24,6 +24,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   String selectedTab = 'Reels';
 
+  // Check if this is the developer's profile
+  bool get _isDeveloperProfile {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final username = authProvider.user?['username']?.toString().toLowerCase();
+    return username == 'jatingarg';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -283,10 +290,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 children: [
                                   Text(
                                     user['displayName'] ?? 'User',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w600,
-                                      color: Colors.black,
+                                      foreground: _isDeveloperProfile
+                                          ? (Paint()
+                                              ..shader =
+                                                  const LinearGradient(
+                                                    colors: [
+                                                      Color(0xFF00F5FF),
+                                                      Color(0xFF7B2FFF),
+                                                      Color(0xFFFF006E),
+                                                    ],
+                                                  ).createShader(
+                                                    const Rect.fromLTWH(
+                                                      0,
+                                                      0,
+                                                      200,
+                                                      70,
+                                                    ),
+                                                  ))
+                                          : null,
+                                      color: _isDeveloperProfile
+                                          ? null
+                                          : Colors.black,
                                     ),
                                   ),
                                   if (user['isVerified'] == true)
@@ -300,13 +327,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ),
                                 ],
                               ),
+                              if (_isDeveloperProfile) ...[
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFF00F5FF),
+                                        Color(0xFF7B2FFF),
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(
+                                          0xFF7B2FFF,
+                                        ).withOpacity(0.3),
+                                        blurRadius: 8,
+                                        spreadRadius: 1,
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.code,
+                                        size: 12,
+                                        color: Colors.white,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'DEVELOPER',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 4),
                               Text(
                                 '@${user['username'] ?? 'user'}',
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w400,
-                                  color: Colors.grey[600],
+                                  color: _isDeveloperProfile
+                                      ? const Color(0xFF7B2FFF)
+                                      : Colors.grey[600],
                                 ),
                               ),
                             ],

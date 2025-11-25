@@ -98,10 +98,10 @@
                                         </td>
                                         <td>
                                             <div style="font-weight: 600; color: #f59e0b;">
-                                                <i class="fas fa-coins"></i> <%= withdrawal.amount.toLocaleString() %> coins
+                                                <i class="fas fa-coins"></i> <%= withdrawal.coinAmount.toLocaleString() %> coins
                                             </div>
                                             <div style="font-size: 0.75rem; color: #64748b;">
-                                                ≈ ₹<%= (withdrawal.amount / 100).toLocaleString() %>
+                                                ≈ ₹<%= withdrawal.localAmount.toLocaleString() %>
                                             </div>
                                         </td>
                                         <td>

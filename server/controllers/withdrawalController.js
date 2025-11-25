@@ -7,7 +7,12 @@ const Transaction = require('../models/Transaction');
 // @access  Private
 exports.requestWithdrawal = async (req, res) => {
   try {
-    const { coinAmount, method, bankDetails, sofftAddress, upiId } = req.body;
+    console.log('📥 Withdrawal Request Body:', req.body);
+    console.log('📎 Withdrawal Request Files:', req.files);
+    
+    // Parse coinAmount to integer (comes as string from multipart form)
+    const coinAmount = parseInt(req.body.coinAmount);
+    const { method, bankDetails, sofftAddress, upiId } = req.body;
 
     const user = await User.findById(req.user.id);
 
@@ -22,13 +27,8 @@ exports.requestWithdrawal = async (req, res) => {
       });
     }
 
-    // Check KYC
-    if (user.kycStatus !== 'verified') {
-      return res.status(400).json({
-        success: false,
-        message: 'KYC verification required for withdrawal',
-      });
-    }
+    // KYC will be verified manually by admin after withdrawal request
+    // No need to check KYC status here
 
     // Check balance
     if (user.coinBalance < coinAmount) {
@@ -57,15 +57,46 @@ exports.requestWithdrawal = async (req, res) => {
     // Handle ID document uploads from request files
     const idDocuments = [];
     if (req.files && req.files.length > 0) {
-      req.files.forEach(file => {
-        idDocuments.push({
-          url: file.location || `/uploads/${file.filename}`,
-          type: file.fieldname || 'id_document',
+      console.log('📎 Processing files:', req.files.length);
+      req.files.forEach((file, index) => {
+        console.log(`📎 File ${index}:`, {
+          fieldname: file.fieldname,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          location: file.location,
+          filename: file.filename,
+          key: file.key
         });
+        
+        // For S3/Wasabi uploads
+        if (file.location) {
+          const docObj = {
+            url: String(file.location),
+            type: String('idDocuments'),
+          };
+          console.log(`✅ Adding S3 document ${index}:`, docObj);
+          idDocuments.push(docObj);
+        } 
+        // For local uploads
+        else if (file.filename) {
+          // Determine the folder (images or videos)
+          const folder = file.mimetype.startsWith('video/') ? 'videos' : 'images';
+          const docObj = {
+            url: String(`/uploads/${folder}/${file.filename}`),
+            type: String('idDocuments'),
+          };
+          console.log(`✅ Adding local document ${index}:`, docObj);
+          idDocuments.push(docObj);
+        }
       });
     }
 
-    const withdrawal = await Withdrawal.create({
+    console.log('📄 Final ID Documents array:', JSON.stringify(idDocuments, null, 2));
+    console.log('📄 ID Documents array length:', idDocuments.length);
+    console.log('📄 ID Documents array type:', Array.isArray(idDocuments));
+
+    // Prepare withdrawal data
+    const withdrawalData = {
       user: user._id,
       coinAmount,
       usdAmount,
@@ -75,8 +106,16 @@ exports.requestWithdrawal = async (req, res) => {
       bankDetails: method === 'bank_transfer' ? bankDetails : undefined,
       sofftAddress: method === 'sofft_address' ? sofftAddress : undefined,
       upiId: method === 'upi' ? upiId : undefined,
-      idDocuments,
-    });
+    };
+
+    // Only add idDocuments if there are any
+    if (idDocuments.length > 0) {
+      withdrawalData.idDocuments = idDocuments;
+    }
+
+    console.log('💾 Withdrawal data to save:', JSON.stringify(withdrawalData, null, 2));
+
+    const withdrawal = await Withdrawal.create(withdrawalData);
 
     // Deduct from coin balance
     user.coinBalance -= coinAmount;
@@ -98,6 +137,11 @@ exports.requestWithdrawal = async (req, res) => {
       data: withdrawal,
     });
   } catch (error) {
+    console.error('❌ Withdrawal Error:', error);
+    console.error('❌ Error Stack:', error.stack);
+    if (error.name === 'ValidationError') {
+      console.error('❌ Validation Errors:', error.errors);
+    }
     res.status(500).json({
       success: false,
       message: error.message,

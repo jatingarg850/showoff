@@ -378,7 +378,7 @@ class _PreviewScreenState
                 const Row(
                   children: [
                     Text(
-                      '@james9898',
+                      '@jatingarg',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,

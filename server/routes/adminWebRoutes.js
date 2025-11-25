@@ -539,7 +539,7 @@ router.get('/withdrawals', checkAdminWeb, async (req, res) => {
     // Get total amounts
     const totalAmounts = await Withdrawal.aggregate([
       { $match: { status: 'completed' } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+      { $group: { _id: null, total: { $sum: '$localAmount' } } }
     ]);
 
     res.render('admin/withdrawals', {

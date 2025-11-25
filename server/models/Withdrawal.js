@@ -48,14 +48,16 @@ const withdrawalSchema = new mongoose.Schema({
   upiId: String,
   
   // ID Documents (uploaded to Wasabi)
-  idDocuments: [{
-    url: String,
-    type: String, // 'passport', 'driving_license', 'national_id', etc.
-    uploadedAt: {
-      type: Date,
-      default: Date.now,
+  idDocuments: [
+    {
+      url: { type: String },
+      type: { type: String }, // 'passport', 'driving_license', 'national_id', etc.
+      uploadedAt: {
+        type: Date,
+        default: Date.now,
+      },
     },
-  }],
+  ],
   
   // Status
   status: {
