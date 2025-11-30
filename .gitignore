@@ -344,6 +344,11 @@ server/.gradletasknamecache
 **/GoogleService-Info.plist
 **/firebase-adminsdk-*.json
 
+# Android Signing
+**/key.properties
+**/app-release-key.jks
+**/upload-keystore.jks
+
 # AWS
 **/.aws/
 

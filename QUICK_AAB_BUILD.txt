@@ -1,0 +1,46 @@
+═══════════════════════════════════════════════════════════
+  QUICK REFERENCE: Build AAB for Play Store
+═══════════════════════════════════════════════════════════
+
+FIRST TIME SETUP (Do Once):
+───────────────────────────────────────────────────────────
+
+1. Create Keystore:
+   cd apps\android
+   keytool -genkey -v -keystore app-release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias showoff-key-alias
+
+2. Edit apps\android\key.properties:
+   storePassword=YOUR_PASSWORD
+   keyPassword=YOUR_PASSWORD
+   keyAlias=showoff-key-alias
+   storeFile=app-release-key.jks
+
+EVERY RELEASE:
+───────────────────────────────────────────────────────────
+
+1. Update version in apps\pubspec.yaml:
+   version: 1.0.0+1  (increment the +1)
+
+2. Run build script:
+   build_aab.bat
+
+3. Find AAB at:
+   apps\build\app\outputs\bundle\release\app-release.aab
+
+4. Upload to Play Store
+
+MANUAL BUILD:
+───────────────────────────────────────────────────────────
+cd apps
+flutter clean
+flutter pub get
+flutter build appbundle --release
+
+IMPORTANT:
+───────────────────────────────────────────────────────────
+✓ Backup your keystore file!
+✓ Save passwords securely!
+✓ Never commit keystore to git!
+✓ Test before uploading!
+
+═══════════════════════════════════════════════════════════

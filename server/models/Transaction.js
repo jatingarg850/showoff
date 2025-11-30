@@ -24,7 +24,8 @@ const transactionSchema = new mongoose.Schema({
       'purchase',
       'subscription',
       'profile_completion',
-      'add_money'  // Added for Razorpay add money functionality
+      'add_money',  // Added for Razorpay add money functionality
+      'welcome_bonus'  // Welcome bonus for new users
     ],
     required: true,
   },
