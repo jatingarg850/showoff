@@ -56,6 +56,10 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  profileCompletionBonusAwarded: {
+    type: Boolean,
+    default: false,
+  },
   isProfileComplete: {
     type: Boolean,
     default: false,

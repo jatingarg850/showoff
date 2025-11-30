@@ -11,8 +11,8 @@ class ApiConfig {
   // Automatic platform detection
   static String get baseUrl {
     if (Platform.isAndroid) {
-      // Android Emulator
-      return 'http://192.168.0.122:3000/api';
+      // Android Emulator - use 10.0.2.2 to access host machine's localhost
+      return 'http://10.0.2.2:3000/api';
     } else if (Platform.isIOS) {
       // iOS Simulator
       return 'http://localhost:3000/api';

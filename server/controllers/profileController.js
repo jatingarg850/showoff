@@ -38,8 +38,8 @@ exports.updateProfile = async (req, res) => {
     const newCompletion = user.calculateProfileCompletion();
     await user.save();
     
-    // Award coins if profile just became complete
-    if (oldCompletion < 100 && newCompletion === 100) {
+    // Award coins if profile just became complete and bonus not yet awarded
+    if (oldCompletion < 100 && newCompletion === 100 && !user.profileCompletionBonusAwarded) {
       await awardCoins(
         user._id,
         50,
@@ -47,6 +47,8 @@ exports.updateProfile = async (req, res) => {
         'Profile completion bonus'
       );
       user.coinBalance += 50;
+      user.profileCompletionBonusAwarded = true;
+      await user.save();
     }
 
     res.status(200).json({
@@ -108,8 +110,8 @@ exports.uploadProfilePicture = async (req, res) => {
     
     console.log('Profile picture saved successfully:', user.profilePicture);
     
-    // Award coins if profile just became complete
-    if (oldCompletion < 100 && newCompletion === 100) {
+    // Award coins if profile just became complete and bonus not yet awarded
+    if (oldCompletion < 100 && newCompletion === 100 && !user.profileCompletionBonusAwarded) {
       await awardCoins(
         user._id,
         50,
@@ -117,6 +119,8 @@ exports.uploadProfilePicture = async (req, res) => {
         'Profile completion bonus'
       );
       user.coinBalance += 50;
+      user.profileCompletionBonusAwarded = true;
+      await user.save();
     }
 
     res.status(200).json({
