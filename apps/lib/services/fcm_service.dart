@@ -10,7 +10,15 @@ import 'storage_service.dart';
 // Background message handler (MUST be top-level function)
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+  } on FirebaseException catch (e) {
+    if (e.code != 'duplicate-app') rethrow;
+  }
   print('📱 Background notification: ${message.notification?.title}');
 }
 
@@ -33,11 +41,23 @@ class FCMService {
     }
 
     try {
-      // Initialize Firebase first with platform-specific options
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-      print('✅ Firebase initialized');
+      // Initialize Firebase first with platform-specific options (if not already initialized)
+      try {
+        if (Firebase.apps.isEmpty) {
+          await Firebase.initializeApp(
+            options: DefaultFirebaseOptions.currentPlatform,
+          );
+          print('✅ Firebase initialized');
+        } else {
+          print('✅ Firebase already initialized');
+        }
+      } on FirebaseException catch (e) {
+        if (e.code == 'duplicate-app') {
+          print('✅ Firebase already initialized (caught duplicate)');
+        } else {
+          rethrow;
+        }
+      }
 
       // Now initialize messaging after Firebase is ready
       _messaging = FirebaseMessaging.instance;

@@ -6,6 +6,8 @@ import 'store_screen.dart';
 import 'achievements_screen.dart';
 import 'edit_profile_screen.dart';
 import 'main_screen.dart';
+import 'followers_list_screen.dart';
+import 'following_list_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/profile_provider.dart';
 import 'services/api_service.dart';
@@ -263,11 +265,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       stats?['followersCount']?.toString() ??
                                           '0',
                                       'Followers',
+                                      onTap: () {
+                                        final authProvider =
+                                            Provider.of<AuthProvider>(
+                                              context,
+                                              listen: false,
+                                            );
+                                        final userId =
+                                            authProvider.user?['_id'] ??
+                                            authProvider.user?['id'];
+                                        final username =
+                                            authProvider.user?['username'] ??
+                                            'You';
+                                        if (userId != null) {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  FollowersListScreen(
+                                                    userId: userId,
+                                                    username: username,
+                                                  ),
+                                            ),
+                                          );
+                                        }
+                                      },
                                     ),
                                     _buildStatColumn(
                                       stats?['followingCount']?.toString() ??
                                           '0',
                                       'Following',
+                                      onTap: () {
+                                        final authProvider =
+                                            Provider.of<AuthProvider>(
+                                              context,
+                                              listen: false,
+                                            );
+                                        final userId =
+                                            authProvider.user?['_id'] ??
+                                            authProvider.user?['id'];
+                                        final username =
+                                            authProvider.user?['username'] ??
+                                            'You';
+                                        if (userId != null) {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  FollowingListScreen(
+                                                    userId: userId,
+                                                    username: username,
+                                                  ),
+                                            ),
+                                          );
+                                        }
+                                      },
                                     ),
                                   ],
                                 );
@@ -283,112 +335,114 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    user['displayName'] ?? 'User',
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w600,
-                                      foreground: _isDeveloperProfile
-                                          ? (Paint()
-                                              ..shader =
-                                                  const LinearGradient(
-                                                    colors: [
-                                                      Color(0xFF00F5FF),
-                                                      Color(0xFF7B2FFF),
-                                                      Color(0xFFFF006E),
-                                                    ],
-                                                  ).createShader(
-                                                    const Rect.fromLTWH(
-                                                      0,
-                                                      0,
-                                                      200,
-                                                      70,
-                                                    ),
-                                                  ))
-                                          : null,
-                                      color: _isDeveloperProfile
-                                          ? null
-                                          : Colors.black,
-                                    ),
-                                  ),
-                                  if (user['isVerified'] == true)
-                                    const Padding(
-                                      padding: EdgeInsets.only(left: 8),
-                                      child: Icon(
-                                        Icons.verified,
-                                        size: 20,
-                                        color: Color(0xFF701CF5),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      user['displayName'] ?? 'User',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w600,
+                                        foreground: _isDeveloperProfile
+                                            ? (Paint()
+                                                ..shader =
+                                                    const LinearGradient(
+                                                      colors: [
+                                                        Color(0xFF00F5FF),
+                                                        Color(0xFF7B2FFF),
+                                                        Color(0xFFFF006E),
+                                                      ],
+                                                    ).createShader(
+                                                      const Rect.fromLTWH(
+                                                        0,
+                                                        0,
+                                                        200,
+                                                        70,
+                                                      ),
+                                                    ))
+                                            : null,
+                                        color: _isDeveloperProfile
+                                            ? null
+                                            : Colors.black,
                                       ),
                                     ),
-                                ],
-                              ),
-                              if (_isDeveloperProfile) ...[
-                                const SizedBox(height: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [
-                                        Color(0xFF00F5FF),
-                                        Color(0xFF7B2FFF),
-                                      ],
-                                    ),
-                                    borderRadius: BorderRadius.circular(12),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(
-                                          0xFF7B2FFF,
-                                        ).withOpacity(0.3),
-                                        blurRadius: 8,
-                                        spreadRadius: 1,
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.code,
-                                        size: 12,
-                                        color: Colors.white,
-                                      ),
-                                      SizedBox(width: 4),
-                                      Text(
-                                        'DEVELOPER',
-                                        style: TextStyle(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                          letterSpacing: 0.5,
+                                    if (user['isVerified'] == true)
+                                      const Padding(
+                                        padding: EdgeInsets.only(left: 8),
+                                        child: Icon(
+                                          Icons.verified,
+                                          size: 20,
+                                          color: Color(0xFF701CF5),
                                         ),
                                       ),
-                                    ],
+                                  ],
+                                ),
+                                if (_isDeveloperProfile) ...[
+                                  const SizedBox(height: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFF00F5FF),
+                                          Color(0xFF7B2FFF),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(
+                                            0xFF7B2FFF,
+                                          ).withOpacity(0.3),
+                                          blurRadius: 8,
+                                          spreadRadius: 1,
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.code,
+                                          size: 12,
+                                          color: Colors.white,
+                                        ),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'DEVELOPER',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 4),
+                                Text(
+                                  '@${user['username'] ?? 'user'}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w400,
+                                    color: _isDeveloperProfile
+                                        ? const Color(0xFF7B2FFF)
+                                        : Colors.grey[600],
                                   ),
                                 ),
                               ],
-                              const SizedBox(height: 4),
-                              Text(
-                                '@${user['username'] ?? 'user'}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w400,
-                                  color: _isDeveloperProfile
-                                      ? const Color(0xFF7B2FFF)
-                                      : Colors.grey[600],
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
 
-                          const Spacer(),
+                          const SizedBox(width: 8),
 
                           // Edit button
                           GestureDetector(
@@ -403,7 +457,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             },
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 30,
+                                horizontal: 20,
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
@@ -421,7 +475,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           ),
 
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 8),
 
                           // Settings button
                           GestureDetector(
@@ -564,8 +618,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatColumn(String number, String label) {
-    return Column(
+  Widget _buildStatColumn(String number, String label, {VoidCallback? onTap}) {
+    final content = Column(
       children: [
         Text(
           number,
@@ -579,6 +633,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
       ],
     );
+
+    if (onTap != null) {
+      return GestureDetector(onTap: onTap, child: content);
+    }
+    return content;
   }
 
   Widget _buildActionButtonWithImage(String imagePath) {

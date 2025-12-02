@@ -65,14 +65,12 @@ exports.spinWheel = async (req, res) => {
       });
     }
 
-    // Possible rewards (weighted)
+    // Possible rewards (matching wheel UI: 50, 5, 50, 5, 10, 5, 20, 10)
     const rewards = [
-      { coins: 5, weight: 30 },
-      { coins: 10, weight: 25 },
-      { coins: 20, weight: 20 },
-      { coins: 50, weight: 15 },
-      { coins: 100, weight: 8 },
-      { coins: 200, weight: 2 },
+      { coins: 5, weight: 40 },   // 3 sections of 5 on wheel
+      { coins: 10, weight: 25 },  // 2 sections of 10 on wheel
+      { coins: 20, weight: 15 },  // 1 section of 20 on wheel
+      { coins: 50, weight: 20 },  // 2 sections of 50 on wheel
     ];
 
     // Calculate total weight

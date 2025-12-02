@@ -6,7 +6,70 @@ const Bookmark = require('../models/Bookmark');
 const Share = require('../models/Share');
 const { checkUploadReward } = require('../utils/coinSystem');
 
-// @desc    Create post
+// @desc    Create post with direct URL (no file upload)
+// @route   POST /api/posts/create-with-url
+// @access  Private
+exports.createPostWithUrl = async (req, res) => {
+  try {
+    const { mediaUrl, mediaType, thumbnailUrl, caption, location, hashtags, musicId, isPublic } = req.body;
+
+    // Validate required fields
+    if (!mediaUrl || !mediaType) {
+      return res.status(400).json({
+        success: false,
+        message: 'Media URL and type are required',
+      });
+    }
+
+    // Determine type from mediaType
+    const type = mediaType === 'video' ? 'reel' : mediaType;
+
+    // Create post with provided URL
+    const post = await Post.create({
+      user: req.user.id,
+      type: type,
+      mediaUrl,
+      mediaType,
+      thumbnailUrl: thumbnailUrl || null,
+      caption: caption || '',
+      location: location || '',
+      hashtags: hashtags || [],
+      musicId,
+      isPublic: isPublic !== false,
+    });
+
+    // Populate user data
+    await post.populate('user', 'username displayName profilePicture isVerified');
+
+    // Award coins for upload
+    const { awardCoins } = require('../utils/coinSystem');
+    await awardCoins(
+      req.user.id,
+      10, // 10 coins for upload
+      'upload_reward',
+      'Content upload reward'
+    );
+
+    // Update user's coin balance
+    await User.findByIdAndUpdate(req.user.id, {
+      $inc: { coinBalance: 10 }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Post created successfully',
+      data: post,
+    });
+  } catch (error) {
+    console.error('Create post with URL error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Create post (with file upload)
 // @route   POST /api/posts
 // @access  Private
 exports.createPost = async (req, res) => {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'chat_screen.dart';
 import 'main_screen.dart';
+import 'followers_list_screen.dart';
+import 'following_list_screen.dart';
 import 'services/api_service.dart';
 
 class UserProfileScreen extends StatefulWidget {
@@ -14,6 +16,7 @@ class UserProfileScreen extends StatefulWidget {
 
 class _UserProfileScreenState extends State<UserProfileScreen> {
   bool isFollowing = false;
+  bool _isFollowLoading = false;
   String selectedTab = 'Reels';
 
   Map<String, dynamic>? _userData;
@@ -117,14 +120,42 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Future<void> _toggleFollow() async {
     if (_userData == null) {
+      print('❌ Follow Error: _userData is null');
+      return;
+    }
+
+    if (_isFollowLoading) {
+      print('⏳ Follow request already in progress');
       return;
     }
 
     try {
       final userId = _userData!['_id'] ?? _userData!['id'];
+
+      if (userId == null) {
+        print('❌ Follow Error: userId is null');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to follow: User ID not found'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      setState(() {
+        _isFollowLoading = true;
+      });
+
+      print('🔄 ${isFollowing ? "Unfollowing" : "Following"} user: $userId');
+
       final response = isFollowing
           ? await ApiService.unfollowUser(userId)
           : await ApiService.followUser(userId);
+
+      print('📡 Follow API Response: $response');
 
       if (response['success']) {
         if (mounted) {
@@ -147,10 +178,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     : 'Unfollowed ${_userData!['displayName'] ?? _userData!['username']}',
               ),
               duration: const Duration(seconds: 2),
+              backgroundColor: const Color(0xFF701CF5),
             ),
           );
         }
       } else {
+        print('❌ Follow API Error: ${response['message']}');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -163,13 +196,20 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         }
       }
     } catch (e) {
+      print('❌ Follow Exception: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Follow feature not available'),
-            backgroundColor: Colors.orange,
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isFollowLoading = false;
+        });
       }
     }
   }
@@ -293,11 +333,55 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 widget.userInfo['followers']?.toString() ??
                                 '0',
                             'Followers',
+                            onTap: () {
+                              final userId =
+                                  _userData?['_id'] ??
+                                  _userData?['id'] ??
+                                  widget.userInfo['_id'] ??
+                                  widget.userInfo['id'];
+                              final username =
+                                  _userData?['username'] ??
+                                  widget.userInfo['username'] ??
+                                  'User';
+                              if (userId != null) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => FollowersListScreen(
+                                      userId: userId,
+                                      username: username,
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
                           ),
                           _buildStatColumn(
                             _userData?['followingCount']?.toString() ??
                                 _getFollowingCount(),
                             'Following',
+                            onTap: () {
+                              final userId =
+                                  _userData?['_id'] ??
+                                  _userData?['id'] ??
+                                  widget.userInfo['_id'] ??
+                                  widget.userInfo['id'];
+                              final username =
+                                  _userData?['username'] ??
+                                  widget.userInfo['username'] ??
+                                  'User';
+                              if (userId != null) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => FollowingListScreen(
+                                      userId: userId,
+                                      username: username,
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
                           ),
                         ],
                       ),
@@ -409,7 +493,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     // Follow/Following button
                     Expanded(
                       child: GestureDetector(
-                        onTap: _toggleFollow,
+                        onTap: _isFollowLoading ? null : _toggleFollow,
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
@@ -426,17 +510,30 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             color: isFollowing ? Colors.grey[200] : null,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Text(
-                            isFollowing ? 'Following' : 'Follow',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: isFollowing
-                                  ? Colors.black87
-                                  : Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                          child: _isFollowLoading
+                              ? const Center(
+                                  child: SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : Text(
+                                  isFollowing ? 'Following' : 'Follow',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: isFollowing
+                                        ? Colors.black87
+                                        : Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                         ),
                       ),
                     ),
@@ -516,8 +613,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
-  Widget _buildStatColumn(String number, String label) {
-    return Column(
+  Widget _buildStatColumn(String number, String label, {VoidCallback? onTap}) {
+    final content = Column(
       children: [
         Text(
           number,
@@ -531,6 +628,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
       ],
     );
+
+    if (onTap != null) {
+      return GestureDetector(onTap: onTap, child: content);
+    }
+    return content;
   }
 
   Widget _buildTab(String title) {

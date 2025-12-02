@@ -43,8 +43,8 @@ exports.updateProfile = async (req, res) => {
       await awardCoins(
         user._id,
         50,
-        'profile_completion',
-        'Profile completion bonus'
+        'welcome_bonus',
+        'Welcome Bonus'
       );
       user.coinBalance += 50;
       user.profileCompletionBonusAwarded = true;
@@ -115,8 +115,8 @@ exports.uploadProfilePicture = async (req, res) => {
       await awardCoins(
         user._id,
         50,
-        'profile_completion',
-        'Profile completion bonus'
+        'welcome_bonus',
+        'Welcome Bonus'
       );
       user.coinBalance += 50;
       user.profileCompletionBonusAwarded = true;
@@ -203,6 +203,89 @@ exports.getMyStats = async (req, res) => {
       },
     });
   } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Apply referral code
+// @route   POST /api/profile/apply-referral
+// @access  Private
+exports.applyReferralCode = async (req, res) => {
+  try {
+    const { referralCode } = req.body;
+    
+    if (!referralCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Referral code is required',
+      });
+    }
+
+    const user = await User.findById(req.user.id);
+
+    // Check if user already used a referral code
+    if (user.referredBy) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have already used a referral code',
+      });
+    }
+
+    // Find the referrer
+    const referrer = await User.findOne({ referralCode: referralCode.toUpperCase() });
+
+    if (!referrer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invalid referral code',
+      });
+    }
+
+    // Check if user is trying to use their own code
+    if (referrer._id.toString() === user._id.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot use your own referral code',
+      });
+    }
+
+    // Award coins to both users
+    // Award 20 coins to the new user (referee)
+    await awardCoins(
+      user._id,
+      20,
+      'referral_bonus',
+      'Referral Bonus - Used referral code'
+    );
+    user.coinBalance += 20;
+    user.referredBy = referrer._id;
+    await user.save();
+
+    // Award 20 coins to the referrer
+    await awardCoins(
+      referrer._id,
+      20,
+      'referral_bonus',
+      `Referral Bonus - ${user.username} joined using your code`
+    );
+    referrer.coinBalance += 20;
+    referrer.referralCount = (referrer.referralCount || 0) + 1;
+    await referrer.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Referral code applied successfully! You both earned 20 coins.',
+      data: {
+        coinsEarned: 20,
+        newBalance: user.coinBalance,
+        referrerUsername: referrer.username,
+      },
+    });
+  } catch (error) {
+    console.error('Apply referral error:', error);
     res.status(500).json({
       success: false,
       message: error.message,

@@ -36,6 +36,37 @@ class ApiService {
     return {if (token != null) 'Authorization': 'Bearer $token'};
   }
 
+  // Video APIs - Pre-signed URLs for faster loading
+  static Future<Map<String, dynamic>> getPresignedUrl(String videoUrl) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/videos/presigned-url'),
+        headers: await _getHeaders(),
+        body: jsonEncode({'videoUrl': videoUrl}),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('❌ Error getting pre-signed URL: $e');
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getPresignedUrlsBatch(
+    List<String> videoUrls,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/videos/presigned-urls-batch'),
+        headers: await _getHeaders(),
+        body: jsonEncode({'videoUrls': videoUrls}),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('❌ Error getting batch pre-signed URLs: $e');
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
   // Auth APIs
   static Future<Map<String, dynamic>> register({
     required String username,
@@ -184,6 +215,22 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
+  static Future<Map<String, dynamic>> applyReferralCode(
+    String referralCode,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/profile/apply-referral'),
+        headers: await _getHeaders(),
+        body: jsonEncode({'referralCode': referralCode}),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('❌ Error applying referral code: $e');
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
   static Future<Map<String, dynamic>> uploadProfilePicture(
     File imageFile,
   ) async {
@@ -243,6 +290,45 @@ class ApiService {
   }
 
   // Post APIs
+  static Future<Map<String, dynamic>> createPostWithUrl({
+    required String mediaUrl,
+    required String mediaType, // 'video' or 'image'
+    String? thumbnailUrl,
+    String? caption,
+    String? location,
+    List<String>? hashtags,
+    String? musicId,
+    bool isPublic = true,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/posts/create-with-url'),
+        headers: await _getHeaders(),
+        body: jsonEncode({
+          'mediaUrl': mediaUrl,
+          'mediaType': mediaType,
+          'thumbnailUrl': thumbnailUrl,
+          'caption': caption ?? '',
+          'location': location ?? '',
+          'hashtags': hashtags ?? [],
+          'musicId': musicId,
+          'isPublic': isPublic,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return data;
+      } else {
+        throw Exception(data['message'] ?? 'Failed to create post');
+      }
+    } catch (e) {
+      print('❌ Create post error: $e');
+      rethrow;
+    }
+  }
+
   static Future<Map<String, dynamic>> createPost({
     required File mediaFile,
     String? caption,
@@ -384,19 +470,41 @@ class ApiService {
 
   // Follow APIs
   static Future<Map<String, dynamic>> followUser(String userId) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/follow/$userId'),
-      headers: await _getHeaders(),
-    );
-    return jsonDecode(response.body);
+    try {
+      final url = '$baseUrl/follow/$userId';
+      final headers = await _getHeaders();
+      print('📤 Follow User API: POST $url');
+      print('📤 Headers: $headers');
+
+      final response = await http.post(Uri.parse(url), headers: headers);
+
+      print('📥 Follow Response Status: ${response.statusCode}');
+      print('📥 Follow Response Body: ${response.body}');
+
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('❌ Follow User Error: $e');
+      return {'success': false, 'message': 'Network error: $e'};
+    }
   }
 
   static Future<Map<String, dynamic>> unfollowUser(String userId) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl/follow/$userId'),
-      headers: await _getHeaders(),
-    );
-    return jsonDecode(response.body);
+    try {
+      final url = '$baseUrl/follow/$userId';
+      final headers = await _getHeaders();
+      print('📤 Unfollow User API: DELETE $url');
+      print('📤 Headers: $headers');
+
+      final response = await http.delete(Uri.parse(url), headers: headers);
+
+      print('📥 Unfollow Response Status: ${response.statusCode}');
+      print('📥 Unfollow Response Body: ${response.body}');
+
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('❌ Unfollow User Error: $e');
+      return {'success': false, 'message': 'Network error: $e'};
+    }
   }
 
   static Future<Map<String, dynamic>> getFollowers(String userId) async {
@@ -416,11 +524,16 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> checkFollowing(String userId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/follow/check/$userId'),
-      headers: await _getHeaders(),
-    );
-    return jsonDecode(response.body);
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/follow/check/$userId'),
+        headers: await _getHeaders(),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('❌ Check Following Error: $e');
+      return {'success': false, 'isFollowing': false};
+    }
   }
 
   // SYT APIs

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:visibility_detector/visibility_detector.dart';
+import 'package:share_plus/share_plus.dart';
 import 'comments_screen.dart';
 import 'gift_screen.dart';
 import 'user_profile_screen.dart';
@@ -19,11 +21,16 @@ class ReelScreen extends StatefulWidget {
   const ReelScreen({super.key, this.initialPostId});
 
   @override
-  State<ReelScreen> createState() => _ReelScreenState();
+  ReelScreenState createState() => ReelScreenState();
 }
 
-class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
+// Make state public so MainScreen can access it
+class ReelScreenState extends State<ReelScreen>
+    with WidgetsBindingObserver, AutomaticKeepAliveClientMixin, RouteAware {
   final PageController _pageController = PageController();
+
+  // Track if screen is currently visible
+  bool _isScreenVisible = true;
 
   List<Map<String, dynamic>> _posts = [];
   bool _isLoading = true;
@@ -32,27 +39,42 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
   final Map<String, bool> _followStatus = {};
   bool _isAdFree = false; // Track if user has ad-free subscription
 
+  // Lazy loading variables
+  int _currentPage = 1;
+  bool _hasMorePosts = true;
+  bool _isLoadingMore = false;
+  static const int _postsPerPage =
+      3; // Load only 3 posts at a time to reduce memory usage
+
+  // Static cache for feed data (persists across widget rebuilds)
+  static List<Map<String, dynamic>>? _cachedPosts;
+  static bool _hasFetchedData = false;
+
+  // Keep state alive when navigating away
+  @override
+  bool get wantKeepAlive => true;
+
   // Video controllers
   final Map<int, VideoPlayerController?> _videoControllers = {};
   final Map<int, bool> _videoInitialized = {};
   final Map<int, bool> _videoFullyLoaded = {}; // Track if video is 100% loaded
   final Map<int, DateTime> _lastPlayAttempt = {};
 
-  // Cache manager for first reel (permanent cache)
+  // Cache manager for first reel (permanent cache) - reduced size
   static final _cacheManager = CacheManager(
     Config(
       'reelVideoCache',
-      stalePeriod: const Duration(days: 7),
-      maxNrOfCacheObjects: 5, // Cache up to 5 recent videos
+      stalePeriod: const Duration(days: 1), // Reduced from 7 days to 1 day
+      maxNrOfCacheObjects: 2, // Reduced from 5 to 2 videos
     ),
   );
 
-  // Temporary cache manager for next reel preloading (10 min expiry)
+  // Temporary cache manager for next reel preloading (5 min expiry) - reduced
   static final _tempCacheManager = CacheManager(
     Config(
       'reelTempCache',
-      stalePeriod: const Duration(minutes: 10), // Auto-delete after 10 minutes
-      maxNrOfCacheObjects: 3, // Cache next 3 videos temporarily
+      stalePeriod: const Duration(minutes: 5), // Reduced from 10 to 5 minutes
+      maxNrOfCacheObjects: 2, // Reduced from 3 to 2 videos
     ),
   );
 
@@ -82,10 +104,12 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
     // Pause video when app goes to background
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
-      _videoControllers[_currentIndex]?.pause();
+      _isScreenVisible = false;
+      _pauseCurrentVideo();
     }
     // Resume video when app comes back to foreground
     else if (state == AppLifecycleState.resumed) {
+      _isScreenVisible = true;
       // Reload feed if posts are empty (fixes black screen on app restart)
       if (_posts.isEmpty && !_isLoading) {
         print('App resumed with no posts, reloading feed...');
@@ -93,6 +117,47 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
       } else if (_videoInitialized[_currentIndex] == true) {
         _videoControllers[_currentIndex]?.play();
       }
+    }
+  }
+
+  void _pauseCurrentVideo() {
+    _videoControllers[_currentIndex]?.pause();
+    print('⏸️ Video paused');
+  }
+
+  void _resumeCurrentVideo() {
+    // Only resume if screen is visible
+    if (_isScreenVisible && _videoInitialized[_currentIndex] == true) {
+      _videoControllers[_currentIndex]?.play();
+      print('▶️ Video resumed');
+    }
+  }
+
+  // Public methods for MainScreen to control video playback
+  void pauseVideo() {
+    print('🔇🔇🔇 PAUSE VIDEO CALLED FROM MAIN SCREEN');
+    _isScreenVisible = false;
+
+    // Pause all videos and mute them
+    _videoControllers.forEach((key, controller) {
+      if (controller != null) {
+        controller.pause();
+        controller.setVolume(0.0); // Mute the video
+        print('🔇 Paused and muted video $key');
+      }
+    });
+  }
+
+  void resumeVideo() {
+    print('🔊🔊🔊 RESUME VIDEO CALLED FROM MAIN SCREEN');
+    _isScreenVisible = true;
+
+    // Unmute and resume current video
+    final controller = _videoControllers[_currentIndex];
+    if (controller != null && _videoInitialized[_currentIndex] == true) {
+      controller.setVolume(1.0); // Unmute
+      controller.play();
+      print('🔊 Resumed and unmuted video $_currentIndex');
     }
   }
 
@@ -170,20 +235,56 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
   Future<void> _loadFeed() async {
     if (!mounted) return;
 
+    // Check if we already have cached data
+    if (_hasFetchedData && _cachedPosts != null && _cachedPosts!.isNotEmpty) {
+      print('✅ Using cached feed data (${_cachedPosts!.length} posts)');
+      setState(() {
+        _posts = _cachedPosts!;
+        _isLoading = false;
+      });
+
+      // Initialize first video only
+      if (_posts.isNotEmpty) {
+        _initializeVideoController(0);
+        _trackView(_posts[0]['_id']);
+
+        // Load stats only for first 3 posts (current + next 2)
+        final postsToLoadStats = _posts.take(3).toList();
+        _loadStatsInBackground(postsToLoadStats);
+
+        // Check follow status only for first 3 posts
+        for (final post in postsToLoadStats) {
+          final userId = post['user']?['_id'] ?? post['user']?['id'];
+          if (userId != null) {
+            _checkFollowStatus(userId);
+          }
+        }
+      }
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
     try {
-      print('Loading feed...');
-      final response = await ApiService.getFeed(page: 1, limit: 20);
+      print('🔄 Lazy loading: Fetching first $_postsPerPage posts...');
+      final response = await ApiService.getFeed(page: 1, limit: _postsPerPage);
       print('Feed response: ${response['success']}');
 
       if (!mounted) return;
 
       if (response['success']) {
         final posts = List<Map<String, dynamic>>.from(response['data']);
-        print('Loaded ${posts.length} posts');
+        print('✅ Loaded ${posts.length} posts (lazy loading)');
+
+        // 🚀 OPTIMIZATION: Batch fetch pre-signed URLs for all videos
+        await _batchFetchPresignedUrls(posts);
+
+        // Cache the data
+        _cachedPosts = posts;
+        _hasFetchedData = true;
+        _hasMorePosts = posts.length >= _postsPerPage;
 
         // Immediately show posts and initialize first video
         if (posts.isNotEmpty) {
@@ -212,11 +313,12 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
           _initializeVideoController(initialIndex);
           _trackView(_posts[initialIndex]['_id']);
 
-          // Load stats in parallel (non-blocking)
-          _loadStatsInBackground(posts);
+          // Load stats only for first 3 posts (non-blocking)
+          final postsToLoadStats = posts.take(3).toList();
+          _loadStatsInBackground(postsToLoadStats);
 
-          // Check follow status for each post (non-blocking)
-          for (final post in posts) {
+          // Check follow status only for first 3 posts (non-blocking)
+          for (final post in postsToLoadStats) {
             final userId = post['user']?['_id'] ?? post['user']?['id'];
             if (userId != null) {
               _checkFollowStatus(userId);
@@ -227,6 +329,7 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
           setState(() {
             _posts = posts;
             _isLoading = false;
+            _hasMorePosts = false;
           });
         }
       } else {
@@ -240,6 +343,118 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  // Load more posts when user scrolls near the end
+  Future<void> _loadMorePosts() async {
+    if (_isLoadingMore || !_hasMorePosts || !mounted) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    try {
+      _currentPage++;
+      print('🔄 Loading more posts (page $_currentPage)...');
+
+      final response = await ApiService.getFeed(
+        page: _currentPage,
+        limit: _postsPerPage,
+      );
+
+      if (!mounted) return;
+
+      if (response['success']) {
+        final newPosts = List<Map<String, dynamic>>.from(response['data']);
+        print('✅ Loaded ${newPosts.length} more posts');
+
+        if (newPosts.isNotEmpty) {
+          setState(() {
+            _posts.addAll(newPosts);
+            _cachedPosts = _posts;
+            _hasMorePosts = newPosts.length >= _postsPerPage;
+            _isLoadingMore = false;
+          });
+
+          // Load stats for new posts (non-blocking)
+          _loadStatsInBackground(newPosts);
+
+          // Check follow status for new posts (non-blocking)
+          for (final post in newPosts) {
+            final userId = post['user']?['_id'] ?? post['user']?['id'];
+            if (userId != null) {
+              _checkFollowStatus(userId);
+            }
+          }
+        } else {
+          setState(() {
+            _hasMorePosts = false;
+            _isLoadingMore = false;
+          });
+        }
+      } else {
+        setState(() {
+          _isLoadingMore = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading more posts: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingMore = false;
+        });
+      }
+    }
+  }
+
+  // 🚀 Batch fetch pre-signed URLs for faster video loading
+  Future<void> _batchFetchPresignedUrls(
+    List<Map<String, dynamic>> posts,
+  ) async {
+    try {
+      // Extract video URLs that need pre-signed URLs
+      final videoUrls = posts
+          .where(
+            (post) =>
+                post['mediaUrl'] != null &&
+                post['mediaUrl'].toString().contains('wasabisys.com'),
+          )
+          .map((post) => post['mediaUrl'].toString())
+          .toList();
+
+      if (videoUrls.isEmpty) {
+        print('No Wasabi videos to optimize');
+        return;
+      }
+
+      print('🚀 Batch fetching ${videoUrls.length} pre-signed URLs...');
+      final response = await ApiService.getPresignedUrlsBatch(videoUrls);
+
+      if (response['success'] == true && response['data'] != null) {
+        final presignedData = response['data'] as List;
+        print('✅ Got ${presignedData.length} pre-signed URLs');
+
+        // Update posts with pre-signed URLs
+        for (final item in presignedData) {
+          if (item['presignedUrl'] != null && item['originalUrl'] != null) {
+            final originalUrl = item['originalUrl'];
+            final presignedUrl = item['presignedUrl'];
+
+            // Find and update the post
+            for (final post in posts) {
+              if (post['mediaUrl'] == originalUrl) {
+                post['_presignedUrl'] = presignedUrl;
+                break;
+              }
+            }
+          }
+        }
+        print('✅ Updated posts with pre-signed URLs for instant loading');
+      }
+    } catch (e) {
+      print('⚠️ Batch pre-signed URL fetch failed: $e');
+      // Continue without pre-signed URLs
     }
   }
 
@@ -336,6 +551,27 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
         videoUrl = '${ApiConfig.baseUrl}$mediaUrl';
       }
 
+      // 🚀 OPTIMIZATION: Use pre-signed URL if already fetched (batch)
+      if (_posts[index]['_presignedUrl'] != null) {
+        videoUrl = _posts[index]['_presignedUrl'];
+        print('✅ Using cached pre-signed URL for video $index');
+      }
+      // Fallback: Get pre-signed URL individually if not in batch
+      else if (videoUrl.contains('wasabisys.com')) {
+        print('🔄 Getting pre-signed URL for video $index...');
+        try {
+          final presignedResponse = await ApiService.getPresignedUrl(videoUrl);
+          if (presignedResponse['success'] == true &&
+              presignedResponse['data'] != null) {
+            videoUrl = presignedResponse['data']['presignedUrl'];
+            _posts[index]['_presignedUrl'] = videoUrl; // Cache it
+            print('✅ Using pre-signed URL for video $index');
+          }
+        } catch (e) {
+          print('⚠️ Pre-signed URL failed, using direct URL: $e');
+        }
+      }
+
       VideoPlayerController controller;
 
       // Try to use cache for first reel (permanent cache)
@@ -348,7 +584,7 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
             controller = VideoPlayerController.file(
               fileInfo.file,
               videoPlayerOptions: VideoPlayerOptions(
-                mixWithOthers: false,
+                mixWithOthers: true,
                 allowBackgroundPlayback: false,
               ),
             );
@@ -358,7 +594,7 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
             controller = VideoPlayerController.networkUrl(
               Uri.parse(videoUrl),
               videoPlayerOptions: VideoPlayerOptions(
-                mixWithOthers: false,
+                mixWithOthers: true,
                 allowBackgroundPlayback: false,
               ),
             );
@@ -377,7 +613,7 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
           controller = VideoPlayerController.networkUrl(
             Uri.parse(videoUrl),
             videoPlayerOptions: VideoPlayerOptions(
-              mixWithOthers: false,
+              mixWithOthers: true,
               allowBackgroundPlayback: false,
             ),
           );
@@ -393,7 +629,7 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
             controller = VideoPlayerController.file(
               tempFileInfo.file,
               videoPlayerOptions: VideoPlayerOptions(
-                mixWithOthers: false,
+                mixWithOthers: true,
                 allowBackgroundPlayback: false,
               ),
             );
@@ -403,7 +639,7 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
             controller = VideoPlayerController.networkUrl(
               Uri.parse(videoUrl),
               videoPlayerOptions: VideoPlayerOptions(
-                mixWithOthers: false,
+                mixWithOthers: true,
                 allowBackgroundPlayback: false,
               ),
             );
@@ -413,7 +649,7 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
           controller = VideoPlayerController.networkUrl(
             Uri.parse(videoUrl),
             videoPlayerOptions: VideoPlayerOptions(
-              mixWithOthers: false,
+              mixWithOthers: true,
               allowBackgroundPlayback: false,
             ),
           );
@@ -435,9 +671,9 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
             final lastBufferedRange = buffered.last;
             final bufferedEnd = lastBufferedRange.end;
 
-            // Video is ready when buffered to 40% (enough for smooth playback)
-            // This significantly reduces loading time while maintaining quality
-            if (bufferedEnd.inMilliseconds >= duration.inMilliseconds * 0.4) {
+            // INSTANT PLAY: Video is ready when buffered to just 10%
+            // This gives near-instant playback from Wasabi
+            if (bufferedEnd.inMilliseconds >= duration.inMilliseconds * 0.1) {
               if (_videoFullyLoaded[index] != true && mounted) {
                 setState(() {
                   _videoFullyLoaded[index] = true;
@@ -448,8 +684,10 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
 
                 // Auto-play from start if this is the current video
                 if (index == _currentIndex && mounted) {
+                  controller.setVolume(1.0);
                   controller.seekTo(Duration.zero);
                   controller.play();
+                  print('🔊 Auto-playing video $index with volume 1.0');
                 }
               }
             }
@@ -475,7 +713,8 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
             (lastAttempt == null ||
                 now.difference(lastAttempt).inSeconds >= 2)) {
           _lastPlayAttempt[index] = DateTime.now();
-          print('Auto-resuming video $index');
+          controller.setVolume(1.0);
+          print('🔊 Auto-resuming video $index with volume 1.0');
           controller.play().catchError((e) {
             print('Auto-resume failed: $e');
           });
@@ -485,6 +724,10 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
       await controller.initialize();
       controller.setLooping(true);
       controller.setPlaybackSpeed(1.0);
+
+      // Set volume to ensure audio works
+      controller.setVolume(1.0);
+      print('🔊 Audio enabled for video $index (volume: 1.0)');
 
       if (mounted) {
         setState(() {
@@ -517,8 +760,8 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
 
     print('Waiting for video $index to buffer...');
 
-    // Reduced wait time to 10 seconds (much faster)
-    final maxWaitTime = DateTime.now().add(const Duration(seconds: 10));
+    // ULTRA FAST: Only wait 3 seconds max, start playing with minimal buffer
+    final maxWaitTime = DateTime.now().add(const Duration(seconds: 3));
 
     while (DateTime.now().isBefore(maxWaitTime)) {
       final buffered = controller.value.buffered;
@@ -527,9 +770,10 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
         final lastBufferedRange = buffered.last;
         final bufferedEnd = lastBufferedRange.end;
 
-        // Start playing when 40% is buffered (optimal balance of speed vs quality)
+        // INSTANT PLAY: Start playing when just 10% is buffered (ultra fast)
         // Video will continue buffering in background while playing
-        if (bufferedEnd.inMilliseconds >= duration.inMilliseconds * 0.4) {
+        // This gives near-instant playback for Wasabi videos
+        if (bufferedEnd.inMilliseconds >= duration.inMilliseconds * 0.1) {
           if (mounted) {
             setState(() {
               _videoFullyLoaded[index] = true;
@@ -541,18 +785,21 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
 
           // Seek to start and play if this is the current video
           if (index == _currentIndex && mounted) {
+            controller.setVolume(1.0);
             await controller.seekTo(Duration.zero);
             await controller.play();
+            print('🔊 Playing video $index with volume 1.0');
           }
           return;
         }
       }
 
-      await Future.delayed(const Duration(milliseconds: 100));
+      // Check every 50ms for faster response
+      await Future.delayed(const Duration(milliseconds: 50));
     }
 
-    // Timeout - mark as ready anyway to prevent infinite waiting
-    print('Video $index buffer timeout, playing anyway');
+    // Timeout after 3 seconds - mark as ready and play anyway
+    print('Video $index buffer timeout (3s), playing anyway');
     if (mounted) {
       setState(() {
         _videoFullyLoaded[index] = true;
@@ -560,8 +807,10 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
 
       // Play even if not fully buffered
       if (index == _currentIndex) {
+        controller.setVolume(1.0);
         await controller.seekTo(Duration.zero);
         await controller.play();
+        print('🔊 Playing video $index (timeout) with volume 1.0');
       }
     }
   }
@@ -589,6 +838,12 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
       _currentIndex = index;
     });
 
+    // Lazy loading: Load more posts when approaching the end
+    if (index >= _posts.length - 2 && _hasMorePosts && !_isLoadingMore) {
+      print('📥 Approaching end, loading more posts...');
+      _loadMorePosts();
+    }
+
     // Check if we should show an ad (only if not ad-free)
     if (!_isAdFree) {
       _reelsSinceLastAd++;
@@ -609,6 +864,10 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
     if (_videoInitialized[index] == true && _videoFullyLoaded[index] == true) {
       final controller = _videoControllers[index];
       if (controller != null && controller.value.isInitialized) {
+        // Ensure volume is set before playing
+        controller.setVolume(1.0);
+        print('🔊 Setting volume to 1.0 for video $index');
+
         // Always start from beginning
         controller.seekTo(Duration.zero).then((_) {
           if (mounted && _currentIndex == index) {
@@ -625,26 +884,48 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
     }
     // If initialized but not fully loaded, wait for the listener to auto-play
 
-    // Smart preloading: Load next video and cache it temporarily
+    // Smart preloading: Load only next video (reduced to save memory)
     if (index + 1 < _posts.length) {
       if (_videoInitialized[index + 1] != true) {
         _initializeVideoController(index + 1);
       }
-      // Preload and cache next video in background
-      _preloadNextVideo(index + 1);
+
+      // Load stats for next post if not loaded
+      _loadStatsForPost(index + 1);
     }
 
-    // Also preload the video after next for smoother experience
-    if (index + 2 < _posts.length && _videoInitialized[index + 2] != true) {
-      _preloadNextVideo(index + 2);
+    // Load stats for previous post if exists
+    if (index > 0) {
+      _loadStatsForPost(index - 1);
     }
 
-    // Clean up old cached videos that are far behind
+    // Aggressive cleanup - run on every page change to prevent OOM
     _cleanupOldCache(index);
 
     // Track view
     if (_posts.isNotEmpty && index < _posts.length) {
       _trackView(_posts[index]['_id']);
+    }
+  }
+
+  // Load stats for a single post (lazy loading)
+  Future<void> _loadStatsForPost(int index) async {
+    if (index < 0 || index >= _posts.length) return;
+
+    final post = _posts[index];
+
+    // Skip if stats already loaded
+    if (post['stats'] != null) return;
+
+    try {
+      final statsResponse = await ApiService.getPostStats(post['_id']);
+      if (statsResponse['success'] && mounted) {
+        setState(() {
+          _posts[index]['stats'] = statsResponse['data'];
+        });
+      }
+    } catch (e) {
+      print('Error loading stats for post $index: $e');
     }
   }
 
@@ -688,14 +969,28 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
     }
   }
 
-  // Clean up cached videos that are more than 5 positions behind current
+  // Clean up cached videos that are more than 2 positions behind current (aggressive cleanup)
   void _cleanupOldCache(int currentIndex) {
     final keysToRemove = <int>[];
 
+    // Dispose video controllers that are far from current position
+    _videoControllers.forEach((index, controller) {
+      // Keep only current, previous, and next 2 videos
+      final shouldKeep = index >= currentIndex - 1 && index <= currentIndex + 2;
+
+      if (!shouldKeep && controller != null) {
+        print('🗑️ Disposing video controller $index (memory cleanup)');
+        controller.dispose();
+        _videoControllers[index] = null;
+        _videoInitialized[index] = false;
+        _videoFullyLoaded[index] = false;
+      }
+    });
+
     _cacheTimestamps.forEach((index, timestamp) {
-      // Remove if more than 5 positions behind or older than 10 minutes
-      final isFarBehind = index < currentIndex - 5;
-      final isExpired = DateTime.now().difference(timestamp).inMinutes > 10;
+      // Remove if more than 2 positions behind or older than 5 minutes
+      final isFarBehind = index < currentIndex - 2;
+      final isExpired = DateTime.now().difference(timestamp).inMinutes > 5;
 
       if (isFarBehind || isExpired) {
         keysToRemove.add(index);
@@ -704,15 +999,15 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
 
     for (final index in keysToRemove) {
       _cacheTimestamps.remove(index);
-      print('Cleaned up cache for video $index');
+      print('🗑️ Cleaned up cache for video $index');
     }
 
-    // Also clean up temp cache periodically
-    if (currentIndex % 10 == 0) {
+    // Clean up temp cache more frequently (every 5 videos)
+    if (currentIndex % 5 == 0) {
       _tempCacheManager
           .emptyCache()
           .then((_) {
-            print('Temp cache cleaned up');
+            print('🗑️ Temp cache cleaned up');
           })
           .catchError((e) {
             print('Error cleaning temp cache: $e');
@@ -786,19 +1081,48 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
 
   Future<void> _sharePost(String postId, int index) async {
     try {
+      final post = _posts[index];
+      final username = post['user']?['username'] ?? 'user';
+      final caption = post['caption'] ?? '';
+
+      // Create deep link to specific reel
+      final deepLink = 'https://showofflife.app/reel/$postId';
+
+      // Create share text with deep link and Play Store link
+      final shareText =
+          '''
+Check out this amazing reel by @$username on ShowOff.life! 🎬
+
+${caption.isNotEmpty ? '$caption\n\n' : ''}🔗 Watch now: $deepLink
+
+📱 Download the app:
+https://play.google.com/store/apps/details?id=com.showofflife.app
+
+#ShowOffLife #Reels #Viral
+''';
+
+      // Share using share_plus
+      await Share.share(
+        shareText,
+        subject: 'Check out this reel on ShowOff.life',
+      );
+
+      // Track share on backend
       final response = await ApiService.sharePost(postId);
       if (response['success'] && mounted) {
         // Reload stats to get accurate counts
         await _reloadPostStats(postId, index);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Shared!'),
-            duration: Duration(seconds: 1),
-          ),
-        );
       }
     } catch (e) {
       print('Error sharing post: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to share'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -871,10 +1195,17 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    print('🗑️ Disposing ReelScreen - cleaning up all resources');
+
     WidgetsBinding.instance.removeObserver(this);
     _pageController.dispose();
+
+    // Dispose all video controllers
     _videoControllers.forEach((key, controller) {
-      controller?.dispose();
+      if (controller != null) {
+        print('🗑️ Disposing video controller $key');
+        controller.dispose();
+      }
     });
     _videoControllers.clear();
     _videoInitialized.clear();
@@ -884,21 +1215,50 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
     _cacheTimestamps.clear();
     _interstitialAd?.dispose();
 
-    // Clean up temp cache on dispose
-    _tempCacheManager
-        .emptyCache()
-        .then((_) {
-          print('Temp cache cleaned up on dispose');
-        })
-        .catchError((e) {
-          print('Error cleaning temp cache on dispose: $e');
-        });
+    // Clean up both caches on dispose
+    _tempCacheManager.emptyCache().catchError((e) {
+      print('Error cleaning temp cache on dispose: $e');
+    });
+
+    _cacheManager.emptyCache().catchError((e) {
+      print('Error cleaning permanent cache on dispose: $e');
+    });
 
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+
+    return VisibilityDetector(
+      key: const Key('reel-screen-visibility'),
+      onVisibilityChanged: (info) {
+        print(
+          '👁️ Reel visibility changed: ${(info.visibleFraction * 100).toInt()}%',
+        );
+
+        // Update visibility state
+        final wasVisible = _isScreenVisible;
+
+        // Pause immediately if ANY visibility is lost
+        if (info.visibleFraction < 1.0) {
+          _isScreenVisible = false;
+          print('🔇 Reel screen not fully visible - pausing video');
+          _pauseCurrentVideo();
+        }
+        // Resume only when fully visible
+        else if (info.visibleFraction == 1.0 && !wasVisible) {
+          _isScreenVisible = true;
+          print('🔊 Reel screen fully visible - resuming video');
+          _resumeCurrentVideo();
+        }
+      },
+      child: _buildScreenContent(),
+    );
+  }
+
+  Widget _buildScreenContent() {
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: Colors.black,
@@ -1024,12 +1384,19 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
                                   height: 24,
                                 ),
                                 onPressed: () {
+                                  // Pause video before navigating to prevent resource conflicts
+                                  _pauseCurrentVideo();
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => SearchScreen(),
                                     ),
-                                  );
+                                  ).then((_) {
+                                    // Resume video when returning
+                                    if (mounted && _isScreenVisible) {
+                                      _resumeCurrentVideo();
+                                    }
+                                  });
                                 },
                               ),
                               IconButton(
@@ -1039,12 +1406,19 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
                                   height: 24,
                                 ),
                                 onPressed: () {
+                                  // Pause video before navigating to prevent resource conflicts
+                                  _pauseCurrentVideo();
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => MessagesScreen(),
                                     ),
-                                  );
+                                  ).then((_) {
+                                    // Resume video when returning
+                                    if (mounted && _isScreenVisible) {
+                                      _resumeCurrentVideo();
+                                    }
+                                  });
                                 },
                               ),
                               IconButton(
@@ -1054,13 +1428,20 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
                                   height: 24,
                                 ),
                                 onPressed: () {
+                                  // Pause video before navigating to prevent resource conflicts
+                                  _pauseCurrentVideo();
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) =>
                                           NotificationScreen(),
                                     ),
-                                  );
+                                  ).then((_) {
+                                    // Resume video when returning
+                                    if (mounted && _isScreenVisible) {
+                                      _resumeCurrentVideo();
+                                    }
+                                  });
                                 },
                               ),
                             ],
@@ -1101,6 +1482,8 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
                         'assets/sidereel/comment.png',
                         stats['commentsCount']?.toString() ?? '0',
                         () async {
+                          // Pause video before showing modal to prevent resource conflicts
+                          _pauseCurrentVideo();
                           await showModalBottomSheet(
                             context: context,
                             isScrollControlled: true,
@@ -1110,6 +1493,10 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
                           );
                           // Reload stats after comments modal closes
                           await _reloadPostStats(post['_id'], index);
+                          // Resume video after modal closes
+                          if (mounted && _isScreenVisible) {
+                            _resumeCurrentVideo();
+                          }
                         },
                       ),
                       const SizedBox(height: 24),
@@ -1129,6 +1516,8 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
                         'assets/sidereel/gift.png',
                         '',
                         () async {
+                          // Pause video before showing modal to prevent resource conflicts
+                          _pauseCurrentVideo();
                           await showModalBottomSheet(
                             context: context,
                             isScrollControlled: true,
@@ -1141,6 +1530,10 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
                           );
                           // Reload stats after gift modal closes
                           await _reloadPostStats(post['_id'], index);
+                          // Resume video after modal closes
+                          if (mounted && _isScreenVisible) {
+                            _resumeCurrentVideo();
+                          }
                         },
                       ),
                     ],
@@ -1158,13 +1551,20 @@ class _ReelScreenState extends State<ReelScreen> with WidgetsBindingObserver {
                   children: [
                     GestureDetector(
                       onTap: () {
+                        // Pause video before navigating to prevent resource conflicts
+                        _pauseCurrentVideo();
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) =>
                                 UserProfileScreen(userInfo: user),
                           ),
-                        );
+                        ).then((_) {
+                          // Resume video when returning
+                          if (mounted && _isScreenVisible) {
+                            _resumeCurrentVideo();
+                          }
+                        });
                       },
                       child: Row(
                         children: [

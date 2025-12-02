@@ -8,14 +8,14 @@ class ApiConfig {
   // - iOS Simulator: use localhost
   // - Real Device: use your computer's IP address
 
-  // Automatic platform detection
+  // Automatic platform detection http://144.91.77.89:3000/api
   static String get baseUrl {
     if (Platform.isAndroid) {
       // Android Emulator - use 10.0.2.2 to access host machine's localhost
-      return 'http://10.0.2.2:3000/api';
+      return 'http://144.91.77.89:3000/api';
     } else if (Platform.isIOS) {
       // iOS Simulator
-      return 'http://localhost:3000/api';
+      return 'http://144.91.77.89:3000/api';
     } else {
       // Web, Desktop, or fallback
       return 'http://localhost:3000/api';

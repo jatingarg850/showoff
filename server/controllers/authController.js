@@ -581,7 +581,7 @@ exports.phoneLogin = async (req, res) => {
       console.log('✅ New user created:', user.username);
 
       // Award welcome bonus
-      await awardCoins(user._id, 50, 'welcome_bonus', 'Welcome bonus for new user');
+      await awardCoins(user._id, 50, 'welcome_bonus', 'Welcome Bonus');
     } else {
       console.log('✅ Existing user found:', user.username);
       
@@ -715,7 +715,7 @@ exports.phoneEmailVerify = async (req, res) => {
       console.log('✅ New user created:', user.username);
 
       // Award welcome bonus
-      await awardCoins(user._id, 50, 'welcome_bonus', 'Welcome bonus for new user');
+      await awardCoins(user._id, 50, 'welcome_bonus', 'Welcome Bonus');
     } else {
       console.log('✅ Existing user found:', user.username);
       
@@ -810,8 +810,12 @@ exports.googleAuth = async (req, res) => {
         console.log('🔗 Linking Google account to existing user');
         user.googleId = googleUser.sub || googleUser.id;
         user.isEmailVerified = googleUser.emailVerified || googleUser.verifiedEmail;
+        // Only set profile picture if user doesn't have one yet
         if (googleUser.picture && !user.profilePicture) {
+          console.log('ℹ️  Setting initial profile picture from Google');
           user.profilePicture = googleUser.picture;
+        } else {
+          console.log('ℹ️  Keeping existing profile picture');
         }
         await user.save();
       } else {
@@ -843,16 +847,14 @@ exports.googleAuth = async (req, res) => {
         console.log('✅ New user created:', user.username);
 
         // Award welcome bonus
-        await awardCoins(user._id, 50, 'welcome_bonus', 'Welcome bonus for new user');
+        await awardCoins(user._id, 50, 'welcome_bonus', 'Welcome Bonus');
       }
     } else {
       console.log('✅ Existing Google user found:', user.username);
 
-      // Update profile picture if changed
-      if (googleUser.picture && googleUser.picture !== user.profilePicture) {
-        user.profilePicture = googleUser.picture;
-        await user.save();
-      }
+      // Don't update profile picture for existing users
+      // Users should manage their profile picture through profile settings
+      console.log('ℹ️  Keeping existing profile picture');
     }
 
     // Update last login
@@ -976,7 +978,7 @@ exports.googleCallback = async (req, res) => {
           referralCode: generateReferralCode(username),
         });
 
-        await awardCoins(user._id, 50, 'welcome_bonus', 'Welcome bonus for new user');
+        await awardCoins(user._id, 50, 'welcome_bonus', 'Welcome Bonus');
       }
     }
 

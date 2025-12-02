@@ -217,6 +217,7 @@ app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/kyc', require('./routes/kycRoutes'));
 app.use('/api/fraud', require('./routes/fraudRoutes'));
 app.use('/api/subscriptions', require('./routes/subscriptionRoutes'));
+app.use('/api/videos', require('./routes/videoRoutes'));
 
 // Admin web interface routes
 app.use('/admin', require('./routes/adminWebRoutes'));
@@ -437,6 +438,24 @@ server.listen(PORT, async () => {
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
   `);
+
+  // Initialize Apache Kafka if enabled
+  if (process.env.KAFKA_ENABLED === 'true') {
+    try {
+      const { connectProducer, connectConsumer, createTopics } = require('./config/kafka');
+      const KafkaConsumerService = require('./services/kafkaConsumerService');
+      
+      console.log('🚀 Initializing Apache Kafka...');
+      await connectProducer();
+      await createTopics();
+      await connectConsumer();
+      await KafkaConsumerService.startConsumers();
+      console.log('✅ Kafka initialized successfully');
+    } catch (error) {
+      console.error('❌ Kafka initialization failed:', error.message);
+      console.log('⚠️  Server will continue without Kafka');
+    }
+  }
 
   // Initialize default achievements
   try {

@@ -18,6 +18,10 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   late int _currentIndex;
 
+  // Global key to access reel screen state
+  final GlobalKey<ReelScreenState> _reelScreenKey =
+      GlobalKey<ReelScreenState>();
+
   // Keep screen instances to preserve state
   late final Widget _reelScreen;
   late final Widget _talentScreen;
@@ -32,7 +36,7 @@ class _MainScreenState extends State<MainScreen> {
 
     // Create screens once and reuse them
     _reelScreen = ReelScreen(
-      key: const ValueKey('reel_screen'),
+      key: _reelScreenKey,
       initialPostId: widget.initialPostId,
     );
     _talentScreen = TalentScreen(key: const ValueKey('talent_screen'));
@@ -42,23 +46,39 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _getCurrentScreen() {
-    switch (_currentIndex) {
-      case 0:
-        return _reelScreen;
-      case 1:
-        return _talentScreen;
-      case 2:
-        return _pathScreen;
-      case 3:
-        return _walletScreen;
-      case 4:
-        return _profileScreen;
-      default:
-        return _reelScreen;
-    }
+    // Use IndexedStack to keep all screens alive and control visibility
+    return IndexedStack(
+      index: _currentIndex,
+      children: [
+        _reelScreen,
+        _talentScreen,
+        _pathScreen,
+        _walletScreen,
+        _profileScreen,
+      ],
+    );
   }
 
   void _onNavItemTapped(int index) {
+    print('Navigation: $_currentIndex to $index');
+
+    // Pause reel video when navigating away from reel screen
+    if (_currentIndex == 0 && index != 0) {
+      print('Navigating away from reels - pausing video');
+      _reelScreenKey.currentState?.pauseVideo();
+
+      // Double check - force pause after a short delay
+      Future.delayed(const Duration(milliseconds: 100), () {
+        _reelScreenKey.currentState?.pauseVideo();
+        print('Double-check pause executed');
+      });
+    }
+    // Resume reel video when navigating back to reel screen
+    else if (_currentIndex != 0 && index == 0) {
+      print('Navigating to reels - resuming video');
+      _reelScreenKey.currentState?.resumeVideo();
+    }
+
     setState(() {
       _currentIndex = index;
     });

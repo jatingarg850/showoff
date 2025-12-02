@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   createPost,
+  createPostWithUrl,
   getFeed,
   getUserPosts,
   toggleLike,
@@ -16,6 +17,10 @@ const {
 const { protect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
+// Create post with direct URL (no file upload)
+router.post('/create-with-url', protect, createPostWithUrl);
+
+// Create post (with file upload)
 router.post('/', protect, upload.fields([
   { name: 'media', maxCount: 1 },
   { name: 'thumbnail', maxCount: 1 }

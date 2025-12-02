@@ -171,8 +171,20 @@ class _WalletScreenState extends State<WalletScreen> {
         return 'Upload Reward';
       case 'view_reward':
         return 'View Reward';
+      case 'welcome_bonus':
+        return 'Welcome Bonus';
+      case 'profile_completion':
+        return 'Welcome Bonus'; // Merge with welcome bonus
+      case 'referral_bonus':
+        return 'Referral Bonus';
+      case 'daily_login':
+        return 'Daily Login';
       default:
-        return type;
+        // Remove underscores and capitalize words
+        return type
+            .split('_')
+            .map((word) => word[0].toUpperCase() + word.substring(1))
+            .join(' ');
     }
   }
 
