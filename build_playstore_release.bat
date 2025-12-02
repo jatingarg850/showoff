@@ -17,13 +17,13 @@ echo.
 
 REM Step 2: Verify keystore exists
 echo [2/6] Verifying keystore...
-if not exist "key\key.jks" (
-    echo ❌ Keystore not found at key\key.jks
-    echo Please create keystore first using create_keystore.bat
+if not exist "apps\key\key.jks" (
+    echo ❌ Keystore not found at apps\key\key.jks
+    echo Please create keystore first
     pause
     exit /b 1
 )
-echo ✅ Keystore found
+echo ✅ Keystore found at apps\key\key.jks
 echo.
 
 REM Step 3: Clean previous builds
@@ -78,7 +78,7 @@ echo.
 echo 📋 Build Information:
 echo    Package: com.showoff.life
 echo    Release SHA-1: 6a48e4e831b68ec8d4691b273465da605d03d759
-echo    Keystore: key\key.jks
+echo    Keystore: apps\key\key.jks
 echo    Alias: key
 echo.
 echo 🚀 Next Steps:

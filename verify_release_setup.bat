@@ -25,10 +25,10 @@ echo.
 
 REM Check 2: Keystore
 echo [2/5] Checking keystore...
-if exist "key\key.jks" (
-    echo ✅ Keystore found at key\key.jks
+if exist "apps\key\key.jks" (
+    echo ✅ Keystore found at apps\key\key.jks
 ) else (
-    echo ❌ Keystore not found at key\key.jks
+    echo ❌ Keystore not found at apps\key\key.jks
     set /a ERRORS+=1
 )
 echo.
@@ -37,7 +37,7 @@ REM Check 3: key.properties
 echo [3/5] Checking key.properties...
 if exist "apps\key\key.properties" (
     echo ✅ key.properties found
-    findstr /C:"storeFile=../../key/key.jks" "apps\key\key.properties" >nul
+    findstr /C:"storeFile=../key/key.jks" "apps\key\key.properties" >nul
     if %errorlevel% equ 0 (
         echo ✅ Correct keystore path configured
     ) else (
@@ -88,7 +88,7 @@ if %ERRORS% equ 0 (
     echo 📋 Configuration Summary:
     echo    Package Name: com.showoff.life
     echo    Release SHA-1: 6a48e4e831b68ec8d4691b273465da605d03d759
-    echo    Keystore: key\key.jks
+    echo    Keystore: apps\key\key.jks
     echo    Alias: key
     echo.
     echo 🚀 Run build_playstore_release.bat to build the app bundle

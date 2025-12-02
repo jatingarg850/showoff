@@ -10,10 +10,15 @@ plugins {
 }
 
 // Load keystore properties
-val keystorePropertiesFile = rootProject.file("../key/key.properties")
+val keystorePropertiesFile = rootProject.file("key/key.properties")
 val keystoreProperties = Properties()
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+    println("✅ Loaded keystore properties from: ${keystorePropertiesFile.absolutePath}")
+    println("   Store file: ${keystoreProperties["storeFile"]}")
+    println("   Key alias: ${keystoreProperties["keyAlias"]}")
+} else {
+    println("❌ Keystore properties file not found: ${keystorePropertiesFile.absolutePath}")
 }
 
 android {
@@ -70,4 +75,5 @@ flutter {
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     implementation("androidx.multidex:multidex:2.0.1")
+    implementation("androidx.core:core-ktx:1.12.0")  // For edge-to-edge support
 }
