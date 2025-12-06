@@ -50,30 +50,35 @@ class PushNotificationService {
   }
 
   Future<void> _initializePlugin() async {
-    // Android initialization settings
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@drawable/ic_notification');
+    try {
+      // Android initialization settings - use app icon if custom icon not available
+      const AndroidInitializationSettings initializationSettingsAndroid =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    // iOS initialization settings
-    const DarwinInitializationSettings initializationSettingsIOS =
-        DarwinInitializationSettings(
-          requestAlertPermission: true,
-          requestBadgePermission: true,
-          requestSoundPermission: true,
-        );
+      // iOS initialization settings
+      const DarwinInitializationSettings initializationSettingsIOS =
+          DarwinInitializationSettings(
+            requestAlertPermission: true,
+            requestBadgePermission: true,
+            requestSoundPermission: true,
+          );
 
-    // Combined initialization settings
-    const InitializationSettings initializationSettings =
-        InitializationSettings(
-          android: initializationSettingsAndroid,
-          iOS: initializationSettingsIOS,
-        );
+      // Combined initialization settings
+      const InitializationSettings initializationSettings =
+          InitializationSettings(
+            android: initializationSettingsAndroid,
+            iOS: initializationSettingsIOS,
+          );
 
-    // Initialize the plugin
-    await _flutterLocalNotificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: _onNotificationTapped,
-    );
+      // Initialize the plugin
+      await _flutterLocalNotificationsPlugin.initialize(
+        initializationSettings,
+        onDidReceiveNotificationResponse: _onNotificationTapped,
+      );
+    } catch (e) {
+      print('❌ Error initializing notification plugin: $e');
+      rethrow;
+    }
   }
 
   void _onNotificationTapped(NotificationResponse notificationResponse) {
@@ -140,8 +145,8 @@ class PushNotificationService {
             showWhen: true,
             enableVibration: true,
             playSound: true,
-            icon: '@drawable/ic_notification',
-            color: Color(0xFF9C27B0),
+            icon: '@mipmap/ic_launcher',
+            color: const Color(0xFF9C27B0),
           );
 
       const DarwinNotificationDetails iOSPlatformChannelSpecifics =

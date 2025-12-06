@@ -8,14 +8,14 @@ class ApiConfig {
   // - iOS Simulator: use localhost
   // - Real Device: use your computer's IP address
 
-  // Automatic platform detection http://144.91.77.89:3000/api
+  // Automatic platform detection
   static String get baseUrl {
     if (Platform.isAndroid) {
       // Android Emulator - use 10.0.2.2 to access host machine's localhost
-      return 'http://144.91.77.89:3000/api';
+      return 'http://10.0.2.2:3000/api';
     } else if (Platform.isIOS) {
       // iOS Simulator
-      return 'http://144.91.77.89:3000/api';
+      return 'http://localhost:3000/api';
     } else {
       // Web, Desktop, or fallback
       return 'http://localhost:3000/api';
@@ -34,7 +34,7 @@ class ApiConfig {
   // WebSocket URL (without /api suffix)
   static String get wsUrl {
     if (Platform.isAndroid) {
-      return 'http://192.168.0.122:3000';
+      return 'http://10.0.2.2:3000';
     } else if (Platform.isIOS) {
       return 'http://localhost:3000';
     } else {

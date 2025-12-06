@@ -11,11 +11,19 @@ import 'services/fcm_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase Cloud Messaging
-  await FCMService.instance.initialize();
+  try {
+    // Initialize Firebase Cloud Messaging
+    await FCMService.instance.initialize();
+  } catch (e) {
+    print('⚠️ FCM initialization failed: $e');
+  }
 
-  // Initialize AdMob
-  await AdMobService.initialize();
+  try {
+    // Initialize AdMob
+    await AdMobService.initialize();
+  } catch (e) {
+    print('⚠️ AdMob initialization failed: $e');
+  }
 
   runApp(
     MultiProvider(

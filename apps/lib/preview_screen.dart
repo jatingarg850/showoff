@@ -209,7 +209,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: Colors.white.withOpacity(0.9),
                       borderRadius: BorderRadius.circular(15),
                     ),
                     child: const Text(
@@ -329,6 +329,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
                     return;
                   }
 
+                  if (!mounted) return;
+                  final navigator = Navigator.of(context);
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+
                   // Show loading dialog
                   showDialog(
                     context: context,
@@ -360,10 +364,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
                       );
 
                       if (!mounted) return;
-                      Navigator.pop(context); // Close loading
+                      navigator.pop(); // Close loading
 
                       if (response['success']) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        scaffoldMessenger.showSnackBar(
                           const SnackBar(
                             content: Text(
                               'Daily selfie submitted successfully! 📸',
@@ -395,10 +399,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
                       );
 
                       if (!mounted) return;
-                      Navigator.pop(context); // Close loading
+                      navigator.pop(); // Close loading
 
                       if (response['success']) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        scaffoldMessenger.showSnackBar(
                           const SnackBar(
                             content: Text('SYT entry submitted successfully!'),
                             backgroundColor: Colors.green,
@@ -443,7 +447,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                       );
 
                       if (!mounted) return;
-                      Navigator.pop(context); // Close loading
+                      navigator.pop(); // Close loading
 
                       if (response['success']) {
                         // Show reward if any
@@ -451,7 +455,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                             response['reward']['awarded']) {
                           _showRewardDialog(response['reward']);
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          scaffoldMessenger.showSnackBar(
                             const SnackBar(
                               content: Text('Post uploaded successfully!'),
                               backgroundColor: Colors.green,
@@ -468,17 +472,15 @@ class _PreviewScreenState extends State<PreviewScreen> {
 
                     if (widget.selectedPath == 'selfie_challenge') {
                       // For selfie challenge, go back to daily selfie screen
-                      Navigator.popUntil(
-                        context,
+                      navigator.popUntil(
                         (route) =>
                             route.settings.name == '/daily_selfie' ||
                             route.isFirst,
                       );
                     } else {
                       // For other uploads, go to main screen
-                      Navigator.popUntil(context, (route) => route.isFirst);
-                      Navigator.pushReplacement(
-                        context,
+                      navigator.popUntil((route) => route.isFirst);
+                      navigator.pushReplacement(
                         MaterialPageRoute(
                           builder: (context) => MainScreen(
                             initialIndex: widget.selectedPath == 'SYT' ? 1 : 0,
@@ -488,8 +490,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
                     }
                   } catch (e) {
                     if (!mounted) return;
-                    Navigator.pop(context); // Close loading
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    navigator.pop(); // Close loading
+                    scaffoldMessenger.showSnackBar(
                       SnackBar(
                         content: Text('Upload failed: $e'),
                         backgroundColor: Colors.red,

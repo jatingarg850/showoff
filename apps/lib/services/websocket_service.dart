@@ -35,8 +35,8 @@ class WebSocketService {
       _isConnecting = true;
 
       final token = await StorageService.getToken();
-      if (token == null) {
-        print('❌ No auth token available for WebSocket connection');
+      if (token == null || token.isEmpty) {
+        print('⚠️ No auth token available for WebSocket connection');
         _isConnecting = false;
         return;
       }
@@ -68,6 +68,7 @@ class WebSocketService {
     } catch (e) {
       print('❌ Error connecting to WebSocket: $e');
       _isConnecting = false;
+      _cleanupSocket();
     }
   }
 
