@@ -281,9 +281,13 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
-  static Future<Map<String, dynamic>> searchUsers(String query) async {
+  static Future<Map<String, dynamic>> searchUsers(
+    String query, {
+    int page = 1,
+    int limit = 20,
+  }) async {
     final response = await http.get(
-      Uri.parse('$baseUrl/users/search?q=$query'),
+      Uri.parse('$baseUrl/users/search?q=$query&page=$page&limit=$limit'),
       headers: await _getHeaders(),
     );
     return jsonDecode(response.body);

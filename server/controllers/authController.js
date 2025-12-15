@@ -3,6 +3,7 @@ const generateToken = require('../utils/generateToken');
 const { generateReferralCode, awardCoins } = require('../utils/coinSystem');
 const phoneEmailService = require('../services/phoneEmailService');
 const authKeyService = require('../services/authkeyService');
+const resendService = require('../services/resendService');
 const googleAuthService = require('../services/googleAuthService');
 
 // In-memory OTP storage for tracking (in production, use Redis or database)
@@ -62,22 +63,28 @@ exports.sendOTP = async (req, res) => {
 
     try {
       if (email) {
-        // Send email OTP (using existing service)
+        // Send email OTP via Resend
         console.log(`📧 Sending OTP to email: ${email}`);
-        await phoneEmailService.sendEmailOTP(email);
-        otpSent = true;
         
-        // For email, generate and store OTP locally
-        const otp = generateOTP();
-        otpStore.set(identifier, {
-          otp,
-          logId: null,
-          expiresAt: Date.now() + 10 * 60 * 1000,
-          attempts: 0,
-          createdAt: Date.now(),
-        });
+        const result = await resendService.sendEmailOTP(email);
         
-        console.log(`║  OTP Code:    ${otp.padEnd(23)} ║`);
+        if (result.success) {
+          logId = result.messageId;
+          otpSent = true;
+          
+          // Store OTP and messageId for verification
+          otpStore.set(identifier, {
+            otp: result.otp, // Store the OTP for verification
+            logId: result.messageId,
+            expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+            attempts: 0,
+            createdAt: Date.now(),
+          });
+          
+          console.log('✅ OTP sent via Resend Email');
+          console.log(`║  OTP Code:    ${result.otp.padEnd(23)} ║`);
+          console.log(`║  MessageID:   ${result.messageId.padEnd(23)} ║`);
+        }
       } else {
         // Send phone OTP via AuthKey.io
         console.log(`📱 Sending OTP to phone: +${countryCode} ${phone}`);
@@ -88,15 +95,17 @@ exports.sendOTP = async (req, res) => {
           logId = result.logId;
           otpSent = true;
           
-          // Store logId for verification
+          // Store OTP and logId for verification
           otpStore.set(identifier, {
+            otp: result.otp, // Store the OTP for verification
             logId: result.logId,
             expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
             attempts: 0,
             createdAt: Date.now(),
           });
           
-          console.log('✅ OTP sent via AuthKey.io');
+          console.log('✅ OTP sent via AuthKey.io SMS');
+          console.log(`║  OTP Code:    ${result.otp.padEnd(23)} ║`);
           console.log(`║  LogID:       ${result.logId.padEnd(23)} ║`);
         }
       }
@@ -206,9 +215,21 @@ exports.verifyOTP = async (req, res) => {
     let isValid = false;
 
     try {
-      if (storedSession.logId) {
-        // Verify via AuthKey.io 2FA API
-        console.log('🔍 Verifying OTP via AuthKey.io');
+      // Always verify locally first (OTP is generated locally)
+      if (storedSession.otp) {
+        console.log('🔍 Verifying OTP locally');
+        console.log(`   Stored OTP: ${storedSession.otp}`);
+        console.log(`   Entered OTP: ${otp}`);
+        
+        if (storedSession.otp === otp) {
+          isValid = true;
+          console.log('✅ OTP verified locally - MATCH!');
+        } else {
+          console.log('❌ Invalid OTP (local) - NO MATCH');
+        }
+      } else if (storedSession.logId) {
+        // Fallback: Try to verify via AuthKey.io 2FA API if no local OTP
+        console.log('🔍 Verifying OTP via AuthKey.io (fallback)');
         console.log(`   LogID: ${storedSession.logId}`);
         
         const result = await authKeyService.verifyOTP(storedSession.logId, otp, 'SMS');
@@ -218,17 +239,6 @@ exports.verifyOTP = async (req, res) => {
           console.log('✅ OTP verified via AuthKey.io');
         } else {
           console.log('❌ Invalid OTP (AuthKey.io)');
-        }
-      } else if (storedSession.otp) {
-        // Verify locally (for email or fallback)
-        console.log('🔍 Verifying OTP locally');
-        console.log(`   Stored OTP: ${storedSession.otp}`);
-        
-        if (storedSession.otp === otp) {
-          isValid = true;
-          console.log('✅ OTP verified locally');
-        } else {
-          console.log('❌ Invalid OTP (local)');
         }
       } else {
         throw new Error('No OTP verification method available');
@@ -520,6 +530,103 @@ exports.checkUsername = async (req, res) => {
       success: true,
       available: true,
       message: 'Username is available',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Check email availability
+// @route   POST /api/auth/check-email
+// @access  Public
+exports.checkEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide an email',
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid email address',
+      });
+    }
+
+    // Check if email exists
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+
+    if (existingUser) {
+      return res.status(200).json({
+        success: false,
+        available: false,
+        message: 'Email already registered',
+        exists: true,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      available: true,
+      message: 'Email is available',
+      exists: false,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Check phone availability
+// @route   POST /api/auth/check-phone
+// @access  Public
+exports.checkPhone = async (req, res) => {
+  try {
+    const { phone, countryCode } = req.body;
+
+    if (!phone || !countryCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide phone number and country code',
+      });
+    }
+
+    // Validate phone format (basic validation)
+    if (phone.length < 7 || phone.length > 15) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid phone number',
+      });
+    }
+
+    // Check if phone exists
+    const existingUser = await User.findOne({ phone: phone });
+
+    if (existingUser) {
+      return res.status(200).json({
+        success: false,
+        available: false,
+        message: 'Phone number already registered',
+        exists: true,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      available: true,
+      message: 'Phone number is available',
+      exists: false,
     });
   } catch (error) {
     res.status(500).json({

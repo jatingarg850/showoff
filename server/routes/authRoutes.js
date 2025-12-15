@@ -6,7 +6,9 @@ const {
   getMe, 
   sendOTP, 
   verifyOTP, 
-  checkUsername, 
+  checkUsername,
+  checkEmail,
+  checkPhone,
   phoneLogin, 
   phoneEmailVerify,
   googleAuth,
@@ -19,6 +21,8 @@ router.post('/send-otp', sendOTP);
 router.post('/verify-otp', verifyOTP);
 router.post('/resend-otp', sendOTP); // Reuse sendOTP for resend
 router.post('/check-username', checkUsername);
+router.post('/check-email', checkEmail);
+router.post('/check-phone', checkPhone);
 router.post('/register', register);
 router.post('/login', login);
 router.post('/phone-login', phoneLogin); // Phone.email login (Flutter app)

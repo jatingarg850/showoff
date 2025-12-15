@@ -1,44 +1,27 @@
-import 'dart:io';
-
 class ApiConfig {
-  // Change this to your server URL
+  // AWS Production Server - Supports both HTTP and HTTPS
 
-  // For local development:
-  // - Android Emulator: use 192.168.0.122
-  // - iOS Simulator: use localhost
-  // - Real Device: use your computer's IP address
+  // Primary: HTTP (Port 80 via Nginx)
+  static const String baseUrlHttp = 'http://10.0.2.2:3000/api';
+  static const String wsUrlHttp = 'http://10.0.2.2:3000';
 
-  // Automatic platform detection
-  static String get baseUrl {
-    if (Platform.isAndroid) {
-      // Android Emulator - use 10.0.2.2 to access host machine's localhost
-      return 'http://10.0.2.2:3000/api';
-    } else if (Platform.isIOS) {
-      // iOS Simulator
-      return 'http://localhost:3000/api';
-    } else {
-      // Web, Desktop, or fallback
-      return 'http://localhost:3000/api';
-    }
-  }
+  // Secondary: HTTPS (Port 443 via Nginx with SSL)
+  static const String baseUrlHttps = 'https://3.110.103.187/api';
+  static const String wsUrlHttps = 'https://3.110.103.187';
 
-  // Manual override for real devices (uncomment and set your computer's IP)
-  // static const String baseUrl = 'http://192.168.1.100:3000/api'; // Real Device
+  // Use HTTP by default (more compatible with mobile)
+  // Switch to HTTPS when SSL certificate is properly configured
+  static String get baseUrl => baseUrlHttp;
+  static String get wsUrl => wsUrlHttp;
 
-  // For production (uncomment when deploying)
-  // static const String baseUrl = 'https://your-domain.com/api';
+  // Alternative: Use HTTPS
+  // static String get baseUrl => baseUrlHttps;
+  // static String get wsUrl => wsUrlHttps;
 
   static const int connectionTimeout = 30000; // 30 seconds
   static const int receiveTimeout = 30000; // 30 seconds
 
-  // WebSocket URL (without /api suffix)
-  static String get wsUrl {
-    if (Platform.isAndroid) {
-      return 'http://10.0.2.2:3000';
-    } else if (Platform.isIOS) {
-      return 'http://localhost:3000';
-    } else {
-      return 'http://localhost:3000';
-    }
-  }
+  // For Android: Allow cleartext (HTTP) traffic
+  // Add to android/app/src/main/AndroidManifest.xml:
+  // android:usesCleartextTraffic="true"
 }

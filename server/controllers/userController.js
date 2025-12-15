@@ -1,13 +1,18 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 
-// @desc    Search users
+// @desc    Search users with pagination
 // @route   GET /api/users/search
 // @access  Private
 exports.searchUsers = async (req, res) => {
   try {
-    const { q } = req.query;
+    const { q, page = 1, limit = 20 } = req.query;
     const currentUserId = req.user.id;
+
+    // Parse pagination parameters
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(limit) || 20));
+    const skip = (pageNum - 1) * pageSize;
 
     let query = { _id: { $ne: currentUserId } }; // Exclude current user
 
@@ -18,13 +23,23 @@ exports.searchUsers = async (req, res) => {
       ];
     }
 
+    // Get total count for pagination
+    const total = await User.countDocuments(query);
+
+    // Fetch paginated results
     const users = await User.find(query)
       .select('username displayName profilePicture bio isVerified followersCount followingCount')
-      .limit(50);
+      .skip(skip)
+      .limit(pageSize)
+      .sort({ followersCount: -1 }); // Sort by followers count (most popular first)
 
     res.status(200).json({
       success: true,
       data: users,
+      total: total,
+      page: pageNum,
+      limit: pageSize,
+      pages: Math.ceil(total / pageSize),
     });
   } catch (error) {
     res.status(500).json({
