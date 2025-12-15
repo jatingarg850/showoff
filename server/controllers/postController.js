@@ -170,9 +170,54 @@ exports.getFeed = async (req, res) => {
 
     const total = await Post.countDocuments({ isActive: true });
 
+    // 🚀 OPTIMIZATION: Include like status and stats for each post to avoid separate API calls
+    const Like = require('../models/Like');
+    const Bookmark = require('../models/Bookmark');
+    const userId = req.user?.id;
+    
+    let enrichedPosts = posts;
+    
+    // Get all likes and bookmarks for current user (if authenticated)
+    let likedPostIds = new Set();
+    let bookmarkedPostIds = new Set();
+    let bookmarkCountMap = new Map();
+    
+    if (userId) {
+      // Get all likes for current user in one query
+      const userLikes = await Like.find({ user: userId, post: { $in: posts.map(p => p._id) } });
+      likedPostIds = new Set(userLikes.map(l => l.post.toString()));
+      
+      // Get all bookmarks for current user in one query
+      const userBookmarks = await Bookmark.find({ user: userId, post: { $in: posts.map(p => p._id) } });
+      bookmarkedPostIds = new Set(userBookmarks.map(b => b.post.toString()));
+      
+      // Get bookmark counts for all posts
+      const bookmarkCounts = await Bookmark.aggregate([
+        { $match: { post: { $in: posts.map(p => p._id) } } },
+        { $group: { _id: '$post', count: { $sum: 1 } } },
+      ]);
+      bookmarkCountMap = new Map(bookmarkCounts.map(b => [b._id.toString(), b.count]));
+    }
+    
+    // Enrich all posts with stats (whether user is authenticated or not)
+    enrichedPosts = posts.map(post => ({
+      ...post.toObject(),
+      isLiked: likedPostIds.has(post._id.toString()),
+      isBookmarked: bookmarkedPostIds.has(post._id.toString()),
+      stats: {
+        likesCount: post.likesCount,
+        commentsCount: post.commentsCount,
+        sharesCount: post.sharesCount,
+        viewsCount: post.viewsCount,
+        bookmarksCount: bookmarkCountMap.get(post._id.toString()) || 0,
+        isLiked: likedPostIds.has(post._id.toString()),
+        isBookmarked: bookmarkedPostIds.has(post._id.toString()),
+      },
+    }));
+
     res.status(200).json({
       success: true,
-      data: posts,
+      data: enrichedPosts,
       pagination: {
         page,
         limit,
@@ -270,12 +315,14 @@ exports.toggleLike = async (req, res) => {
       // Create notification for post owner (if not liking own post)
       console.log('🔍 Checking notification eligibility:');
       console.log('  Post owner ID:', post.user.toString());
+      console.log('  Post owner ID type:', typeof post.user);
       console.log('  Liker ID:', req.user.id);
+      console.log('  Liker ID type:', typeof req.user.id);
       console.log('  Same user?', post.user.toString() === req.user.id);
       
       if (post.user.toString() !== req.user.id) {
         try {
-          console.log('✅ Creating like notification...');
+          console.log('✅ Creating like notification for post owner:', post.user.toString());
           const { createLikeNotification } = require('../utils/notificationHelper');
           await createLikeNotification(post._id, req.user.id, post.user);
           console.log('✅ Like notification created successfully');

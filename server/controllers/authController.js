@@ -865,6 +865,79 @@ exports.phoneEmailVerify = async (req, res) => {
 };
 
 
+// @desc    Sign in with Phone OTP (after OTP verification)
+// @route   POST /api/auth/signin-phone-otp
+// @access  Public
+exports.signInPhoneOTP = async (req, res) => {
+  try {
+    const { phone, countryCode } = req.body;
+
+    if (!phone || !countryCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number and country code are required',
+      });
+    }
+
+    console.log('📱 Phone OTP Sign-In Request:', { phone, countryCode });
+
+    // Check if user exists with this phone number
+    const user = await User.findOne({ phone: phone });
+
+    if (!user) {
+      // User doesn't exist - ask them to sign up
+      console.log('❌ User not found for phone:', phone);
+      return res.status(404).json({
+        success: false,
+        message: 'Account not found. Please sign up first.',
+        code: 'ACCOUNT_NOT_FOUND',
+      });
+    }
+
+    console.log('✅ Existing user found:', user.username);
+    
+    // Update phone verification status if not already verified
+    if (!user.isPhoneVerified) {
+      user.isPhoneVerified = true;
+      await user.save();
+    }
+
+    // Update last login
+    user.lastLogin = Date.now();
+    await user.save();
+
+    // Generate JWT token
+    const token = generateToken(user._id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Phone OTP sign-in successful',
+      data: {
+        user: {
+          id: user._id,
+          username: user.username,
+          displayName: user.displayName,
+          phone: user.phone,
+          email: user.email,
+          profilePicture: user.profilePicture,
+          bio: user.bio,
+          coinBalance: user.coinBalance,
+          isVerified: user.isVerified,
+          isPhoneVerified: user.isPhoneVerified,
+          accountStatus: user.accountStatus,
+        },
+        token: token,
+      },
+    });
+  } catch (error) {
+    console.error('❌ Phone OTP sign-in error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 // @desc    Google OAuth - Sign in or Sign up with Google ID Token
 // @route   POST /api/auth/google
 // @access  Public

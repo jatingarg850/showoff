@@ -39,55 +39,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadUserData();
   }
 
-  Future<void> _loadLikedPosts() async {
-    try {
-      print('Loading liked posts...');
-      // Get multiple pages of feed to find liked posts
-      List<Map<String, dynamic>> allLikedPosts = [];
-
-      for (int page = 1; page <= 5; page++) {
-        // Check first 5 pages
-        final feedResponse = await ApiService.getFeed(page: page, limit: 20);
-        if (feedResponse['success']) {
-          final posts = List<Map<String, dynamic>>.from(
-            feedResponse['data'] ?? [],
-          );
-
-          // Check each post's like status
-          for (final post in posts) {
-            try {
-              final statsResponse = await ApiService.getPostStats(post['_id']);
-              if (statsResponse['success'] &&
-                  statsResponse['data']['isLiked'] == true) {
-                allLikedPosts.add(post);
-                print('Found liked post: ${post['_id']}');
-              }
-            } catch (e) {
-              print('Error checking post stats for ${post['_id']}: $e');
-            }
-          }
-
-          if (posts.length < 20) {
-            break; // No more posts
-          }
-        } else {
-          break;
-        }
-      }
-
-      setState(() {
-        _likedPosts = allLikedPosts;
-      });
-
-      print('Total liked posts found: ${_likedPosts.length}');
-    } catch (e) {
-      print('Error loading liked posts: $e');
-      setState(() {
-        _likedPosts = [];
-      });
-    }
-  }
-
   Future<void> _loadUserData() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final profileProvider = Provider.of<ProfileProvider>(
@@ -95,8 +46,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       listen: false,
     );
 
-    await authProvider.refreshUser();
-    await profileProvider.getStats();
+    // 🚀 OPTIMIZATION: Load user and stats in parallel
+    await Future.wait([authProvider.refreshUser(), profileProvider.getStats()]);
 
     // Debug: Check user data
     print('User data: ${authProvider.user}');
@@ -108,16 +59,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final userId =
             authProvider.user!['_id'] ?? authProvider.user!['id'] ?? '';
         if (userId.isNotEmpty) {
-          // Load regular posts
-          final response = await ApiService.getUserPosts(userId);
+          // 🚀 OPTIMIZATION: Load all posts in parallel instead of sequentially
+          final results = await Future.wait([
+            ApiService.getUserPosts(userId),
+            ApiService.getSYTEntries(),
+            ApiService.getFeed(page: 1, limit: 20),
+          ]);
+
+          final response = results[0];
+          final sytResponse = results[1];
+          final feedResponse = results[2];
+
+          // Process regular posts
           if (response['success']) {
             setState(() {
               _posts = List<Map<String, dynamic>>.from(response['data'] ?? []);
             });
           }
 
-          // Load SYT posts
-          final sytResponse = await ApiService.getSYTEntries();
+          // Process SYT posts
           if (sytResponse['success']) {
             final allSYTEntries = List<Map<String, dynamic>>.from(
               sytResponse['data'] ?? [],
@@ -132,8 +92,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
             });
           }
 
-          // Load liked posts - get feed and filter liked ones
-          await _loadLikedPosts();
+          // Process liked posts
+          if (feedResponse['success']) {
+            final posts = List<Map<String, dynamic>>.from(
+              feedResponse['data'] ?? [],
+            );
+            final likedPosts = posts
+                .where((post) => post['isLiked'] == true)
+                .toList();
+
+            setState(() {
+              _likedPosts = likedPosts;
+            });
+
+            print(
+              '✅ Loaded ${likedPosts.length} liked posts (1 API call instead of 105)',
+            );
+          }
 
           setState(() => _isLoading = false);
         } else {

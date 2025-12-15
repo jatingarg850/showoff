@@ -11,6 +11,7 @@ const {
   checkPhone,
   phoneLogin, 
   phoneEmailVerify,
+  signInPhoneOTP,
   googleAuth,
   googleRedirect,
   googleCallback
@@ -20,6 +21,7 @@ const { protect } = require('../middleware/auth');
 router.post('/send-otp', sendOTP);
 router.post('/verify-otp', verifyOTP);
 router.post('/resend-otp', sendOTP); // Reuse sendOTP for resend
+router.post('/signin-phone-otp', signInPhoneOTP); // Sign in with phone OTP
 router.post('/check-username', checkUsername);
 router.post('/check-email', checkEmail);
 router.post('/check-phone', checkPhone);

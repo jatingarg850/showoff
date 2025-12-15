@@ -60,27 +60,36 @@ class ReelScreenState extends State<ReelScreen>
   final Map<int, bool> _videoFullyLoaded = {}; // Track if video is 100% loaded
   final Map<int, DateTime> _lastPlayAttempt = {};
 
-  // Cache manager for first reel (permanent cache) - reduced size
+  // 🚀 OPTIMIZATION: Cache manager for reel videos (permanent cache for looping)
+  // Increased to store more videos for smooth looping without network interruption
   static final _cacheManager = CacheManager(
     Config(
       'reelVideoCache',
-      stalePeriod: const Duration(days: 1), // Reduced from 7 days to 1 day
-      maxNrOfCacheObjects: 2, // Reduced from 5 to 2 videos
+      stalePeriod: const Duration(days: 7), // Keep cached for 7 days
+      maxNrOfCacheObjects: 5, // Store up to 5 videos for looping
     ),
   );
 
-  // Temporary cache manager for next reel preloading (5 min expiry) - reduced
+  // Temporary cache manager for next reel preloading (longer expiry for looping)
+  // This cache is for videos being preloaded ahead of time
   static final _tempCacheManager = CacheManager(
     Config(
       'reelTempCache',
-      stalePeriod: const Duration(minutes: 5), // Reduced from 10 to 5 minutes
-      maxNrOfCacheObjects: 2, // Reduced from 3 to 2 videos
+      stalePeriod: const Duration(
+        hours: 1,
+      ), // Keep for 1 hour (longer for looping)
+      maxNrOfCacheObjects: 3, // Store up to 3 videos for preloading
     ),
   );
 
   // Track which videos are being preloaded
   final Set<int> _preloadingVideos = {};
   final Map<int, DateTime> _cacheTimestamps = {};
+
+  // 🚀 OPTIMIZATION: Track like button state to prevent rapid clicking
+  final Map<String, DateTime> _lastLikeClick = {}; // postId -> last click time
+  static const int _likeDebounceMs =
+      500; // Prevent clicking more than once per 500ms
 
   // Ad related
   InterstitialAd? _interstitialAd;
@@ -460,8 +469,20 @@ class ReelScreenState extends State<ReelScreen>
 
   // Load stats in background without blocking UI
   Future<void> _loadStatsInBackground(List<Map<String, dynamic>> posts) async {
+    // 🚀 OPTIMIZATION: Skip posts that already have stats (from feed response)
+    final postsNeedingStats = posts
+        .where((post) => post['stats'] == null)
+        .toList();
+
+    if (postsNeedingStats.isEmpty) {
+      print('✅ All posts already have stats (from feed response)');
+      return;
+    }
+
+    print('📊 Loading stats for ${postsNeedingStats.length} posts...');
+
     // Load stats in parallel for better performance
-    final futures = posts.map((post) async {
+    final futures = postsNeedingStats.map((post) async {
       try {
         final statsResponse = await ApiService.getPostStats(post['_id']);
         if (statsResponse['success'] && mounted) {
@@ -619,23 +640,33 @@ class ReelScreenState extends State<ReelScreen>
           );
         }
       } else {
-        // For other videos, check temp cache first (from preloading)
+        // For other videos, check both caches (permanent first, then temp)
         try {
-          final tempFileInfo = await _tempCacheManager.getFileFromCache(
-            videoUrl,
-          );
-          if (tempFileInfo != null) {
-            print('Video $index loaded from temp cache (preloaded)');
+          // 🚀 OPTIMIZATION: Check permanent cache first for looping videos
+          var fileInfo = await _cacheManager.getFileFromCache(videoUrl);
+
+          if (fileInfo == null) {
+            // Not in permanent cache, check temp cache (from preloading)
+            fileInfo = await _tempCacheManager.getFileFromCache(videoUrl);
+            if (fileInfo != null) {
+              print('Video $index loaded from temp cache (preloaded)');
+            }
+          } else {
+            print('Video $index loaded from permanent cache (looping)');
+          }
+
+          if (fileInfo != null) {
+            // Use cached file
             controller = VideoPlayerController.file(
-              tempFileInfo.file,
+              fileInfo.file,
               videoPlayerOptions: VideoPlayerOptions(
                 mixWithOthers: true,
                 allowBackgroundPlayback: false,
               ),
             );
           } else {
-            // Not in temp cache, use network
-            print('Video $index loading from network');
+            // Not in any cache, use network and cache for looping
+            print('Video $index loading from network (will cache for looping)');
             controller = VideoPlayerController.networkUrl(
               Uri.parse(videoUrl),
               videoPlayerOptions: VideoPlayerOptions(
@@ -643,9 +674,19 @@ class ReelScreenState extends State<ReelScreen>
                 allowBackgroundPlayback: false,
               ),
             );
+
+            // 🚀 OPTIMIZATION: Cache to permanent cache for smooth looping
+            _cacheManager
+                .downloadFile(videoUrl)
+                .then((_) {
+                  print('Video $index cached to permanent cache for looping');
+                })
+                .catchError((e) {
+                  print('Cache error for video $index: $e');
+                });
           }
         } catch (e) {
-          print('Temp cache check error: $e, using network');
+          print('Cache check error for video $index: $e, using network');
           controller = VideoPlayerController.networkUrl(
             Uri.parse(videoUrl),
             videoPlayerOptions: VideoPlayerOptions(
@@ -970,12 +1011,14 @@ class ReelScreenState extends State<ReelScreen>
   }
 
   // Clean up cached videos that are more than 2 positions behind current (aggressive cleanup)
+  // 🚀 OPTIMIZATION: Clean up cached videos intelligently (keep current for looping)
   void _cleanupOldCache(int currentIndex) {
     final keysToRemove = <int>[];
 
     // Dispose video controllers that are far from current position
+    // But KEEP current video for smooth looping
     _videoControllers.forEach((index, controller) {
-      // Keep only current, previous, and next 2 videos
+      // Keep current video (for looping), previous, and next 2 videos
       final shouldKeep = index >= currentIndex - 1 && index <= currentIndex + 2;
 
       if (!shouldKeep && controller != null) {
@@ -988,9 +1031,10 @@ class ReelScreenState extends State<ReelScreen>
     });
 
     _cacheTimestamps.forEach((index, timestamp) {
-      // Remove if more than 2 positions behind or older than 5 minutes
-      final isFarBehind = index < currentIndex - 2;
-      final isExpired = DateTime.now().difference(timestamp).inMinutes > 5;
+      // Remove if more than 3 positions behind (more lenient for looping)
+      final isFarBehind = index < currentIndex - 3;
+      // Remove if older than 10 minutes (longer expiry for looping)
+      final isExpired = DateTime.now().difference(timestamp).inMinutes > 10;
 
       if (isFarBehind || isExpired) {
         keysToRemove.add(index);
@@ -1002,12 +1046,13 @@ class ReelScreenState extends State<ReelScreen>
       print('🗑️ Cleaned up cache for video $index');
     }
 
-    // Clean up temp cache more frequently (every 5 videos)
-    if (currentIndex % 5 == 0) {
+    // 🚀 OPTIMIZATION: Don't clear temp cache too frequently (only every 10 videos)
+    // This prevents interrupting looping videos
+    if (currentIndex % 10 == 0) {
       _tempCacheManager
           .emptyCache()
           .then((_) {
-            print('🗑️ Temp cache cleaned up');
+            print('🗑️ Temp cache cleaned up (less frequently for looping)');
           })
           .catchError((e) {
             print('Error cleaning temp cache: $e');
@@ -1017,22 +1062,85 @@ class ReelScreenState extends State<ReelScreen>
 
   Future<void> _trackView(String postId) async {
     try {
-      // Track view - using existing method
-      await ApiService.toggleLike(postId);
+      // Track view - increment view count
+      await ApiService.incrementView(postId);
     } catch (e) {
       print('Error tracking view: $e');
     }
   }
 
   Future<void> _toggleLike(String postId, int index) async {
+    if (index < 0 || index >= _posts.length) return;
+
+    // 🚀 OPTIMIZATION: Debounce - prevent rapid clicking
+    final lastClick = _lastLikeClick[postId];
+    if (lastClick != null &&
+        DateTime.now().difference(lastClick).inMilliseconds < _likeDebounceMs) {
+      print('⏱️ Like click ignored - debounced (${_likeDebounceMs}ms)');
+      return;
+    }
+    _lastLikeClick[postId] = DateTime.now();
+
     try {
-      final response = await ApiService.toggleLike(postId);
-      if (response['success'] && mounted) {
-        // Reload stats to get accurate counts
-        await _reloadPostStats(postId, index);
-      }
+      // 🚀 OPTIMIZATION: Optimistic UI update - show like immediately
+      final currentStats = _posts[index]['stats'] ?? {};
+      final wasLiked = currentStats['isLiked'] ?? false;
+      final currentLikesCount = currentStats['likesCount'] ?? 0;
+
+      // Update UI immediately (optimistic update)
+      setState(() {
+        if (_posts[index]['stats'] == null) {
+          _posts[index]['stats'] = {};
+        }
+        _posts[index]['stats']['isLiked'] = !wasLiked;
+        _posts[index]['stats']['likesCount'] = wasLiked
+            ? currentLikesCount - 1
+            : currentLikesCount + 1;
+      });
+
+      print(
+        '❤️ Like toggled optimistically: ${!wasLiked ? "liked" : "unliked"}',
+      );
+
+      // Send request to server in background (non-blocking, fire and forget)
+      ApiService.toggleLike(postId)
+          .then((response) {
+            if (response['success'] && mounted) {
+              // Server confirmed - reload stats to get accurate counts
+              _reloadPostStats(postId, index).then((_) {
+                print('✅ Like confirmed by server');
+              });
+            } else {
+              // Server failed - revert UI
+              if (mounted) {
+                setState(() {
+                  _posts[index]['stats']['isLiked'] = wasLiked;
+                  _posts[index]['stats']['likesCount'] = currentLikesCount;
+                });
+                print('❌ Like reverted - server error');
+              }
+            }
+          })
+          .catchError((e) {
+            print('❌ Like error: $e');
+            // Revert on error
+            if (index < _posts.length && mounted) {
+              setState(() {
+                _posts[index]['stats']['isLiked'] = wasLiked;
+                _posts[index]['stats']['likesCount'] = currentLikesCount;
+              });
+            }
+          });
     } catch (e) {
       print('Error toggling like: $e');
+      // Revert on error
+      if (index < _posts.length && mounted) {
+        final currentStats = _posts[index]['stats'] ?? {};
+        final wasLiked = currentStats['isLiked'] ?? false;
+        setState(() {
+          _posts[index]['stats']['isLiked'] = !wasLiked;
+        });
+      }
     }
   }
 
@@ -1456,7 +1564,9 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
               // Right Side Actions
               Positioned(
                 right: 8,
-                bottom: 250,
+                bottom:
+                    MediaQuery.of(context).size.height *
+                    0.15, // Responsive: 15% from bottom
                 child: Container(
                   decoration: BoxDecoration(
                     image: const DecorationImage(
@@ -1469,74 +1579,76 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
                     vertical: 20,
                     horizontal: 16,
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildLikeButton(
-                        stats['isLiked'] ?? false,
-                        stats['likesCount']?.toString() ?? '0',
-                        () => _toggleLike(post['_id'], index),
-                      ),
-                      const SizedBox(height: 24),
-                      _buildActionButton(
-                        'assets/sidereel/comment.png',
-                        stats['commentsCount']?.toString() ?? '0',
-                        () async {
-                          // Pause video before showing modal to prevent resource conflicts
-                          _pauseCurrentVideo();
-                          await showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (context) =>
-                                CommentsScreen(postId: post['_id']),
-                          );
-                          // Reload stats after comments modal closes
-                          await _reloadPostStats(post['_id'], index);
-                          // Resume video after modal closes
-                          if (mounted && _isScreenVisible) {
-                            _resumeCurrentVideo();
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 24),
-                      _buildBookmarkButton(
-                        stats['isBookmarked'] ?? false,
-                        stats['bookmarksCount']?.toString() ?? '0',
-                        () => _toggleBookmark(post['_id'], index),
-                      ),
-                      const SizedBox(height: 24),
-                      _buildActionButton(
-                        'assets/sidereel/share.png',
-                        stats['sharesCount']?.toString() ?? '0',
-                        () => _sharePost(post['_id'], index),
-                      ),
-                      const SizedBox(height: 24),
-                      _buildActionButton(
-                        'assets/sidereel/gift.png',
-                        '',
-                        () async {
-                          // Pause video before showing modal to prevent resource conflicts
-                          _pauseCurrentVideo();
-                          await showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (context) => GiftScreen(
-                              recipientId: post['user']?['_id'] ?? '',
-                              recipientName:
-                                  post['user']?['username'] ?? 'user',
-                            ),
-                          );
-                          // Reload stats after gift modal closes
-                          await _reloadPostStats(post['_id'], index);
-                          // Resume video after modal closes
-                          if (mounted && _isScreenVisible) {
-                            _resumeCurrentVideo();
-                          }
-                        },
-                      ),
-                    ],
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildLikeButton(
+                          stats['isLiked'] ?? false,
+                          stats['likesCount']?.toString() ?? '0',
+                          () => _toggleLike(post['_id'], index),
+                        ),
+                        const SizedBox(height: 24),
+                        _buildActionButton(
+                          'assets/sidereel/comment.png',
+                          stats['commentsCount']?.toString() ?? '0',
+                          () async {
+                            // Pause video before showing modal to prevent resource conflicts
+                            _pauseCurrentVideo();
+                            await showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (context) =>
+                                  CommentsScreen(postId: post['_id']),
+                            );
+                            // Reload stats after comments modal closes
+                            await _reloadPostStats(post['_id'], index);
+                            // Resume video after modal closes
+                            if (mounted && _isScreenVisible) {
+                              _resumeCurrentVideo();
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                        _buildBookmarkButton(
+                          stats['isBookmarked'] ?? false,
+                          stats['bookmarksCount']?.toString() ?? '0',
+                          () => _toggleBookmark(post['_id'], index),
+                        ),
+                        const SizedBox(height: 24),
+                        _buildActionButton(
+                          'assets/sidereel/share.png',
+                          stats['sharesCount']?.toString() ?? '0',
+                          () => _sharePost(post['_id'], index),
+                        ),
+                        const SizedBox(height: 24),
+                        _buildActionButton(
+                          'assets/sidereel/gift.png',
+                          '',
+                          () async {
+                            // Pause video before showing modal to prevent resource conflicts
+                            _pauseCurrentVideo();
+                            await showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (context) => GiftScreen(
+                                recipientId: post['user']?['_id'] ?? '',
+                                recipientName:
+                                    post['user']?['username'] ?? 'user',
+                              ),
+                            );
+                            // Reload stats after gift modal closes
+                            await _reloadPostStats(post['_id'], index);
+                            // Resume video after modal closes
+                            if (mounted && _isScreenVisible) {
+                              _resumeCurrentVideo();
+                            }
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

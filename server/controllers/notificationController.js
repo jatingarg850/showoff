@@ -2,12 +2,16 @@ const AdminNotification = require('../models/AdminNotification');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
 const { sendWebSocketNotification } = require('../utils/pushNotifications');
+const { sendFCMNotification } = require('../utils/fcmService');
 
 // @desc    Create notification (Internal helper)
 // @access  Internal
 exports.createNotification = async (notificationData) => {
   try {
     const { recipient, sender, type, title, message, data } = notificationData;
+
+    console.log(`📢 Creating notification: type=${type}, recipient=${recipient}, sender=${sender}`);
+    console.log(`   Recipient type: ${typeof recipient}, value: ${recipient.toString()}`);
 
     // Create notification in database
     const notification = await Notification.create({
@@ -19,11 +23,14 @@ exports.createNotification = async (notificationData) => {
       data: data || {},
     });
 
+    console.log(`✅ Notification saved to DB with ID: ${notification._id}`);
+
     // Populate sender info
     await notification.populate('sender', 'username displayName profilePicture isVerified');
 
-    // Send WebSocket notification for real-time delivery
+    // Send WebSocket notification for real-time delivery (online users)
     try {
+      console.log(`📡 Sending WebSocket notification to user: ${recipient.toString()}`);
       await sendWebSocketNotification(recipient.toString(), {
         type,
         title,
@@ -34,6 +41,20 @@ exports.createNotification = async (notificationData) => {
       });
     } catch (wsError) {
       console.error('WebSocket notification failed:', wsError);
+      // Don't throw - notification is still saved in DB
+    }
+
+    // Send FCM push notification for background/offline users
+    try {
+      console.log(`📱 Sending FCM notification to user: ${recipient.toString()}`);
+      await sendFCMNotification(recipient.toString(), {
+        title,
+        message,
+        type,
+        _id: notification._id,
+      });
+    } catch (fcmError) {
+      console.error('FCM notification failed:', fcmError);
       // Don't throw - notification is still saved in DB
     }
 

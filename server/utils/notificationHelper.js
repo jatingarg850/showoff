@@ -12,6 +12,7 @@ exports.createLikeNotification = async (postId, likerId, postOwnerId) => {
   
   try {
     console.log(`Creating like notification: post=${postId}, liker=${likerId}, owner=${postOwnerId}`);
+    console.log(`  Recipient type: ${typeof postOwnerId}, value: ${postOwnerId.toString()}`);
     
     await createNotification({
       recipient: postOwnerId,
