@@ -219,15 +219,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   List<Map<String, dynamic>> get userPosts => _userPosts.isNotEmpty
       ? _userPosts
       : [
-          {'type': 'reel', 'color': Colors.purple, 'views': '12.5K'},
-          {'type': 'reel', 'color': Colors.blue, 'views': '8.9K'},
-          {'type': 'reel', 'color': Colors.green, 'views': '15.2K'},
-          {'type': 'reel', 'color': Colors.orange, 'views': '6.7K'},
-          {'type': 'reel', 'color': Colors.red, 'views': '22.1K'},
-          {'type': 'reel', 'color': Colors.teal, 'views': '9.8K'},
-          {'type': 'reel', 'color': Colors.indigo, 'views': '18.3K'},
-          {'type': 'reel', 'color': Colors.amber, 'views': '11.4K'},
-          {'type': 'reel', 'color': Colors.pink, 'views': '7.6K'},
+          {'type': 'Show', 'color': Colors.purple, 'views': '12.5K'},
+          {'type': 'Show', 'color': Colors.blue, 'views': '8.9K'},
+          {'type': 'Show', 'color': Colors.green, 'views': '15.2K'},
+          {'type': 'Show', 'color': Colors.orange, 'views': '6.7K'},
+          {'type': 'Show', 'color': Colors.red, 'views': '22.1K'},
+          {'type': 'Show', 'color': Colors.teal, 'views': '9.8K'},
+          {'type': 'Show', 'color': Colors.indigo, 'views': '18.3K'},
+          {'type': 'Show', 'color': Colors.amber, 'views': '11.4K'},
+          {'type': 'Show', 'color': Colors.pink, 'views': '7.6K'},
         ];
 
   @override
@@ -701,7 +701,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             Icon(Icons.video_library_outlined, size: 64, color: Colors.grey),
             SizedBox(height: 16),
             Text(
-              'No reels yet',
+              'No Show yet',
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.grey,
@@ -710,7 +710,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             ),
             SizedBox(height: 8),
             Text(
-              'When this user shares reels, they\'ll appear here',
+              'When this user shares Show, they\'ll appear here',
               style: TextStyle(fontSize: 14, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
@@ -731,6 +731,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         final post = _userPosts[index];
         return GestureDetector(
           onTap: () {
+            print('🎬 User Show tapped: ${post['_id']}');
             // Navigate to main screen with reel tab and specific post
             Navigator.pushReplacement(
               context,

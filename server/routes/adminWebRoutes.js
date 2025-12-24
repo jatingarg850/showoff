@@ -678,4 +678,65 @@ router.get('/notifications', checkAdminWeb, async (req, res) => {
   }
 });
 
+// System Integration Testing
+router.get('/system-testing', checkAdminWeb, async (req, res) => {
+  try {
+    res.render('admin/system-testing', {
+      currentPage: 'system-testing',
+      pageTitle: 'System Integration Testing'
+    });
+  } catch (error) {
+    console.error('System testing page error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// Rewarded Ads Management
+router.get('/rewarded-ads', checkAdminWeb, async (req, res) => {
+  try {
+    const RewardedAd = require('../models/RewardedAd');
+    
+    // Get all rewarded ads
+    const ads = await RewardedAd.find().sort({ adNumber: 1 });
+    
+    // Get statistics for each ad
+    const adsWithStats = ads.map(ad => ({
+      ...ad.toObject(),
+      ctr: ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) : 0,
+      conversionRate: ad.clicks > 0 ? ((ad.conversions / ad.clicks) * 100).toFixed(2) : 0
+    }));
+    
+    // Get total stats
+    const totalStats = {
+      totalImpressions: ads.reduce((sum, ad) => sum + ad.impressions, 0),
+      totalClicks: ads.reduce((sum, ad) => sum + ad.clicks, 0),
+      totalConversions: ads.reduce((sum, ad) => sum + ad.conversions, 0),
+      totalServed: ads.reduce((sum, ad) => sum + ad.servedCount, 0)
+    };
+    
+    res.render('admin/rewarded-ads', {
+      currentPage: 'rewarded-ads',
+      pageTitle: 'Rewarded Ads Management',
+      ads: adsWithStats,
+      stats: totalStats
+    });
+  } catch (error) {
+    console.error('Rewarded ads page error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// Terms & Conditions Management
+router.get('/terms-and-conditions', checkAdminWeb, async (req, res) => {
+  try {
+    res.render('admin/terms-and-conditions', {
+      currentPage: 'terms',
+      pageTitle: 'Terms & Conditions Management'
+    });
+  } catch (error) {
+    console.error('Terms page error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
 module.exports = router;

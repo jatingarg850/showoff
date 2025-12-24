@@ -2,53 +2,31 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 
-class AuthProvider
-    with
-        ChangeNotifier {
-  Map<
-    String,
-    dynamic
-  >?
-  _user;
-  bool
-  _isLoading = false;
-  String?
-  _error;
+class AuthProvider with ChangeNotifier {
+  Map<String, dynamic>? _user;
+  bool _isLoading = false;
+  String? _error;
 
-  Map<
-    String,
-    dynamic
-  >?
-  get user => _user;
-  bool
-  get isLoading => _isLoading;
-  String?
-  get error => _error;
-  bool
-  get isAuthenticated =>
-      _user !=
-      null;
+  Map<String, dynamic>? get user => _user;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+  bool get isAuthenticated => _user != null;
 
   // Initialize - check if user is logged in
-  Future<
-    void
-  >
-  initialize() async {
+  Future<void> initialize() async {
     _user = await StorageService.getUser();
     notifyListeners();
   }
 
   // Register
-  Future<
-    bool
-  >
-  register({
+  Future<bool> register({
     required String username,
     required String displayName,
     required String password,
     String? email,
     String? phone,
     String? referralCode,
+    bool termsAccepted = false,
   }) async {
     _isLoading = true;
     _error = null;
@@ -62,6 +40,7 @@ class AuthProvider
         email: email,
         phone: phone,
         referralCode: referralCode,
+        termsAccepted: termsAccepted,
       );
 
       if (response['success']) {
@@ -75,9 +54,7 @@ class AuthProvider
         notifyListeners();
         return false;
       }
-    } catch (
-      e
-    ) {
+    } catch (e) {
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
@@ -86,10 +63,7 @@ class AuthProvider
   }
 
   // Login
-  Future<
-    bool
-  >
-  login({
+  Future<bool> login({
     required String emailOrPhone,
     required String password,
   }) async {
@@ -114,9 +88,7 @@ class AuthProvider
         notifyListeners();
         return false;
       }
-    } catch (
-      e
-    ) {
+    } catch (e) {
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
@@ -125,51 +97,30 @@ class AuthProvider
   }
 
   // Logout
-  Future<
-    void
-  >
-  logout() async {
+  Future<void> logout() async {
     await StorageService.clearAll();
     _user = null;
     notifyListeners();
   }
 
   // Update user data
-  void
-  updateUser(
-    Map<
-      String,
-      dynamic
-    >
-    userData,
-  ) {
+  void updateUser(Map<String, dynamic> userData) {
     _user = userData;
-    StorageService.saveUser(
-      userData,
-    );
+    StorageService.saveUser(userData);
     notifyListeners();
   }
 
   // Refresh user data
-  Future<
-    void
-  >
-  refreshUser() async {
+  Future<void> refreshUser() async {
     try {
       final response = await ApiService.getMe();
       if (response['success']) {
         _user = response['data'];
-        await StorageService.saveUser(
-          _user!,
-        );
+        await StorageService.saveUser(_user!);
         notifyListeners();
       }
-    } catch (
-      e
-    ) {
-      print(
-        'Error refreshing user: $e',
-      );
+    } catch (e) {
+      print('Error refreshing user: $e');
     }
   }
 }

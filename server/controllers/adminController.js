@@ -657,31 +657,91 @@ exports.deletePost = async (req, res) => {
       });
     }
 
-    // Delete media files
+    // Delete media files from both local storage and S3
     const fs = require('fs');
     const path = require('path');
-    
+    const AWS = require('aws-sdk');
+
+    // Configure Wasabi S3
+    const s3 = new AWS.S3({
+      accessKeyId: process.env.WASABI_ACCESS_KEY_ID,
+      secretAccessKey: process.env.WASABI_SECRET_ACCESS_KEY,
+      endpoint: process.env.WASABI_ENDPOINT || 's3.ap-southeast-1.wasabisys.com',
+      region: process.env.WASABI_REGION || 'ap-southeast-1',
+      s3ForcePathStyle: true,
+      signatureVersion: 'v4',
+    });
+
+    // Delete media file
     if (post.mediaUrl) {
-      const mediaPath = path.join(__dirname, '..', post.mediaUrl.replace('/uploads/', 'uploads/'));
-      if (fs.existsSync(mediaPath)) {
-        fs.unlinkSync(mediaPath);
+      // Check if it's a Wasabi S3 URL
+      if (post.mediaUrl.includes('wasabisys.com')) {
+        try {
+          // Extract key from Wasabi URL
+          const urlParts = post.mediaUrl.split('.com/');
+          if (urlParts.length > 1) {
+            const pathParts = urlParts[1].split('/');
+            const key = pathParts.slice(1).join('/');
+            
+            await s3.deleteObject({
+              Bucket: process.env.WASABI_BUCKET_NAME,
+              Key: key
+            }).promise();
+            console.log('✅ Media file deleted from S3:', key);
+          }
+        } catch (error) {
+          console.warn('⚠️ Failed to delete media from S3:', error.message);
+        }
+      } else {
+        // Local file deletion
+        const mediaPath = path.join(__dirname, '..', post.mediaUrl.replace('/uploads/', 'uploads/'));
+        if (fs.existsSync(mediaPath)) {
+          fs.unlinkSync(mediaPath);
+          console.log('✅ Local media file deleted:', mediaPath);
+        }
       }
     }
     
+    // Delete thumbnail file
     if (post.thumbnailUrl) {
-      const thumbnailPath = path.join(__dirname, '..', post.thumbnailUrl.replace('/uploads/', 'uploads/'));
-      if (fs.existsSync(thumbnailPath)) {
-        fs.unlinkSync(thumbnailPath);
+      // Check if it's a Wasabi S3 URL
+      if (post.thumbnailUrl.includes('wasabisys.com')) {
+        try {
+          // Extract key from Wasabi URL
+          const urlParts = post.thumbnailUrl.split('.com/');
+          if (urlParts.length > 1) {
+            const pathParts = urlParts[1].split('/');
+            const key = pathParts.slice(1).join('/');
+            
+            await s3.deleteObject({
+              Bucket: process.env.WASABI_BUCKET_NAME,
+              Key: key
+            }).promise();
+            console.log('✅ Thumbnail deleted from S3:', key);
+          }
+        } catch (error) {
+          console.warn('⚠️ Failed to delete thumbnail from S3:', error.message);
+        }
+      } else {
+        // Local file deletion
+        const thumbnailPath = path.join(__dirname, '..', post.thumbnailUrl.replace('/uploads/', 'uploads/'));
+        if (fs.existsSync(thumbnailPath)) {
+          fs.unlinkSync(thumbnailPath);
+          console.log('✅ Local thumbnail file deleted:', thumbnailPath);
+        }
       }
     }
 
+    // Delete post from database
     await Post.findByIdAndDelete(req.params.id);
+    console.log('✅ Post deleted from database:', req.params.id);
 
     res.status(200).json({
       success: true,
       message: 'Post deleted successfully'
     });
   } catch (error) {
+    console.error('❌ Error deleting post:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -1354,6 +1414,706 @@ exports.deleteSYTEntry = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Entry deleted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+
+// ============================================
+// REWARDED ADS MANAGEMENT
+// ============================================
+
+// @desc    Get all rewarded ads
+// @route   GET /api/admin/rewarded-ads
+// @access  Private (Admin only)
+exports.getRewardedAds = async (req, res) => {
+  try {
+    const RewardedAd = require('../models/RewardedAd');
+    const ads = await RewardedAd.find().sort({ adNumber: 1 });
+    
+    res.status(200).json({
+      success: true,
+      data: ads
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Update rewarded ad
+// @route   PUT /api/admin/rewarded-ads/:adNumber
+// @access  Private (Admin only)
+exports.updateRewardedAd = async (req, res) => {
+  try {
+    const RewardedAd = require('../models/RewardedAd');
+    const { adLink, adProvider, rewardCoins, isActive } = req.body;
+    
+    let ad = await RewardedAd.findOne({ adNumber: req.params.adNumber });
+    
+    if (!ad) {
+      ad = await RewardedAd.create({
+        adNumber: parseInt(req.params.adNumber),
+        adLink,
+        adProvider,
+        rewardCoins,
+        isActive
+      });
+    } else {
+      if (adLink) ad.adLink = adLink;
+      if (adProvider) ad.adProvider = adProvider;
+      if (rewardCoins) ad.rewardCoins = rewardCoins;
+      if (isActive !== undefined) ad.isActive = isActive;
+      await ad.save();
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: `Rewarded Ad ${req.params.adNumber} updated successfully`,
+      data: ad
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Get single rewarded ad
+// @route   GET /api/admin/rewarded-ads/:adNumber
+// @access  Private (Admin only)
+exports.getRewardedAdById = async (req, res) => {
+  try {
+    const RewardedAd = require('../models/RewardedAd');
+    const ad = await RewardedAd.findOne({ adNumber: req.params.adNumber });
+    
+    if (!ad) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ad not found'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: ad
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Reset ad statistics
+// @route   POST /api/admin/rewarded-ads/:adNumber/reset-stats
+// @access  Private (Admin only)
+exports.resetAdStats = async (req, res) => {
+  try {
+    const RewardedAd = require('../models/RewardedAd');
+    const ad = await RewardedAd.findOne({ adNumber: req.params.adNumber });
+    
+    if (!ad) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ad not found'
+      });
+    }
+    
+    ad.impressions = 0;
+    ad.clicks = 0;
+    ad.conversions = 0;
+    ad.servedCount = 0;
+    ad.lastServedAt = null;
+    await ad.save();
+    
+    res.status(200).json({
+      success: true,
+      message: `Statistics for Ad ${req.params.adNumber} reset successfully`,
+      data: ad
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Get ads for mobile app (with rotation)
+// @route   GET /api/rewarded-ads
+// @access  Public
+exports.getAdsForApp = async (req, res) => {
+  try {
+    const RewardedAd = require('../models/RewardedAd');
+    
+    // Get active ads sorted by rotation order
+    const ads = await RewardedAd.find({ isActive: true })
+      .sort({ rotationOrder: 1, adNumber: 1 });
+    
+    if (ads.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        message: 'No active ads available'
+      });
+    }
+    
+    // Update impressions for each ad
+    await Promise.all(ads.map(ad => {
+      ad.impressions += 1;
+      ad.lastServedAt = new Date();
+      ad.servedCount += 1;
+      return ad.save();
+    }));
+    
+    // Return ads with necessary info for app
+    const adsForApp = ads.map(ad => ({
+      id: ad._id,
+      adNumber: ad.adNumber,
+      adLink: ad.adLink,
+      adProvider: ad.adProvider,
+      rewardCoins: ad.rewardCoins,
+      isActive: ad.isActive
+    }));
+    
+    res.status(200).json({
+      success: true,
+      data: adsForApp
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Track ad click
+// @route   POST /api/rewarded-ads/:adNumber/click
+// @access  Public
+exports.trackAdClick = async (req, res) => {
+  try {
+    const RewardedAd = require('../models/RewardedAd');
+    const ad = await RewardedAd.findOne({ adNumber: req.params.adNumber });
+    
+    if (!ad) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ad not found'
+      });
+    }
+    
+    ad.clicks += 1;
+    await ad.save();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Click tracked'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Track ad conversion
+// @route   POST /api/rewarded-ads/:adNumber/conversion
+// @access  Public
+exports.trackAdConversion = async (req, res) => {
+  try {
+    const RewardedAd = require('../models/RewardedAd');
+    const ad = await RewardedAd.findOne({ adNumber: req.params.adNumber });
+    
+    if (!ad) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ad not found'
+      });
+    }
+    
+    ad.conversions += 1;
+    await ad.save();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Conversion tracked'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// ============================================
+// MUSIC MANAGEMENT
+// ============================================
+
+// @desc    Get all music
+// @route   GET /api/admin/music
+// @access  Private (Admin only)
+exports.getMusic = async (req, res) => {
+  try {
+    const Music = require('../models/Music');
+    const { page = 1, limit = 20, approved } = req.query;
+    
+    let query = {};
+    if (approved !== undefined) {
+      query.isApproved = approved === 'true';
+    }
+    
+    const music = await Music.find(query)
+      .populate('uploadedBy', 'username displayName')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+    
+    const total = await Music.countDocuments(query);
+    
+    res.status(200).json({
+      success: true,
+      data: music,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Approve/Reject music
+// @route   PUT /api/admin/music/:id/approve
+// @access  Private (Admin only)
+exports.approveMusic = async (req, res) => {
+  try {
+    const Music = require('../models/Music');
+    const { isApproved } = req.body;
+    
+    const music = await Music.findById(req.params.id);
+    if (!music) {
+      return res.status(404).json({
+        success: false,
+        message: 'Music not found'
+      });
+    }
+    
+    music.isApproved = isApproved;
+    await music.save();
+    
+    res.status(200).json({
+      success: true,
+      message: `Music ${isApproved ? 'approved' : 'rejected'} successfully`,
+      data: music
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Delete music
+// @route   DELETE /api/admin/music/:id
+// @access  Private (Admin only)
+exports.deleteMusic = async (req, res) => {
+  try {
+    const Music = require('../models/Music');
+    const music = await Music.findById(req.params.id);
+    
+    if (!music) {
+      return res.status(404).json({
+        success: false,
+        message: 'Music not found'
+      });
+    }
+    
+    // Delete audio file if local
+    if (music.audioUrl && !music.audioUrl.includes('http')) {
+      const fs = require('fs');
+      const path = require('path');
+      const audioPath = path.join(__dirname, '..', music.audioUrl.replace('/uploads/', 'uploads/'));
+      if (fs.existsSync(audioPath)) {
+        try {
+          fs.unlinkSync(audioPath);
+        } catch (err) {
+          console.error('Error deleting audio file:', err);
+        }
+      }
+    }
+    
+    await Music.findByIdAndDelete(req.params.id);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Music deleted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// ============================================
+// USER EARNINGS MANAGEMENT
+// ============================================
+
+// @desc    Get user earnings breakdown
+// @route   GET /api/admin/users/:id/earnings
+// @access  Private (Admin only)
+exports.getUserEarnings = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('username displayName profilePicture coinBalance totalCoinsEarned withdrawableBalance');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Calculate earnings breakdown from transactions
+    const earningsBreakdown = await Transaction.aggregate([
+      { $match: { user: user._id, amount: { $gt: 0 } } },
+      {
+        $group: {
+          _id: '$type',
+          total: { $sum: '$amount' },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    // Map transaction types to earnings categories
+    const earnings = {
+      videoUploadEarnings: 0,
+      contentSharingEarnings: 0,
+      wheelSpinEarnings: 0,
+      rewardedAdEarnings: 0,
+      referralEarnings: 0,
+      competitionEarnings: 0,
+      giftEarnings: 0,
+      otherEarnings: 0,
+      totalEarnings: 0
+    };
+    
+    earningsBreakdown.forEach(item => {
+      switch(item._id) {
+        case 'upload_reward':
+        case 'view_reward':
+          earnings.videoUploadEarnings += item.total;
+          break;
+        case 'ad_watch':
+          earnings.rewardedAdEarnings += item.total;
+          break;
+        case 'spin_wheel':
+          earnings.wheelSpinEarnings += item.total;
+          break;
+        case 'referral':
+          earnings.referralEarnings += item.total;
+          break;
+        case 'competition_prize':
+          earnings.competitionEarnings += item.total;
+          break;
+        case 'gift_received':
+          earnings.giftEarnings += item.total;
+          break;
+        case 'vote_received':
+          earnings.contentSharingEarnings += item.total;
+          break;
+        default:
+          earnings.otherEarnings += item.total;
+      }
+      earnings.totalEarnings += item.total;
+    });
+    
+    // Get all transactions for detailed history
+    const allTransactions = await Transaction.find({ user: req.params.id })
+      .sort({ createdAt: -1 });
+    
+    // Get earnings by date (last 30 days)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const earningsByDate = await Transaction.aggregate([
+      { 
+        $match: { 
+          user: user._id, 
+          amount: { $gt: 0 },
+          createdAt: { $gte: thirtyDaysAgo }
+        } 
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          amount: { $sum: '$amount' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+    
+    // Get top earning sources
+    const topSources = earningsBreakdown
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+    
+    // Get withdrawal history
+    const Withdrawal = require('../models/Withdrawal');
+    const withdrawals = await Withdrawal.find({ user: req.params.id })
+      .sort({ createdAt: -1 })
+      .limit(10);
+    
+    // Calculate statistics
+    const stats = {
+      totalEarnings: earnings.totalEarnings,
+      currentBalance: user.coinBalance,
+      withdrawableBalance: user.withdrawableBalance || 0,
+      totalWithdrawn: withdrawals.reduce((sum, w) => sum + (w.coinAmount || 0), 0),
+      averageDailyEarnings: earnings.totalEarnings / Math.max(1, Math.ceil((Date.now() - user.createdAt) / (1000 * 60 * 60 * 24))),
+      transactionCount: allTransactions.length,
+      withdrawalCount: withdrawals.length
+    };
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        user: {
+          _id: user._id,
+          username: user.username,
+          displayName: user.displayName,
+          profilePicture: user.profilePicture,
+          coinBalance: user.coinBalance,
+          totalCoinsEarned: user.totalCoinsEarned,
+          withdrawableBalance: user.withdrawableBalance || 0
+        },
+        earnings,
+        earningsBreakdown,
+        earningsByDate,
+        topSources,
+        stats,
+        recentTransactions: allTransactions.slice(0, 20),
+        withdrawalHistory: withdrawals
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Get top earners
+// @route   GET /api/admin/top-earners
+// @access  Private (Admin only)
+exports.getTopEarners = async (req, res) => {
+  try {
+    const { limit = 20, period = '30' } = req.query;
+    const daysAgo = new Date(Date.now() - parseInt(period) * 24 * 60 * 60 * 1000);
+    
+    const topEarners = await User.find()
+      .select('username displayName profilePicture coinBalance totalCoinsEarned createdAt')
+      .sort({ totalCoinsEarned: -1 })
+      .limit(parseInt(limit));
+    
+    // Get earnings breakdown for each user
+    const UserEarnings = require('../models/UserEarnings');
+    const earningsData = await Promise.all(
+      topEarners.map(async (user) => {
+        const earnings = await UserEarnings.findOne({ user: user._id });
+        return {
+          ...user.toObject(),
+          earnings: earnings || {
+            videoUploadEarnings: 0,
+            contentSharingEarnings: 0,
+            wheelSpinEarnings: 0,
+            rewardedAdEarnings: 0,
+            referralEarnings: 0,
+            otherEarnings: 0,
+            totalEarnings: 0
+          }
+        };
+      })
+    );
+    
+    res.status(200).json({
+      success: true,
+      data: earningsData
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Get SYT entries
+// @route   GET /api/admin/syt
+// @access  Private (Admin only)
+exports.getSYTEntries = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, status } = req.query;
+    
+    let query = {};
+    if (status) {
+      query.status = status;
+    }
+    
+    const entries = await SYTEntry.find(query)
+      .populate('user', 'username displayName profilePicture')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+    
+    const total = await SYTEntry.countDocuments(query);
+    
+    res.status(200).json({
+      success: true,
+      data: entries,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Toggle SYT entry
+// @route   PUT /api/admin/syt/:id/toggle
+// @access  Private (Admin only)
+exports.toggleSYTEntry = async (req, res) => {
+  try {
+    const entry = await SYTEntry.findById(req.params.id);
+    if (!entry) {
+      return res.status(404).json({
+        success: false,
+        message: 'SYT entry not found'
+      });
+    }
+    
+    entry.isActive = !entry.isActive;
+    await entry.save();
+    
+    res.status(200).json({
+      success: true,
+      message: `SYT entry ${entry.isActive ? 'activated' : 'deactivated'} successfully`,
+      data: entry
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Declare SYT winner
+// @route   PUT /api/admin/syt/:id/winner
+// @access  Private (Admin only)
+exports.declareSYTWinner = async (req, res) => {
+  try {
+    const entry = await SYTEntry.findById(req.params.id);
+    if (!entry) {
+      return res.status(404).json({
+        success: false,
+        message: 'SYT entry not found'
+      });
+    }
+    
+    entry.isWinner = true;
+    entry.winnerDeclaredAt = new Date();
+    await entry.save();
+    
+    // Award coins to winner
+    const user = await User.findById(entry.user);
+    const winnerReward = 500; // 500 coins for winning
+    user.coinBalance += winnerReward;
+    user.totalCoinsEarned += winnerReward;
+    await user.save();
+    
+    // Create transaction
+    await Transaction.create({
+      user: entry.user,
+      type: 'syt_winner_reward',
+      amount: winnerReward,
+      description: 'SYT Competition Winner Reward',
+      status: 'completed'
+    });
+    
+    res.status(200).json({
+      success: true,
+      message: 'SYT winner declared and rewarded successfully',
+      data: entry
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Delete SYT entry
+// @route   DELETE /api/admin/syt/:id
+// @access  Private (Admin only)
+exports.deleteSYTEntry = async (req, res) => {
+  try {
+    const entry = await SYTEntry.findById(req.params.id);
+    if (!entry) {
+      return res.status(404).json({
+        success: false,
+        message: 'SYT entry not found'
+      });
+    }
+    
+    // Delete media files if local
+    if (entry.mediaUrl && !entry.mediaUrl.includes('http')) {
+      const fs = require('fs');
+      const path = require('path');
+      const mediaPath = path.join(__dirname, '..', entry.mediaUrl.replace('/uploads/', 'uploads/'));
+      if (fs.existsSync(mediaPath)) {
+        try {
+          fs.unlinkSync(mediaPath);
+        } catch (err) {
+          console.error('Error deleting media file:', err);
+        }
+      }
+    }
+    
+    await SYTEntry.findByIdAndDelete(req.params.id);
+    
+    res.status(200).json({
+      success: true,
+      message: 'SYT entry deleted successfully'
     });
   } catch (error) {
     res.status(500).json({

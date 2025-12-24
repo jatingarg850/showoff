@@ -108,6 +108,17 @@ exports.submitEntry = async (req, res) => {
       } else {
         thumbnailUrl = `/uploads/images/${thumbnailFile.filename}`;
       }
+    } else {
+      // Auto-generate thumbnail if not provided
+      try {
+        const { generateAndUploadThumbnail } = require('../utils/thumbnailGenerator');
+        console.log('🎬 Auto-generating thumbnail for SYT entry:', videoUrl);
+        thumbnailUrl = await generateAndUploadThumbnail(videoUrl, `syt_${Date.now()}`);
+        console.log('✅ SYT thumbnail auto-generated:', thumbnailUrl);
+      } catch (error) {
+        console.warn('⚠️ Failed to auto-generate SYT thumbnail:', error.message);
+        // Continue without thumbnail if generation fails
+      }
     }
 
     const entry = await SYTEntry.create({

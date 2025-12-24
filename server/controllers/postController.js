@@ -24,13 +24,27 @@ exports.createPostWithUrl = async (req, res) => {
     // Determine type from mediaType
     const type = mediaType === 'video' ? 'reel' : mediaType;
 
+    // Auto-generate thumbnail for videos if not provided
+    let finalThumbnailUrl = thumbnailUrl;
+    if (type === 'reel' && !thumbnailUrl) {
+      try {
+        const { generateAndUploadThumbnail } = require('../utils/thumbnailGenerator');
+        console.log('🎬 Auto-generating thumbnail for video:', mediaUrl);
+        finalThumbnailUrl = await generateAndUploadThumbnail(mediaUrl, `post_${Date.now()}`);
+        console.log('✅ Thumbnail auto-generated:', finalThumbnailUrl);
+      } catch (error) {
+        console.warn('⚠️ Failed to auto-generate thumbnail:', error.message);
+        // Continue without thumbnail if generation fails
+      }
+    }
+
     // Create post with provided URL
     const post = await Post.create({
       user: req.user.id,
       type: type,
       mediaUrl,
       mediaType,
-      thumbnailUrl: thumbnailUrl || null,
+      thumbnailUrl: finalThumbnailUrl || null,
       caption: caption || '',
       location: location || '',
       hashtags: hashtags || [],
@@ -620,6 +634,81 @@ exports.getPostStats = async (req, res) => {
       },
     });
   } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Delete post (user can delete own posts)
+// @route   DELETE /api/posts/:id
+// @access  Private
+exports.deletePost = async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found',
+      });
+    }
+
+    // Check if user owns the post
+    if (post.user.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to delete this post',
+      });
+    }
+
+    // Delete media files if they exist locally
+    const fs = require('fs');
+    const path = require('path');
+    
+    if (post.mediaUrl && !post.mediaUrl.includes('http')) {
+      const mediaPath = path.join(__dirname, '..', post.mediaUrl.replace('/uploads/', 'uploads/'));
+      if (fs.existsSync(mediaPath)) {
+        try {
+          fs.unlinkSync(mediaPath);
+        } catch (err) {
+          console.error('Error deleting media file:', err);
+        }
+      }
+    }
+    
+    if (post.thumbnailUrl && !post.thumbnailUrl.includes('http')) {
+      const thumbnailPath = path.join(__dirname, '..', post.thumbnailUrl.replace('/uploads/', 'uploads/'));
+      if (fs.existsSync(thumbnailPath)) {
+        try {
+          fs.unlinkSync(thumbnailPath);
+        } catch (err) {
+          console.error('Error deleting thumbnail file:', err);
+        }
+      }
+    }
+
+    // Delete related data
+    await Like.deleteMany({ post: post._id });
+    await Comment.deleteMany({ post: post._id });
+    await Bookmark.deleteMany({ post: post._id });
+    await Share.deleteMany({ post: post._id });
+
+    // Delete the post
+    await Post.findByIdAndDelete(req.params.id);
+
+    // Update user post count
+    await User.findByIdAndUpdate(req.user.id, {
+      $inc: { postsCount: -1 },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Post deleted successfully',
+    });
+  } catch (error) {
+    console.error('Delete post error:', error);
     res.status(500).json({
       success: false,
       message: error.message,

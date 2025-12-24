@@ -4,6 +4,7 @@ import 'dart:io';
 import 'main_screen.dart';
 import 'services/api_service.dart';
 import 'services/wasabi_service.dart';
+import 'services/storage_service.dart';
 
 class PreviewScreen extends StatefulWidget {
   final String selectedPath;
@@ -38,6 +39,15 @@ class _PreviewScreenState extends State<PreviewScreen> {
     super.initState();
     if (widget.isVideo && widget.mediaPath != null) {
       _initializeVideo();
+    }
+  }
+
+  Future<Map<String, dynamic>> _getCurrentUser() async {
+    try {
+      final user = await StorageService.getUser();
+      return user ?? {'username': 'user'};
+    } catch (e) {
+      return {'username': 'user'};
     }
   }
 
@@ -247,18 +257,24 @@ class _PreviewScreenState extends State<PreviewScreen> {
 
                 const SizedBox(height: 16),
 
-                // Username
-                const Row(
-                  children: [
-                    Text(
-                      '@jatingarg',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                // Username (from current user)
+                FutureBuilder<Map<String, dynamic>>(
+                  future: _getCurrentUser(),
+                  builder: (context, snapshot) {
+                    final username = snapshot.data?['username'] ?? 'user';
+                    return Row(
+                      children: [
+                        Text(
+                          '@$username',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 8),

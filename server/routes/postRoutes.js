@@ -13,6 +13,7 @@ const {
   sharePost,
   getUserBookmarks,
   getPostStats,
+  deletePost,
 } = require('../controllers/postController');
 const { protect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
@@ -35,5 +36,6 @@ router.post('/:id/bookmark', protect, toggleBookmark);
 router.post('/:id/share', protect, sharePost);
 router.get('/bookmarks', protect, getUserBookmarks);
 router.get('/:id/stats', protect, getPostStats);
+router.delete('/:id', protect, deletePost);
 
 module.exports = router;

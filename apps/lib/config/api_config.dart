@@ -1,16 +1,18 @@
 class ApiConfig {
-  // AWS Production Server - Supports both HTTP and HTTPS
-
-  // Primary: HTTP (Port 80 via Nginx)
+  // Local Development Server - Android Emulator
+  // Use 10.0.2.2 instead of localhost for Android emulator
   static const String baseUrlHttp = 'http://10.0.2.2:3000/api';
-  static const String wsUrlHttp = 'http://10.0.2.2:3000';
+  static const String wsUrlHttp = 'http://10.0.2.2:3000/';
 
-  // Secondary: HTTPS (Port 443 via Nginx with SSL)
-  static const String baseUrlHttps = 'https://3.110.103.187/api';
-  static const String wsUrlHttps = 'https://3.110.103.187';
+  // For physical device, use your machine IP (e.g., 192.168.x.x)
+  // static const String baseUrlHttp = 'http://192.168.x.x:3000/api';
+  // static const String wsUrlHttp = 'http://192.168.x.x:3000/';
 
-  // Use HTTP by default (more compatible with mobile)
-  // Switch to HTTPS when SSL certificate is properly configured
+  // AWS Production Server (commented out)
+  // static const String baseUrlHttps = 'https://www.showoff.life/api';
+  // static const String wsUrlHttps = 'https://www.showoff.life/';
+
+  // Use emulator address by default
   static String get baseUrl => baseUrlHttp;
   static String get wsUrl => wsUrlHttp;
 

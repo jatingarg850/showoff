@@ -29,28 +29,9 @@ exports.sendOTP = async (req, res) => {
       });
     }
 
-    // Check if user already exists
-    if (email) {
-      const emailExists = await User.findOne({ email });
-      if (emailExists) {
-        return res.status(400).json({
-          success: false,
-          message: 'Email already registered',
-        });
-      }
-    }
-
-    if (phone) {
-      const phoneExists = await User.findOne({ phone });
-      if (phoneExists) {
-        return res.status(400).json({
-          success: false,
-          message: 'Phone number already registered',
-        });
-      }
-    }
-
-    const identifier = email || `${countryCode}${phone}`;
+    // Normalize phone number: remove any + or spaces, just keep digits
+    const normalizedPhone = phone ? phone.replace(/\D/g, '') : null;
+    const identifier = email || `${countryCode}${normalizedPhone}`;
     
     console.log('╔════════════════════════════════════════╗');
     console.log('║          🔐 SENDING OTP               ║');
@@ -292,7 +273,18 @@ exports.verifyOTP = async (req, res) => {
 // @access  Public
 exports.register = async (req, res) => {
   try {
-    const { email, phone, password, username, displayName, referralCode } = req.body;
+    const { email, phone, password, username, displayName, referralCode, termsAccepted } = req.body;
+
+    // Check if user accepted terms and conditions
+    if (!termsAccepted) {
+      return res.status(400).json({
+        success: false,
+        message: 'You must accept the Terms & Conditions to create an account',
+      });
+    }
+
+    // Normalize phone number if provided
+    const normalizedPhone = phone ? phone.replace(/\D/g, '') : null;
 
     // Check if user exists
     if (email) {
@@ -305,8 +297,8 @@ exports.register = async (req, res) => {
       }
     }
 
-    if (phone) {
-      const phoneExists = await User.findOne({ phone });
+    if (normalizedPhone) {
+      const phoneExists = await User.findOne({ phone: normalizedPhone });
       if (phoneExists) {
         return res.status(400).json({
           success: false,
@@ -327,11 +319,14 @@ exports.register = async (req, res) => {
     // Create user
     const user = await User.create({
       email,
-      phone,
+      phone: normalizedPhone,
       password,
       username: username.toLowerCase(),
       displayName,
       referralCode: generateReferralCode(username),
+      termsAndConditionsAccepted: true,
+      termsAndConditionsVersion: 1,
+      termsAndConditionsAcceptedAt: new Date(),
     });
 
     // Handle referral
@@ -602,8 +597,11 @@ exports.checkPhone = async (req, res) => {
       });
     }
 
+    // Normalize phone number: remove any + or spaces, just keep digits
+    const normalizedPhone = phone.replace(/\D/g, '');
+
     // Validate phone format (basic validation)
-    if (phone.length < 7 || phone.length > 15) {
+    if (normalizedPhone.length < 7 || normalizedPhone.length > 15) {
       return res.status(400).json({
         success: false,
         message: 'Please provide a valid phone number',
@@ -611,7 +609,7 @@ exports.checkPhone = async (req, res) => {
     }
 
     // Check if phone exists
-    const existingUser = await User.findOne({ phone: phone });
+    const existingUser = await User.findOne({ phone: normalizedPhone });
 
     if (existingUser) {
       return res.status(200).json({
@@ -879,10 +877,13 @@ exports.signInPhoneOTP = async (req, res) => {
       });
     }
 
-    console.log('📱 Phone OTP Sign-In Request:', { phone, countryCode });
+    // Normalize phone number: remove any + or spaces, just keep digits
+    const normalizedPhone = phone.replace(/\D/g, '');
+
+    console.log('📱 Phone OTP Sign-In Request:', { phone: normalizedPhone, countryCode });
 
     // Check if user exists with this phone number
-    const user = await User.findOne({ phone: phone });
+    const user = await User.findOne({ phone: normalizedPhone });
 
     if (!user) {
       // User doesn't exist - ask them to sign up

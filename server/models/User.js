@@ -331,6 +331,19 @@ const userSchema = new mongoose.Schema({
     default: null,
   },
   
+  // Terms & Conditions
+  termsAndConditionsAccepted: {
+    type: Boolean,
+    default: false,
+  },
+  termsAndConditionsVersion: {
+    type: Number,
+    default: 1,
+  },
+  termsAndConditionsAcceptedAt: {
+    type: Date,
+  },
+  
 }, {
   timestamps: true,
 });

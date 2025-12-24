@@ -182,7 +182,7 @@ class PushNotificationService {
   }) async {
     await showNotification(
       title: '❤️ New Like',
-      body: '$username liked your reel',
+      body: '$username liked your Show',
       payload: 'like:$postId',
     );
   }

@@ -121,4 +121,85 @@ router.put('/syt/:id/toggle', require('../controllers/adminController').toggleSY
 router.put('/syt/:id/winner', require('../controllers/adminController').declareSYTWinner);
 router.delete('/syt/:id', require('../controllers/adminController').deleteSYTEntry);
 
+// Rewarded Ads Management
+router.get('/rewarded-ads', require('../controllers/adminController').getRewardedAds);
+router.get('/rewarded-ads/:adNumber', require('../controllers/adminController').getRewardedAdById);
+router.put('/rewarded-ads/:adNumber', require('../controllers/adminController').updateRewardedAd);
+router.post('/rewarded-ads/:adNumber/reset-stats', require('../controllers/adminController').resetAdStats);
+
+// Music Management
+router.get('/music', require('../controllers/adminController').getMusic);
+router.put('/music/:id/approve', require('../controllers/adminController').approveMusic);
+router.delete('/music/:id', require('../controllers/adminController').deleteMusic);
+
+// User Earnings
+router.get('/users/:id/earnings', require('../controllers/adminController').getUserEarnings);
+router.get('/top-earners', require('../controllers/adminController').getTopEarners);
+
+// Public Ad Routes (for mobile app)
+router.get('/ads', require('../controllers/adminController').getAdsForApp);
+router.post('/ads/:adNumber/click', require('../controllers/adminController').trackAdClick);
+router.post('/ads/:adNumber/conversion', require('../controllers/adminController').trackAdConversion);
+
+// System Integration Testing
+const SystemTestController = require('../controllers/systemTestController');
+
+// Database Tests
+router.post('/system-tests/db-connect', require('../middleware/auth').adminOnly, SystemTestController.testDatabaseConnection);
+router.post('/system-tests/db-users', require('../middleware/auth').adminOnly, SystemTestController.testUsersCollection);
+router.post('/system-tests/db-posts', require('../middleware/auth').adminOnly, SystemTestController.testPostsCollection);
+router.post('/system-tests/db-transactions', require('../middleware/auth').adminOnly, SystemTestController.testTransactionsCollection);
+router.post('/system-tests/db-indexes', require('../middleware/auth').adminOnly, SystemTestController.testDatabaseIndexes);
+
+// API Tests
+router.post('/system-tests/api-health', require('../middleware/auth').adminOnly, SystemTestController.testHealthCheck);
+router.post('/system-tests/api-users', require('../middleware/auth').adminOnly, SystemTestController.testUsersAPI);
+router.post('/system-tests/api-posts', require('../middleware/auth').adminOnly, SystemTestController.testPostsAPI);
+router.post('/system-tests/api-coins', require('../middleware/auth').adminOnly, SystemTestController.testCoinsAPI);
+router.post('/system-tests/api-auth', require('../middleware/auth').adminOnly, SystemTestController.testAuthAPI);
+
+// Auth Tests
+router.post('/system-tests/auth-register', require('../middleware/auth').adminOnly, SystemTestController.testUserRegistration);
+router.post('/system-tests/auth-login', require('../middleware/auth').adminOnly, SystemTestController.testUserLogin);
+router.post('/system-tests/auth-token', require('../middleware/auth').adminOnly, SystemTestController.testTokenValidation);
+router.post('/system-tests/auth-refresh', require('../middleware/auth').adminOnly, SystemTestController.testTokenRefresh);
+router.post('/system-tests/auth-logout', require('../middleware/auth').adminOnly, SystemTestController.testUserLogout);
+
+// Notification Tests
+router.post('/system-tests/notif-fcm', require('../middleware/auth').adminOnly, SystemTestController.testFCMConnection);
+router.post('/system-tests/notif-send', require('../middleware/auth').adminOnly, SystemTestController.testSendNotification);
+router.post('/system-tests/notif-receive', require('../middleware/auth').adminOnly, SystemTestController.testReceiveNotification);
+router.post('/system-tests/notif-topics', require('../middleware/auth').adminOnly, SystemTestController.testTopicSubscriptions);
+
+// Payment Tests
+router.post('/system-tests/pay-stripe', require('../middleware/auth').adminOnly, SystemTestController.testStripeIntegration);
+router.post('/system-tests/pay-razorpay', require('../middleware/auth').adminOnly, SystemTestController.testRazorpayIntegration);
+router.post('/system-tests/pay-webhook', require('../middleware/auth').adminOnly, SystemTestController.testPaymentWebhooks);
+router.post('/system-tests/pay-verify', require('../middleware/auth').adminOnly, SystemTestController.testPaymentVerification);
+
+// Storage Tests
+router.post('/system-tests/storage-wasabi', require('../middleware/auth').adminOnly, SystemTestController.testWasabiConnection);
+router.post('/system-tests/storage-upload', require('../middleware/auth').adminOnly, SystemTestController.testFileUpload);
+router.post('/system-tests/storage-download', require('../middleware/auth').adminOnly, SystemTestController.testFileDownload);
+router.post('/system-tests/storage-delete', require('../middleware/auth').adminOnly, SystemTestController.testFileDeletion);
+
+// Cache Tests
+router.post('/system-tests/cache-redis', require('../middleware/auth').adminOnly, SystemTestController.testRedisConnection);
+router.post('/system-tests/cache-set', require('../middleware/auth').adminOnly, SystemTestController.testCacheSet);
+router.post('/system-tests/cache-get', require('../middleware/auth').adminOnly, SystemTestController.testCacheGet);
+router.post('/system-tests/cache-clear', require('../middleware/auth').adminOnly, SystemTestController.testCacheClear);
+
+// Email Tests
+router.post('/system-tests/email-smtp', require('../middleware/auth').adminOnly, SystemTestController.testSMTPConnection);
+router.post('/system-tests/email-send', require('../middleware/auth').adminOnly, SystemTestController.testSendEmail);
+router.post('/system-tests/email-otp', require('../middleware/auth').adminOnly, SystemTestController.testOTPEmail);
+router.post('/system-tests/email-verify', require('../middleware/auth').adminOnly, SystemTestController.testEmailVerification);
+
+// Terms & Conditions Management
+const termsController = require('../controllers/termsController');
+router.post('/terms', termsController.createTerms);
+router.get('/terms', termsController.getAllTerms);
+router.put('/terms/:id', termsController.updateTerms);
+router.delete('/terms/:id', termsController.deleteTerms);
+
 module.exports = router;

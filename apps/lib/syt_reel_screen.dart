@@ -81,11 +81,31 @@ class _SYTReelScreenState extends State<SYTReelScreen>
 
   @override
   void dispose() {
+    print('🗑️ Disposing SYTReelScreen - stopping all videos');
+
+    // CRITICAL: Stop all videos immediately before disposal
+    for (final controller in _videoControllers.values) {
+      if (controller != null) {
+        try {
+          controller.pause();
+          controller.setVolume(0.0);
+          print('🔇 Stopped SYT video before disposal');
+        } catch (e) {
+          print('Error stopping SYT video: $e');
+        }
+      }
+    }
+
     _fadeController.dispose();
     _pageController.dispose();
+
     // Dispose all video controllers
     for (final controller in _videoControllers.values) {
-      controller?.dispose();
+      try {
+        controller?.dispose();
+      } catch (e) {
+        print('Error disposing SYT video controller: $e');
+      }
     }
     super.dispose();
   }
@@ -224,7 +244,7 @@ class _SYTReelScreenState extends State<SYTReelScreen>
       final category = competition['category'] ?? 'Talent';
 
       // Create deep link to specific SYT entry
-      final deepLink = 'https://showofflife.app/syt/$entryId';
+      final deepLink = 'https://showoff.life/syt/$entryId';
 
       // Create share text with deep link and Play Store link
       final shareText =

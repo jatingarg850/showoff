@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'services/admob_service.dart';
 import 'services/api_service.dart';
+import 'services/rewarded_ad_service.dart';
 
 class AdSelectionScreen extends StatefulWidget {
   const AdSelectionScreen({super.key});
@@ -11,54 +12,42 @@ class AdSelectionScreen extends StatefulWidget {
 
 class _AdSelectionScreenState extends State<AdSelectionScreen> {
   bool _isLoading = false;
+  List<Map<String, dynamic>> _adOptions = [];
+  bool _adsLoaded = false;
 
-  final List<Map<String, dynamic>> _adOptions = [
-    {
-      'id': 1,
-      'title': 'Ad 1',
-      'description': 'Watch video ad',
-      'reward': 10,
-      'icon': Icons.play_circle_filled,
-      'color': const Color(0xFF701CF5),
-    },
-    {
-      'id': 2,
-      'title': 'Ad 2',
-      'description': 'Watch sponsored content',
-      'reward': 10,
-      'icon': Icons.video_library,
-      'color': const Color(0xFFFF6B35),
-    },
-    {
-      'id': 3,
-      'title': 'Ad 3',
-      'description': 'Interactive ad',
-      'reward': 10,
-      'icon': Icons.touch_app,
-      'color': const Color(0xFF4FACFE),
-    },
-    {
-      'id': 4,
-      'title': 'Ad 4',
-      'description': 'Rewarded survey',
-      'reward': 10,
-      'icon': Icons.quiz,
-      'color': const Color(0xFF43E97B),
-    },
-    {
-      'id': 5,
-      'title': 'Ad 5',
-      'description': 'Premium ad',
-      'reward': 10,
-      'icon': Icons.star,
-      'color': const Color(0xFFFBBF24),
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadAds();
+  }
 
-  Future<void> _watchAd(int adId, int reward) async {
+  Future<void> _loadAds() async {
+    try {
+      final ads = await RewardedAdService.getAds();
+      if (mounted) {
+        setState(() {
+          _adOptions = ads;
+          _adsLoaded = true;
+        });
+      }
+    } catch (e) {
+      print('Error loading ads: $e');
+      if (mounted) {
+        setState(() {
+          _adOptions = RewardedAdService.getDefaultAds();
+          _adsLoaded = true;
+        });
+      }
+    }
+  }
+
+  Future<void> _watchAd(Map<String, dynamic> ad) async {
     setState(() => _isLoading = true);
 
     try {
+      // Track ad impression
+      await RewardedAdService.trackAdClick(ad['adNumber'] ?? 1);
+
       // Show AdMob rewarded ad
       final adWatched = await AdMobService.showRewardedAd();
 
@@ -75,6 +64,9 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
         return;
       }
 
+      // Track conversion
+      await RewardedAdService.trackAdConversion(ad['adNumber'] ?? 1);
+
       // Call backend to award coins
       final response = await ApiService.watchAd();
 
@@ -83,7 +75,9 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
 
         if (response['success']) {
           // Show success dialog
-          _showSuccessDialog(response['coinsEarned'] ?? reward);
+          _showSuccessDialog(
+            response['coinsEarned'] ?? ad['rewardCoins'] ?? 10,
+          );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -192,7 +186,23 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
           ),
         ),
       ),
-      body: _isLoading
+      body: !_adsLoaded
+          ? const Center(child: CircularProgressIndicator())
+          : _adOptions.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.ads_click, size: 64, color: Colors.grey.shade400),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No ads available',
+                    style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            )
+          : _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
@@ -267,15 +277,26 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
   }
 
   Widget _buildAdCard(Map<String, dynamic> ad) {
+    // Get default color if not provided
+    final Color cardColor = ad['color'] ?? const Color(0xFF701CF5);
+    final IconData cardIcon = ad['icon'] ?? Icons.play_circle_filled;
+    final String title = ad['title'] ?? 'Ad ${ad['adNumber'] ?? 1}';
+    final String description = ad['description'] ?? 'Watch this ad';
+    final int reward = ad['rewardCoins'] ?? ad['reward'] ?? 10;
+    final bool isActive = ad['isActive'] ?? true;
+
     return InkWell(
-      onTap: () => _watchAd(ad['id'], ad['reward']),
+      onTap: isActive ? () => _watchAd(ad) : null,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isActive ? Colors.white : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200, width: 2),
+          border: Border.all(
+            color: isActive ? Colors.grey.shade200 : Colors.grey.shade300,
+            width: 2,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -290,10 +311,10 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: ad['color'].withValues(alpha: 0.1),
+                color: cardColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(ad['icon'], color: ad['color'], size: 32),
+              child: Icon(cardIcon, color: cardColor, size: 32),
             ),
             const SizedBox(width: 16),
 
@@ -303,7 +324,7 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    ad['title'],
+                    title,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -312,8 +333,11 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    ad['description'],
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    description,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isActive ? Colors.grey[600] : Colors.grey[400],
+                    ),
                   ),
                 ],
               ),
@@ -323,7 +347,9 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFFFBBF24),
+                color: isActive
+                    ? const Color(0xFFFBBF24)
+                    : Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
@@ -336,9 +362,9 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    '+${ad['reward']}',
-                    style: const TextStyle(
-                      color: Colors.white,
+                    '+$reward',
+                    style: TextStyle(
+                      color: isActive ? Colors.white : Colors.grey.shade600,
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),

@@ -114,17 +114,38 @@ class ReelScreenState extends State<ReelScreen>
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       _isScreenVisible = false;
-      _pauseCurrentVideo();
+      print('📱 App paused/inactive - stopping all videos');
+
+      // Stop ALL videos immediately
+      _videoControllers.forEach((key, controller) {
+        if (controller != null) {
+          try {
+            controller.pause();
+            controller.setVolume(0.0);
+            print('🔇 Stopped video $key due to app lifecycle change');
+          } catch (e) {
+            print('Error stopping video $key: $e');
+          }
+        }
+      });
+      _lastPlayAttempt.clear();
     }
     // Resume video when app comes back to foreground
     else if (state == AppLifecycleState.resumed) {
       _isScreenVisible = true;
+      print('📱 App resumed - checking if we should resume videos');
+
       // Reload feed if posts are empty (fixes black screen on app restart)
       if (_posts.isEmpty && !_isLoading) {
         print('App resumed with no posts, reloading feed...');
         _loadFeed();
       } else if (_videoInitialized[_currentIndex] == true) {
-        _videoControllers[_currentIndex]?.play();
+        try {
+          _videoControllers[_currentIndex]?.play();
+          print('▶️ Resumed video $_currentIndex');
+        } catch (e) {
+          print('Error resuming video: $e');
+        }
       }
     }
   }
@@ -150,11 +171,21 @@ class ReelScreenState extends State<ReelScreen>
     // Pause all videos and mute them
     _videoControllers.forEach((key, controller) {
       if (controller != null) {
-        controller.pause();
-        controller.setVolume(0.0); // Mute the video
-        print('🔇 Paused and muted video $key');
+        try {
+          // Seek to beginning to stop playback completely
+          controller.seekTo(Duration.zero);
+          controller.pause();
+          controller.setVolume(0.0); // Mute the video
+          print('🔇 Paused, muted, and reset video $key');
+        } catch (e) {
+          print('Error pausing video $key: $e');
+        }
       }
     });
+
+    // Clear all pending play attempts
+    _lastPlayAttempt.clear();
+    print('🔇 Cleared all pending play attempts');
   }
 
   void resumeVideo() {
@@ -164,9 +195,13 @@ class ReelScreenState extends State<ReelScreen>
     // Unmute and resume current video
     final controller = _videoControllers[_currentIndex];
     if (controller != null && _videoInitialized[_currentIndex] == true) {
-      controller.setVolume(1.0); // Unmute
-      controller.play();
-      print('🔊 Resumed and unmuted video $_currentIndex');
+      try {
+        controller.setVolume(1.0); // Unmute
+        controller.play();
+        print('🔊 Resumed and unmuted video $_currentIndex');
+      } catch (e) {
+        print('Error resuming video $_currentIndex: $e');
+      }
     }
   }
 
@@ -738,6 +773,9 @@ class ReelScreenState extends State<ReelScreen>
         // Auto-resume logic (only for current video and if ready)
         if (index != _currentIndex || _videoFullyLoaded[index] != true) return;
 
+        // Don't auto-resume if screen is not visible
+        if (!_isScreenVisible) return;
+
         final now = DateTime.now();
         final lastAttempt = _lastPlayAttempt[index];
 
@@ -1194,7 +1232,7 @@ class ReelScreenState extends State<ReelScreen>
       final caption = post['caption'] ?? '';
 
       // Create deep link to specific reel
-      final deepLink = 'https://showofflife.app/reel/$postId';
+      final deepLink = 'https://showoff.life/reel/$postId';
 
       // Create share text with deep link and Play Store link
       final shareText =
@@ -1305,14 +1343,32 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
   void dispose() {
     print('🗑️ Disposing ReelScreen - cleaning up all resources');
 
+    // CRITICAL: Stop all videos immediately
+    _isScreenVisible = false;
+    _videoControllers.forEach((key, controller) {
+      if (controller != null) {
+        try {
+          controller.pause();
+          controller.setVolume(0.0);
+          print('🔇 Stopped video $key before disposal');
+        } catch (e) {
+          print('Error stopping video $key: $e');
+        }
+      }
+    });
+
     WidgetsBinding.instance.removeObserver(this);
     _pageController.dispose();
 
     // Dispose all video controllers
     _videoControllers.forEach((key, controller) {
       if (controller != null) {
-        print('🗑️ Disposing video controller $key');
-        controller.dispose();
+        try {
+          print('🗑️ Disposing video controller $key');
+          controller.dispose();
+        } catch (e) {
+          print('Error disposing video controller $key: $e');
+        }
       }
     });
     _videoControllers.clear();
@@ -1349,16 +1405,31 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
         // Update visibility state
         final wasVisible = _isScreenVisible;
 
-        // Pause immediately if ANY visibility is lost
-        if (info.visibleFraction < 1.0) {
+        // AGGRESSIVE: Pause immediately if ANY visibility is lost (even 99%)
+        if (info.visibleFraction < 0.99) {
           _isScreenVisible = false;
-          print('🔇 Reel screen not fully visible - pausing video');
-          _pauseCurrentVideo();
+          print(
+            '🔇 Reel screen not fully visible (${(info.visibleFraction * 100).toInt()}%) - PAUSING ALL VIDEOS',
+          );
+
+          // Pause ALL videos immediately
+          _videoControllers.forEach((key, controller) {
+            if (controller != null) {
+              try {
+                controller.pause();
+                controller.setVolume(0.0);
+                print('🔇 Paused video $key due to visibility loss');
+              } catch (e) {
+                print('Error pausing video $key: $e');
+              }
+            }
+          });
+          _lastPlayAttempt.clear();
         }
-        // Resume only when fully visible
+        // Resume only when fully visible (100%)
         else if (info.visibleFraction == 1.0 && !wasVisible) {
           _isScreenVisible = true;
-          print('🔊 Reel screen fully visible - resuming video');
+          print('🔊 Reel screen fully visible (100%) - resuming video');
           _resumeCurrentVideo();
         }
       },
@@ -1583,6 +1654,63 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        _buildMusicButton(
+                          post['music']?['name'] ??
+                              post['music']?['title'] ??
+                              'Unknown Music',
+                          () {
+                            // Show music details in a bottom sheet
+                            if (post['music'] != null) {
+                              showModalBottomSheet(
+                                context: context,
+                                backgroundColor: Colors.transparent,
+                                builder: (context) => Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.black87,
+                                    borderRadius: BorderRadius.only(
+                                      topLeft: Radius.circular(20),
+                                      topRight: Radius.circular(20),
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.all(20),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.music_note,
+                                        color: Colors.white,
+                                        size: 40,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        post['music']['name'] ??
+                                            'Unknown Music',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      if (post['music']['artist'] != null) ...[
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'by ${post['music']['artist']}',
+                                          style: const TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 14,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 24),
                         _buildLikeButton(
                           stats['isLiked'] ?? false,
                           stats['likesCount']?.toString() ?? '0',
@@ -1825,6 +1953,33 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMusicButton(String musicName, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.music_note, color: Colors.white, size: 28),
+          const SizedBox(height: 4),
+          SizedBox(
+            width: 50,
+            child: Text(
+              musicName,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 8,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );

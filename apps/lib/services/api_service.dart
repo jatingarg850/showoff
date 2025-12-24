@@ -75,6 +75,7 @@ class ApiService {
     String? email,
     String? phone,
     String? referralCode,
+    bool termsAccepted = false,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/register'),
@@ -83,6 +84,7 @@ class ApiService {
         'username': username,
         'displayName': displayName,
         'password': password,
+        'termsAccepted': termsAccepted,
         if (email != null) 'email': email,
         if (phone != null) 'phone': phone,
         if (referralCode != null) 'referralCode': referralCode,
@@ -470,6 +472,19 @@ class ApiService {
       headers: await _getHeaders(),
     );
     return jsonDecode(response.body);
+  }
+
+  static Future<Map<String, dynamic>> deletePost(String postId) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/posts/$postId'),
+        headers: await _getHeaders(),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('❌ Delete Post Error: $e');
+      return {'success': false, 'message': 'Network error: $e'};
+    }
   }
 
   // Follow APIs
@@ -1761,5 +1776,48 @@ class ApiService {
     );
     final decoded = jsonDecode(response.body);
     return Map<String, dynamic>.from(decoded);
+  }
+
+  // Terms & Conditions APIs
+  static Future<Map<String, dynamic>> getTermsAndConditions() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/terms/current'),
+        headers: await _getHeaders(),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('❌ Error fetching T&C: $e');
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> acceptTermsAndConditions(
+    int version,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/terms/accept'),
+        headers: await _getHeaders(),
+        body: jsonEncode({'termsVersion': version}),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('❌ Error accepting T&C: $e');
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getTermsByVersion(int version) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/terms/$version'),
+        headers: await _getHeaders(),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('❌ Error fetching T&C version: $e');
+      return {'success': false, 'message': 'Network error: $e'};
+    }
   }
 }

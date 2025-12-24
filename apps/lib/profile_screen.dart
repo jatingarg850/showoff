@@ -564,7 +564,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          _buildTab('Reels'),
+                          _buildTab('Show'),
                           const SizedBox(width: 30),
                           _buildTab('SYT'),
                           const SizedBox(width: 30),
@@ -631,7 +631,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildTabContent() {
     switch (selectedTab) {
-      case 'Reels':
+      case 'Show':
         return _buildReelsGrid();
       case 'SYT':
         return _buildSYTGrid();
@@ -651,7 +651,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Icon(Icons.video_library_outlined, size: 64, color: Colors.grey),
             SizedBox(height: 16),
             Text(
-              'No reels yet',
+              'No Shows yet',
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.grey,
@@ -660,7 +660,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             SizedBox(height: 8),
             Text(
-              'Your reels will appear here',
+              'Your Show will appear here',
               style: TextStyle(fontSize: 14, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
@@ -681,6 +681,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final post = _posts[index];
         return GestureDetector(
           onTap: () {
+            print('🎬 show tapped: ${post['_id']}');
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -688,6 +689,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     MainScreen(initialIndex: 0, initialPostId: post['_id']),
               ),
             );
+          },
+          onLongPress: () {
+            _showPostOptions(context, post);
           },
           child: Container(
             decoration: BoxDecoration(
@@ -1021,5 +1025,86 @@ class _ProfileScreenState extends State<ProfileScreen> {
       const Color(0xFF4169E1), // Royal Blue
     ];
     return colors[index % colors.length];
+  }
+
+  void _showPostOptions(BuildContext context, Map<String, dynamic> post) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Delete Post'),
+              onTap: () {
+                Navigator.pop(context);
+                _deletePost(post['_id']);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.close),
+              title: const Text('Cancel'),
+              onTap: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deletePost(String postId) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Post?'),
+        content: const Text('This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final response = await ApiService.deletePost(postId);
+
+      if (response['success']) {
+        // Remove post from list
+        setState(() {
+          _posts.removeWhere((post) => post['_id'] == postId);
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Post deleted successfully')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response['message'] ?? 'Failed to delete post'),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
   }
 }

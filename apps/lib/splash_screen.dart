@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 import 'providers/auth_provider.dart';
 import 'providers/notification_provider.dart';
 import 'main_screen.dart';
@@ -56,10 +57,31 @@ class _SplashScreenState extends State<SplashScreen>
 
       if (!mounted) return;
 
+      // Check for deep link from intent
+      String? initialPostId;
+      try {
+        // Get the intent data from the platform channel
+        // This will be set by Android when the app is launched from a deep link
+        final Map<String, dynamic>? intentData =
+            WidgetsBinding.instance.window.defaultRouteName != '/'
+            ? _parseDeepLink(WidgetsBinding.instance.window.defaultRouteName)
+            : null;
+
+        if (intentData != null && intentData['postId'] != null) {
+          initialPostId = intentData['postId'];
+          print('🔗 Deep link detected: $initialPostId');
+        }
+      } catch (e) {
+        print('⚠️ Error parsing deep link: $e');
+      }
+
       // Navigate based on auth status
       if (authProvider.isAuthenticated) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const MainScreen()),
+          MaterialPageRoute(
+            builder: (_) =>
+                MainScreen(initialIndex: 0, initialPostId: initialPostId),
+          ),
         );
       } else {
         Navigator.of(context).pushReplacement(
@@ -74,6 +96,15 @@ class _SplashScreenState extends State<SplashScreen>
         MaterialPageRoute(builder: (_) => const OnboardingScreen()),
       );
     }
+  }
+
+  Map<String, dynamic>? _parseDeepLink(String route) {
+    // Parse deep link format: /reel/{postId}
+    if (route.contains('/reel/')) {
+      final postId = route.split('/reel/').last;
+      return {'postId': postId};
+    }
+    return null;
   }
 
   @override

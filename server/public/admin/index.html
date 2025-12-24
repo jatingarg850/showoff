@@ -29,13 +29,37 @@
                     <i class="fas fa-users"></i>
                     <span>Users</span>
                 </li>
+                <li class="menu-item" data-page="kyc">
+                    <i class="fas fa-id-card"></i>
+                    <span>KYC Management</span>
+                </li>
                 <li class="menu-item" data-page="content">
                     <i class="fas fa-video"></i>
                     <span>Content</span>
                 </li>
+                <li class="menu-item" data-page="withdrawals">
+                    <i class="fas fa-money-bill-wave"></i>
+                    <span>Withdrawals</span>
+                </li>
+                <li class="menu-item" data-page="subscriptions">
+                    <i class="fas fa-crown"></i>
+                    <span>Subscriptions</span>
+                </li>
                 <li class="menu-item" data-page="store">
                     <i class="fas fa-store"></i>
                     <span>Store</span>
+                </li>
+                <li class="menu-item" data-page="talent">
+                    <i class="fas fa-star"></i>
+                    <span>Talent/SYT</span>
+                </li>
+                <li class="menu-item" data-page="notifications">
+                    <i class="fas fa-bell"></i>
+                    <span>Notifications</span>
+                </li>
+                <li class="menu-item" data-page="fraud">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Fraud Detection</span>
                 </li>
                 <li class="menu-item" data-page="financial">
                     <i class="fas fa-coins"></i>
@@ -59,9 +83,9 @@
                         <span class="admin-role">Super Admin</span>
                     </div>
                 </div>
-                <button class="logout-btn" onclick="logout()">
+                <a href="/admin/logout" class="logout-btn" title="Logout">
                     <i class="fas fa-sign-out-alt"></i>
-                </button>
+                </a>
             </div>
         </nav>
 
@@ -245,6 +269,213 @@
                     
                     <div class="content-grid" id="content-grid">
                         <div class="loading">Loading content...</div>
+                    </div>
+                </div>
+
+                <!-- KYC Management Page -->
+                <div id="kyc-page" class="page">
+                    <div class="page-header">
+                        <h2>KYC Management</h2>
+                        <div class="page-actions">
+                            <select id="kyc-status-filter" onchange="filterKYC()">
+                                <option value="">All Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Document Type</th>
+                                    <th>Status</th>
+                                    <th>Submitted</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="kyc-table-body">
+                                <tr><td colspan="5" class="loading">Loading KYC requests...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Withdrawals Page -->
+                <div id="withdrawals-page" class="page">
+                    <div class="page-header">
+                        <h2>Withdrawal Management</h2>
+                        <div class="page-actions">
+                            <select id="withdrawal-status-filter" onchange="filterWithdrawals()">
+                                <option value="">All Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="withdrawals-table-body">
+                                <tr><td colspan="6" class="loading">Loading withdrawal requests...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Subscriptions Page -->
+                <div id="subscriptions-page" class="page">
+                    <div class="page-header">
+                        <h2>Subscriptions Management</h2>
+                    </div>
+                    
+                    <div class="subscriptions-stats">
+                        <div class="stat-card">
+                            <h4>Active Subscriptions</h4>
+                            <span id="active-subscriptions">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Total Revenue</h4>
+                            <span id="subscription-revenue">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Churn Rate</h4>
+                            <span id="churn-rate">0%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Plan</th>
+                                    <th>Status</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="subscriptions-table-body">
+                                <tr><td colspan="6" class="loading">Loading subscriptions...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Talent/SYT Page -->
+                <div id="talent-page" class="page">
+                    <div class="page-header">
+                        <h2>Talent/SYT Management</h2>
+                        <div class="page-actions">
+                            <select id="syt-status-filter" onchange="filterSYT()">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="completed">Completed</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Creator</th>
+                                    <th>Entries</th>
+                                    <th>Status</th>
+                                    <th>End Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="syt-table-body">
+                                <tr><td colspan="6" class="loading">Loading SYT entries...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Notifications Page -->
+                <div id="notifications-page" class="page">
+                    <div class="page-header">
+                        <h2>Notifications Management</h2>
+                        <div class="page-actions">
+                            <button class="btn btn-primary" onclick="showSendNotificationModal()">
+                                <i class="fas fa-paper-plane"></i> Send Notification
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Recipients</th>
+                                    <th>Sent Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="notifications-table-body">
+                                <tr><td colspan="5" class="loading">Loading notifications...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Fraud Detection Page -->
+                <div id="fraud-page" class="page">
+                    <div class="page-header">
+                        <h2>Fraud Detection</h2>
+                    </div>
+                    
+                    <div class="fraud-stats">
+                        <div class="stat-card">
+                            <h4>Suspicious Accounts</h4>
+                            <span id="suspicious-accounts">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Flagged Transactions</h4>
+                            <span id="flagged-transactions">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Blocked Users</h4>
+                            <span id="blocked-users">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Risk Level</th>
+                                    <th>Reason</th>
+                                    <th>Detected</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fraud-table-body">
+                                <tr><td colspan="5" class="loading">Loading fraud alerts...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 

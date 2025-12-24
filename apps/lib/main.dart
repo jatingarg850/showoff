@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 import 'splash_screen.dart';
 import 'onboarding_screen.dart';
+import 'main_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/profile_provider.dart';
 import 'providers/notification_provider.dart';
@@ -37,8 +39,20 @@ void main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Deep linking will be handled by Android intent filters
+    // When a deep link is clicked, it will launch the app with the intent
+  }
 
   @override
   Widget build(BuildContext context) {

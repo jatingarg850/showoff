@@ -60,7 +60,7 @@ class _PathSelectionScreenState extends State<PathSelectionScreen> {
                     end: Alignment.centerRight,
                   ).createShader(bounds),
                   child: const Text(
-                    'Select a path',
+                    'Pick Your Showoff Category',
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
@@ -137,7 +137,7 @@ class _PathSelectionScreenState extends State<PathSelectionScreen> {
                                     ),
                                     const SizedBox(height: 12),
                                     Text(
-                                      'Reels',
+                                      'Show',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,

@@ -218,6 +218,45 @@ app.use('/api/kyc', require('./routes/kycRoutes'));
 app.use('/api/fraud', require('./routes/fraudRoutes'));
 app.use('/api/subscriptions', require('./routes/subscriptionRoutes'));
 app.use('/api/videos', require('./routes/videoRoutes'));
+app.use('/api/terms', require('./routes/termsRoutes'));
+
+// Deep linking routes for mobile app
+app.get('/reel/:postId', async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const Post = require('./models/Post');
+    
+    // Fetch post details
+    const post = await Post.findById(postId)
+      .populate('user', 'username displayName profilePicture')
+      .lean();
+    
+    if (!post) {
+      return res.status(404).render('deep-link-error', {
+        title: 'Reel Not Found',
+        message: 'This reel could not be found. It may have been deleted.',
+        appLink: 'showofflife://app'
+      });
+    }
+    
+    // Render a page with meta tags for social sharing and deep link redirect
+    res.render('deep-link-reel', {
+      postId: post._id,
+      title: `${post.user.displayName}'s Reel`,
+      description: post.caption || 'Check out this amazing reel on ShowOff.life',
+      image: post.thumbnail || 'https://via.placeholder.com/1200x630?text=ShowOff.life',
+      appLink: `showofflife://reel/${postId}`,
+      webLink: `https://showoff.life/reel/${postId}`
+    });
+  } catch (error) {
+    console.error('Deep link error:', error);
+    res.status(500).render('deep-link-error', {
+      title: 'Error',
+      message: 'An error occurred while loading this reel.',
+      appLink: 'showofflife://app'
+    });
+  }
+});
 
 // Admin web interface routes
 app.use('/admin', require('./routes/adminWebRoutes'));

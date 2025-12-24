@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #701CF5 0%, #3E98E4 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+        
+        .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        p {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 12px;
+            flex-direction: column;
+        }
+        
+        .button {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .button-primary {
+            background: linear-gradient(135deg, #701CF5 0%, #3E98E4 100%);
+            color: white;
+        }
+        
+        .button-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(112, 28, 245, 0.3);
+        }
+        
+        .button-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .button-secondary:hover {
+            background: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">⚠️</div>
+        <h1><%= title %></h1>
+        <p><%= message %></p>
+        
+        <div class="button-group">
+            <button class="button button-primary" onclick="openApp()">
+                Open ShowOff.life
+            </button>
+            <a href="https://play.google.com/store/apps/details?id=com.showofflife.app" class="button button-secondary">
+                Download App
+            </a>
+        </div>
+    </div>
+    
+    <script>
+        function openApp() {
+            const appLink = '<%= appLink %>';
+            const playStoreLink = 'https://play.google.com/store/apps/details?id=com.showofflife.app';
+            
+            const timeout = setTimeout(() => {
+                window.location.href = playStoreLink;
+            }, 2000);
+            
+            window.location.href = appLink;
+            
+            window.addEventListener('blur', () => {
+                clearTimeout(timeout);
+            });
+        }
+    </script>
+</body>
+</html>

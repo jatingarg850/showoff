@@ -182,7 +182,7 @@ class SignUpScreen extends StatelessWidget {
                           if (isProfileComplete) {
                             // User already exists with complete profile - go to reels
                             print(
-                              '✅ Existing user with complete profile, navigating to reels...',
+                              '✅ Existing user with complete profile, navigating to Show...',
                             );
                             Navigator.of(context).pushAndRemoveUntil(
                               MaterialPageRoute(

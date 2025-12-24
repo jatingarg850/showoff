@@ -181,7 +181,7 @@ class SignInChoiceScreen extends StatelessWidget {
                         if (context.mounted) {
                           if (isProfileComplete) {
                             // Profile complete - go to main screen (reels)
-                            print('✅ Profile complete, navigating to reels...');
+                            print('✅ Profile complete, navigating to show...');
                             Navigator.of(context).pushAndRemoveUntil(
                               MaterialPageRoute(
                                 builder: (context) => const MainScreen(),
