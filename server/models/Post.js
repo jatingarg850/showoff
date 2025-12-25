@@ -28,6 +28,12 @@ const postSchema = new mongoose.Schema({
     type: String,
   }],
   
+  // Music
+  backgroundMusic: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Music',
+  },
+  
   // Engagement
   likesCount: {
     type: Number,

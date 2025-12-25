@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart' as http_parser;
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'storage_service.dart';
+import 'thumbnail_service.dart';
 import '../config/api_config.dart';
 
 class ApiService {
@@ -17,10 +18,34 @@ class ApiService {
     if (path.startsWith('http://') || path.startsWith('https://')) {
       return path;
     }
-    if (path.startsWith('/')) {
-      return '$baseUrl$path';
+    // Get server URL without /api suffix
+    String serverUrl = baseUrl;
+    if (serverUrl.endsWith('/api')) {
+      serverUrl = serverUrl.substring(0, serverUrl.length - 4);
     }
-    return '$baseUrl/$path';
+    if (path.startsWith('/')) {
+      return '$serverUrl$path';
+    }
+    return '$serverUrl/$path';
+  }
+
+  // Helper function to construct full audio/media URLs
+  static String getAudioUrl(String? path) {
+    if (path == null || path.isEmpty) {
+      return '';
+    }
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    // Get server URL without /api suffix
+    String serverUrl = baseUrl;
+    if (serverUrl.endsWith('/api')) {
+      serverUrl = serverUrl.substring(0, serverUrl.length - 4);
+    }
+    if (path.startsWith('/')) {
+      return '$serverUrl$path';
+    }
+    return '$serverUrl/$path';
   }
 
   static Future<Map<String, String>> _getHeaders() async {
@@ -307,20 +332,29 @@ class ApiService {
     bool isPublic = true,
   }) async {
     try {
+      print('📤 API: createPostWithUrl called with musicId: $musicId');
+
+      final requestBody = {
+        'mediaUrl': mediaUrl,
+        'mediaType': mediaType,
+        'thumbnailUrl': thumbnailUrl,
+        'caption': caption ?? '',
+        'location': location ?? '',
+        'hashtags': hashtags ?? [],
+        'musicId': musicId,
+        'isPublic': isPublic,
+      };
+
+      print('📤 API: Sending request body: $requestBody');
+
       final response = await http.post(
         Uri.parse('$baseUrl/posts/create-with-url'),
         headers: await _getHeaders(),
-        body: jsonEncode({
-          'mediaUrl': mediaUrl,
-          'mediaType': mediaType,
-          'thumbnailUrl': thumbnailUrl,
-          'caption': caption ?? '',
-          'location': location ?? '',
-          'hashtags': hashtags ?? [],
-          'musicId': musicId,
-          'isPublic': isPublic,
-        }),
+        body: jsonEncode(requestBody),
       );
+
+      print('📥 API: Response status: ${response.statusCode}');
+      print('📥 API: Response body: ${response.body}');
 
       final data = jsonDecode(response.body);
 
@@ -563,6 +597,8 @@ class ApiService {
     required String category,
     required String competitionType,
     String? description,
+    String? backgroundMusicId,
+    bool autoGenerateThumbnail = true,
   }) async {
     final request = http.MultipartRequest(
       'POST',
@@ -580,7 +616,7 @@ class ApiService {
       ),
     );
 
-    // Upload thumbnail if provided
+    // Upload thumbnail if provided or auto-generate
     if (thumbnailFile != null) {
       request.files.add(
         await http.MultipartFile.fromPath(
@@ -589,6 +625,39 @@ class ApiService {
           contentType: http_parser.MediaType.parse('image/jpeg'),
         ),
       );
+    } else if (autoGenerateThumbnail) {
+      // Auto-generate thumbnail if not provided
+      try {
+        final thumbnailService = ThumbnailService();
+        print('🎬 Auto-generating thumbnail for SYT entry...');
+
+        final generatedThumbnailPath = await thumbnailService.generateThumbnail(
+          videoPath: videoFile.path,
+          maxWidth: 640,
+          maxHeight: 480,
+          quality: 75,
+          timeMs: 0,
+        );
+
+        if (generatedThumbnailPath != null) {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'thumbnail',
+              generatedThumbnailPath,
+              contentType: http_parser.MediaType.parse('image/jpeg'),
+            ),
+          );
+          print('✅ Auto-generated thumbnail added to SYT entry');
+
+          // Clean up after request is sent
+          Future.delayed(const Duration(seconds: 2), () {
+            thumbnailService.cleanupThumbnail(generatedThumbnailPath);
+          });
+        }
+      } catch (e) {
+        print('⚠️ Failed to auto-generate SYT thumbnail: $e');
+        // Continue without thumbnail if generation fails
+      }
     }
 
     request.fields['title'] = title;
@@ -596,6 +665,9 @@ class ApiService {
     request.fields['competitionType'] = competitionType;
     if (description != null) {
       request.fields['description'] = description;
+    }
+    if (backgroundMusicId != null) {
+      request.fields['backgroundMusicId'] = backgroundMusicId;
     }
 
     final streamedResponse = await request.send();
@@ -1817,6 +1889,81 @@ class ApiService {
       return jsonDecode(response.body);
     } catch (e) {
       print('❌ Error fetching T&C version: $e');
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  // Music APIs
+  static Future<Map<String, dynamic>> getApprovedMusic({
+    String? genre,
+    String? mood,
+    int page = 1,
+    int limit = 50,
+  }) async {
+    try {
+      String url = '$baseUrl/music/approved?page=$page&limit=$limit';
+      if (genre != null && genre.isNotEmpty) {
+        url += '&genre=$genre';
+      }
+      if (mood != null && mood.isNotEmpty) {
+        url += '&mood=$mood';
+      }
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {'success': false, 'message': 'Failed to fetch music'};
+      }
+    } catch (e) {
+      print('❌ Error fetching approved music: $e');
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  // Get single music by ID
+  static Future<Map<String, dynamic>> getMusic(String musicId) async {
+    try {
+      print('🎵 Fetching music details for ID: $musicId');
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/music/$musicId'),
+        headers: await _getHeaders(),
+      );
+
+      print('🎵 Music API Response Status: ${response.statusCode}');
+      print('🎵 Music API Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        // Handle both formats: {success: true, data: {...}} and direct {...}
+        if (data is Map) {
+          if (data.containsKey('success') && data['success'] == true) {
+            return {'success': true, 'data': data['data']};
+          } else if (data.containsKey('_id')) {
+            // Direct music object response
+            return {'success': true, 'data': data};
+          } else if (data.containsKey('data')) {
+            // Wrapped response
+            return {'success': true, 'data': data['data']};
+          }
+        }
+
+        return {'success': true, 'data': data};
+      } else {
+        print('❌ Music API Error: ${response.statusCode}');
+        return {
+          'success': false,
+          'message': 'Failed to fetch music: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      print('❌ Error fetching music: $e');
       return {'success': false, 'message': 'Network error: $e'};
     }
   }

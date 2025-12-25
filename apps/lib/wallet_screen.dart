@@ -21,8 +21,8 @@ class _WalletScreenState extends State<WalletScreen>
   int _withdrawableBalance = 0;
   bool _isLoading = true;
   List<Map<String, dynamic>> _transactions = [];
-  String _currencySymbol = '\$';
-  String _userCurrency = 'USD';
+  String _currencySymbol = '₹';
+  String _userCurrency = 'INR';
 
   @override
   void initState() {
@@ -220,10 +220,12 @@ class _WalletScreenState extends State<WalletScreen>
   }
 
   Future<double> _coinsToLocalCurrency(int coins) async {
-    // 100 coins = 1 USD
-    final usdAmount = coins / 100;
-    // Convert USD to local currency
-    return await CurrencyService.convertFromUSD(usdAmount);
+    // 1 coin = 1 INR
+    final inrAmount = coins.toDouble();
+    // Convert INR to local currency
+    return await CurrencyService.convertFromUSD(
+      inrAmount / 83,
+    ); // 83 INR ≈ 1 USD for conversion
   }
 
   Future<String> _formatCoinBalance(int coins) async {

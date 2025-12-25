@@ -64,13 +64,16 @@ class _MainScreenState extends State<MainScreen> {
 
     // Pause reel video when navigating away from reel screen
     if (_currentIndex == 0 && index != 0) {
-      print('Navigating away from reels - pausing video');
-      _reelScreenKey.currentState?.pauseVideo();
+      print('Navigating away from reels - stopping all videos');
+      _reelScreenKey.currentState?.stopAllVideosCompletely();
 
-      // Double check - force pause after a short delay
-      Future.delayed(const Duration(milliseconds: 100), () {
-        _reelScreenKey.currentState?.pauseVideo();
-        print('Double-check pause executed');
+      // Triple check - force stop after delays
+      Future.delayed(const Duration(milliseconds: 50), () {
+        _reelScreenKey.currentState?.stopAllVideosCompletely();
+      });
+      Future.delayed(const Duration(milliseconds: 150), () {
+        _reelScreenKey.currentState?.stopAllVideosCompletely();
+        print('Triple-check stop executed');
       });
     }
     // Resume reel video when navigating back to reel screen

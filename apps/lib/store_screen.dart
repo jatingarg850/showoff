@@ -5,294 +5,156 @@ import 'category_products_screen.dart';
 import 'services/api_service.dart';
 import 'services/currency_service.dart';
 
-class StoreScreen
-    extends
-        StatefulWidget {
-  const StoreScreen({
-    super.key,
-  });
+class StoreScreen extends StatefulWidget {
+  const StoreScreen({super.key});
 
   @override
-  State<
-    StoreScreen
-  >
-  createState() => _StoreScreenState();
+  State<StoreScreen> createState() => _StoreScreenState();
 }
 
-class _StoreScreenState
-    extends
-        State<
-          StoreScreen
-        > {
-  List<
-    Map<
-      String,
-      dynamic
-    >
-  >
-  _newProducts = [];
-  List<
-    Map<
-      String,
-      dynamic
-    >
-  >
-  _popularProducts = [];
-  Map<
-    String,
-    dynamic
-  >
-  _cart = {};
-  Map<
-    String,
-    int
-  >
-  _categories = {};
-  bool
-  _isLoading = true;
+class _StoreScreenState extends State<StoreScreen> {
+  List<Map<String, dynamic>> _newProducts = [];
+  List<Map<String, dynamic>> _popularProducts = [];
+  Map<String, dynamic> _cart = {};
+  Map<String, int> _categories = {};
+  bool _isLoading = true;
 
   // Currency data
-  String
-  _currencySymbol = '\$';
-  double
-  _exchangeRate = 1.0;
-  String
-  _currencyCode = 'USD';
+  String _currencySymbol = '₹';
+  double _exchangeRate = 1.0;
+  String _currencyCode = 'INR';
 
   @override
-  void
-  initState() {
+  void initState() {
     super.initState();
     _initCurrency();
     _loadData();
   }
 
-  Future<
-    void
-  >
-  _initCurrency() async {
+  Future<void> _initCurrency() async {
     try {
       final symbol = await CurrencyService.getCurrencySymbol();
       final rates = await CurrencyService.getExchangeRates();
       final currency = await CurrencyService.getUserCurrency();
 
-      setState(
-        () {
-          _currencySymbol = symbol;
-          _currencyCode = currency;
-          _exchangeRate =
-              rates[currency] ??
-              1.0;
-        },
-      );
-    } catch (
-      e
-    ) {
-      print(
-        'Error initializing currency: $e',
-      );
+      setState(() {
+        _currencySymbol = symbol;
+        _currencyCode = currency;
+        _exchangeRate = rates[currency] ?? 1.0;
+      });
+    } catch (e) {
+      print('Error initializing currency: $e');
     }
   }
 
-  Future<
-    void
-  >
-  _loadData() async {
-    await Future.wait(
-      [
-        _loadNewProducts(),
-        _loadPopularProducts(),
-        _loadCart(),
-        _loadCategories(),
-      ],
-    );
-    setState(
-      () => _isLoading = false,
-    );
+  Future<void> _loadData() async {
+    await Future.wait([
+      _loadNewProducts(),
+      _loadPopularProducts(),
+      _loadCart(),
+      _loadCategories(),
+    ]);
+    setState(() => _isLoading = false);
   }
 
-  Future<
-    void
-  >
-  _loadNewProducts() async {
+  Future<void> _loadNewProducts() async {
     try {
       final response = await ApiService.getNewProducts();
       if (response['success']) {
-        setState(
-          () {
-            _newProducts =
-                List<
-                  Map<
-                    String,
-                    dynamic
-                  >
-                >.from(
-                  response['data'],
-                );
-          },
-        );
+        setState(() {
+          _newProducts = List<Map<String, dynamic>>.from(response['data']);
+        });
       }
-    } catch (
-      e
-    ) {
+    } catch (e) {
       // Handle error silently
     }
   }
 
-  Future<
-    void
-  >
-  _loadPopularProducts() async {
+  Future<void> _loadPopularProducts() async {
     try {
       final response = await ApiService.getPopularProducts();
       if (response['success']) {
-        setState(
-          () {
-            _popularProducts =
-                List<
-                  Map<
-                    String,
-                    dynamic
-                  >
-                >.from(
-                  response['data'],
-                );
-          },
-        );
+        setState(() {
+          _popularProducts = List<Map<String, dynamic>>.from(response['data']);
+        });
       }
-    } catch (
-      e
-    ) {
+    } catch (e) {
       // Handle error silently
     }
   }
 
-  Future<
-    void
-  >
-  _loadCart() async {
+  Future<void> _loadCart() async {
     try {
       final response = await ApiService.getCart();
       if (response['success']) {
-        setState(
-          () {
-            _cart =
-                response['data'] ??
-                {};
-          },
-        );
+        setState(() {
+          _cart = response['data'] ?? {};
+        });
       }
-    } catch (
-      e
-    ) {
+    } catch (e) {
       // Handle error silently - cart might be empty or user not logged in
-      setState(
-        () {
-          _cart = {};
-        },
-      );
+      setState(() {
+        _cart = {};
+      });
     }
   }
 
-  Future<
-    void
-  >
-  _loadCategories() async {
+  Future<void> _loadCategories() async {
     try {
       final response = await ApiService.getCategories();
       if (response['success']) {
-        setState(
-          () {
-            _categories =
-                Map<
-                  String,
-                  int
-                >.from(
-                  response['data'],
-                );
-          },
-        );
+        setState(() {
+          _categories = Map<String, int>.from(response['data']);
+        });
       }
-    } catch (
-      e
-    ) {
+    } catch (e) {
       // Handle error silently
     }
   }
 
-  double
-  _getCartTotal() {
-    if (_cart['items'] ==
-        null) {
+  double _getCartTotal() {
+    if (_cart['items'] == null) {
       return 0;
     }
     double total = 0;
     // Calculate total as 50% cash + 50% coins value
     for (var item in _cart['items']) {
-      final product =
-          item['product'] ??
-          {};
-      final basePrice =
-          (product['price'] ??
-                  0.0)
-              .toDouble();
-      final quantity =
-          (item['quantity'] ??
-                  1)
-              .toInt();
+      final product = item['product'] ?? {};
+      final basePrice = (product['price'] ?? 0.0).toDouble();
+      final quantity = (item['quantity'] ?? 1).toInt();
       // Show only the cash portion (50%) in cart total, converted to local currency
-      final cashAmount =
-          (basePrice *
-              0.5) *
-          quantity;
-      total +=
-          cashAmount *
-          _exchangeRate;
+      final cashAmount = (basePrice * 0.5) * quantity;
+      total += cashAmount * _exchangeRate;
     }
     return total;
   }
 
-  int
-  _getCartItemCount() {
-    if (_cart['items'] ==
-        null) {
+  int _getCartItemCount() {
+    if (_cart['items'] == null) {
       return 0;
     }
     int count = 0;
     for (var item in _cart['items']) {
-      count +=
-          (item['quantity'] ??
-                  0)
-              as int;
+      count += (item['quantity'] ?? 0) as int;
     }
     return count;
   }
 
   @override
-  Widget
-  build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back,
-            color: Colors.black,
-          ),
-          onPressed: () => Navigator.pop(
-            context,
-          ),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Store',
           style: TextStyle(
-            color: Color(
-              0xFF8B5CF6,
-            ),
+            color: Color(0xFF8B5CF6),
             fontSize: 20,
             fontWeight: FontWeight.w600,
           ),
@@ -301,103 +163,65 @@ class _StoreScreenState
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: const EdgeInsets.all(
-              20,
-            ),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (_isLoading) ...[
                   const SizedBox(
                     height: 200,
-                    child: Center(
-                      child: CircularProgressIndicator(),
-                    ),
+                    child: Center(child: CircularProgressIndicator()),
                   ),
                 ] else ...[
                   // New Items Section - only show if there are new products
                   if (_newProducts.isNotEmpty) ...[
-                    _buildSectionHeader(
-                      'New Items',
-                    ),
-                    const SizedBox(
-                      height: 16,
-                    ),
+                    _buildSectionHeader('New Items'),
+                    const SizedBox(height: 16),
                     SizedBox(
                       height: 200,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         itemCount: _newProducts.length,
-                        itemBuilder:
-                            (
-                              context,
-                              index,
-                            ) {
-                              final product = _newProducts[index];
-                              return _buildNewItemCard(
-                                context,
-                                product,
-                              );
-                            },
+                        itemBuilder: (context, index) {
+                          final product = _newProducts[index];
+                          return _buildNewItemCard(context, product);
+                        },
                       ),
                     ),
-                    const SizedBox(
-                      height: 32,
-                    ),
+                    const SizedBox(height: 32),
                   ],
 
                   // Most Popular Section - only show if there are popular products
                   if (_popularProducts.isNotEmpty) ...[
-                    _buildSectionHeader(
-                      'Most Popular',
-                    ),
-                    const SizedBox(
-                      height: 16,
-                    ),
+                    _buildSectionHeader('Most Popular'),
+                    const SizedBox(height: 16),
                     SizedBox(
                       height: 140,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         itemCount: _popularProducts.length,
-                        itemBuilder:
-                            (
-                              context,
-                              index,
-                            ) {
-                              final product = _popularProducts[index];
-                              return _buildPopularItemCard(
-                                context,
-                                product,
-                              );
-                            },
+                        itemBuilder: (context, index) {
+                          final product = _popularProducts[index];
+                          return _buildPopularItemCard(context, product);
+                        },
                       ),
                     ),
-                    const SizedBox(
-                      height: 32,
-                    ),
+                    const SizedBox(height: 32),
                   ],
 
                   // Categories Section - only show if there are categories with products
                   if (_categories.isNotEmpty) ...[
-                    _buildSectionHeader(
-                      'Categories',
-                    ),
-                    const SizedBox(
-                      height: 16,
-                    ),
+                    _buildSectionHeader('Categories'),
+                    const SizedBox(height: 16),
                     _buildCategoriesGrid(),
-                    const SizedBox(
-                      height: 32,
-                    ),
+                    const SizedBox(height: 32),
                   ],
 
                   // Show message if no products at all
                   if (_newProducts.isEmpty &&
                       _popularProducts.isEmpty &&
                       _categories.isEmpty) ...[
-                    const SizedBox(
-                      height: 100,
-                    ),
+                    const SizedBox(height: 100),
                     Center(
                       child: Column(
                         children: [
@@ -406,9 +230,7 @@ class _StoreScreenState
                             size: 64,
                             color: Colors.grey[400],
                           ),
-                          const SizedBox(
-                            height: 16,
-                          ),
+                          const SizedBox(height: 16),
                           Text(
                             'Store Coming Soon',
                             style: TextStyle(
@@ -417,9 +239,7 @@ class _StoreScreenState
                               color: Colors.grey[600],
                             ),
                           ),
-                          const SizedBox(
-                            height: 8,
-                          ),
+                          const SizedBox(height: 8),
                           Text(
                             'Products will be available soon!',
                             style: TextStyle(
@@ -432,9 +252,7 @@ class _StoreScreenState
                     ),
                   ],
                 ],
-                const SizedBox(
-                  height: 120,
-                ),
+                const SizedBox(height: 120),
               ],
             ),
           ),
@@ -448,39 +266,19 @@ class _StoreScreenState
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder:
-                        (
-                          context,
-                        ) => const CartScreen(),
-                  ),
-                ).then(
-                  (
-                    _,
-                  ) => _loadCart(),
-                );
+                  MaterialPageRoute(builder: (context) => const CartScreen()),
+                ).then((_) => _loadCart());
               },
               child: Container(
                 height: 60,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [
-                      Color(
-                        0xFF8B5CF6,
-                      ),
-                      Color(
-                        0xFF7C3AED,
-                      ),
-                    ],
+                    colors: [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
                   ),
-                  borderRadius: BorderRadius.circular(
-                    30,
-                  ),
+                  borderRadius: BorderRadius.circular(30),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     children: [
                       const Icon(
@@ -488,9 +286,7 @@ class _StoreScreenState
                         color: Colors.white,
                         size: 24,
                       ),
-                      const SizedBox(
-                        width: 12,
-                      ),
+                      const SizedBox(width: 12),
                       Text(
                         'View Cart (${_getCartItemCount()}) | ',
                         style: const TextStyle(
@@ -518,17 +314,12 @@ class _StoreScreenState
     );
   }
 
-  Widget
-  _buildSectionHeader(
-    String title,
-  ) {
+  Widget _buildSectionHeader(String title) {
     // Determine which category to show based on title
     String? categoryKey;
-    if (title ==
-        'New Items') {
+    if (title == 'New Items') {
       categoryKey = 'new';
-    } else if (title ==
-        'Most Popular') {
+    } else if (title == 'Most Popular') {
       categoryKey = 'popular';
     }
 
@@ -544,20 +335,15 @@ class _StoreScreenState
           ),
         ),
         GestureDetector(
-          onTap:
-              categoryKey !=
-                  null
+          onTap: categoryKey != null
               ? () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder:
-                          (
-                            context,
-                          ) => CategoryProductsScreen(
-                            category: categoryKey!,
-                            categoryName: title,
-                          ),
+                      builder: (context) => CategoryProductsScreen(
+                        category: categoryKey!,
+                        categoryName: title,
+                      ),
                     ),
                   );
                 }
@@ -572,16 +358,12 @@ class _StoreScreenState
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(
-                width: 4,
-              ),
+              const SizedBox(width: 4),
               Container(
                 width: 24,
                 height: 24,
                 decoration: const BoxDecoration(
-                  color: Color(
-                    0xFF8B5CF6,
-                  ),
+                  color: Color(0xFF8B5CF6),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -597,38 +379,20 @@ class _StoreScreenState
     );
   }
 
-  Widget
-  _buildNewItemCard(
-    BuildContext context,
-    Map<
-      String,
-      dynamic
-    >
-    product,
-  ) {
+  Widget _buildNewItemCard(BuildContext context, Map<String, dynamic> product) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder:
-                (
-                  context,
-                ) => ProductDetailScreen(
-                  productId: product['_id'],
-                ),
+            builder: (context) =>
+                ProductDetailScreen(productId: product['_id']),
           ),
-        ).then(
-          (
-            _,
-          ) => _loadCart(),
-        );
+        ).then((_) => _loadCart());
       },
       child: Container(
         width: 140,
-        margin: const EdgeInsets.only(
-          right: 16,
-        ),
+        margin: const EdgeInsets.only(right: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -636,42 +400,28 @@ class _StoreScreenState
               height: 120,
               decoration: BoxDecoration(
                 color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(
-                  12,
-                ),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(
-                  12,
-                ),
+                borderRadius: BorderRadius.circular(12),
                 child:
-                    product['images'] !=
-                            null &&
-                        (product['images']
-                                as List)
-                            .isNotEmpty
+                    product['images'] != null &&
+                        (product['images'] as List).isNotEmpty
                     ? Image.network(
-                        ApiService.getImageUrl(
-                          product['images'][0],
-                        ),
+                        ApiService.getImageUrl(product['images'][0]),
                         fit: BoxFit.cover,
-                        errorBuilder:
-                            (
-                              context,
-                              error,
-                              stackTrace,
-                            ) {
-                              return Container(
-                                color: Colors.grey[300],
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.shopping_bag,
-                                    size: 40,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              );
-                            },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey[300],
+                            child: const Center(
+                              child: Icon(
+                                Icons.shopping_bag,
+                                size: 40,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          );
+                        },
                       )
                     : Container(
                         color: Colors.grey[300],
@@ -685,12 +435,9 @@ class _StoreScreenState
                       ),
               ),
             ),
-            const SizedBox(
-              height: 4,
-            ),
+            const SizedBox(height: 4),
             Text(
-              product['name'] ??
-                  'Product',
+              product['name'] ?? 'Product',
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -699,12 +446,9 @@ class _StoreScreenState
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(
-              height: 1,
-            ),
+            const SizedBox(height: 1),
             Text(
-              product['description'] ??
-                  '',
+              product['description'] ?? '',
               style: const TextStyle(
                 fontSize: 11,
                 color: Colors.grey,
@@ -713,16 +457,12 @@ class _StoreScreenState
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(
-              height: 2,
-            ),
+            const SizedBox(height: 2),
             Row(
               children: [
                 Expanded(
                   child: Text(
-                    _getProductPrice(
-                      product,
-                    ),
+                    _getProductPrice(product),
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -732,9 +472,7 @@ class _StoreScreenState
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(
-                  width: 4,
-                ),
+                const SizedBox(width: 4),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 4,
@@ -742,16 +480,9 @@ class _StoreScreenState
                   ),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [
-                        Color(
-                          0xFF8B5CF6,
-                        ),
-                        Colors.amber,
-                      ],
+                      colors: [Color(0xFF8B5CF6), Colors.amber],
                     ),
-                    borderRadius: BorderRadius.circular(
-                      4,
-                    ),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Text(
                     '50/50',
@@ -770,29 +501,19 @@ class _StoreScreenState
     );
   }
 
-  Widget
-  _buildPopularItemCard(
+  Widget _buildPopularItemCard(
     BuildContext context,
-    Map<
-      String,
-      dynamic
-    >
-    product,
+    Map<String, dynamic> product,
   ) {
-    final badge =
-        product['badge'] ??
-        '';
+    final badge = product['badge'] ?? '';
     Color badgeColor = Colors.grey;
-    if (badge ==
-        'new') {
+    if (badge == 'new') {
       badgeColor = Colors.blue;
     }
-    if (badge ==
-        'sale') {
+    if (badge == 'sale') {
       badgeColor = Colors.red;
     }
-    if (badge ==
-        'hot') {
+    if (badge == 'hot') {
       badgeColor = Colors.orange;
     }
 
@@ -801,66 +522,42 @@ class _StoreScreenState
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder:
-                (
-                  context,
-                ) => ProductDetailScreen(
-                  productId: product['_id'],
-                ),
+            builder: (context) =>
+                ProductDetailScreen(productId: product['_id']),
           ),
-        ).then(
-          (
-            _,
-          ) => _loadCart(),
-        );
+        ).then((_) => _loadCart());
       },
       child: Container(
         width: 100,
-        margin: const EdgeInsets.only(
-          right: 16,
-        ),
+        margin: const EdgeInsets.only(right: 16),
         child: Column(
           children: [
             Container(
               height: 80,
               decoration: BoxDecoration(
                 color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(
-                  12,
-                ),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(
-                  12,
-                ),
+                borderRadius: BorderRadius.circular(12),
                 child:
-                    product['images'] !=
-                            null &&
-                        (product['images']
-                                as List)
-                            .isNotEmpty
+                    product['images'] != null &&
+                        (product['images'] as List).isNotEmpty
                     ? Image.network(
-                        ApiService.getImageUrl(
-                          product['images'][0],
-                        ),
+                        ApiService.getImageUrl(product['images'][0]),
                         fit: BoxFit.cover,
-                        errorBuilder:
-                            (
-                              context,
-                              error,
-                              stackTrace,
-                            ) {
-                              return Container(
-                                color: Colors.grey[300],
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.shopping_bag,
-                                    size: 30,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              );
-                            },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey[300],
+                            child: const Center(
+                              child: Icon(
+                                Icons.shopping_bag,
+                                size: 30,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          );
+                        },
                       )
                     : Container(
                         color: Colors.grey[300],
@@ -874,9 +571,7 @@ class _StoreScreenState
                       ),
               ),
             ),
-            const SizedBox(
-              height: 8,
-            ),
+            const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -885,9 +580,7 @@ class _StoreScreenState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _getProductPrice(
-                          product,
-                        ),
+                        _getProductPrice(product),
                         style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
@@ -896,9 +589,7 @@ class _StoreScreenState
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(
-                        height: 2,
-                      ),
+                      const SizedBox(height: 2),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 4,
@@ -906,16 +597,9 @@ class _StoreScreenState
                         ),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [
-                              Color(
-                                0xFF8B5CF6,
-                              ),
-                              Colors.amber,
-                            ],
+                            colors: [Color(0xFF8B5CF6), Colors.amber],
                           ),
-                          borderRadius: BorderRadius.circular(
-                            4,
-                          ),
+                          borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
                           '50/50',
@@ -934,14 +618,10 @@ class _StoreScreenState
                   children: [
                     const Icon(
                       Icons.favorite,
-                      color: Color(
-                        0xFF8B5CF6,
-                      ),
+                      color: Color(0xFF8B5CF6),
                       size: 12,
                     ),
-                    const SizedBox(
-                      width: 2,
-                    ),
+                    const SizedBox(width: 2),
                     if (badge.isNotEmpty)
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -950,9 +630,7 @@ class _StoreScreenState
                         ),
                         decoration: BoxDecoration(
                           color: badgeColor,
-                          borderRadius: BorderRadius.circular(
-                            8,
-                          ),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           badge.toUpperCase(),
@@ -973,8 +651,7 @@ class _StoreScreenState
     );
   }
 
-  Widget
-  _buildCategoriesGrid() {
+  Widget _buildCategoriesGrid() {
     final categoryList = _categories.entries.toList();
     final categoryColors = [
       Colors.orange,
@@ -995,83 +672,42 @@ class _StoreScreenState
         childAspectRatio: 1.5,
       ),
       itemCount: categoryList.length,
-      itemBuilder:
-          (
-            context,
-            index,
-          ) {
-            final category = categoryList[index];
-            final color =
-                categoryColors[index %
-                    categoryColors.length];
-            return _buildCategoryCard(
-              _formatCategoryName(
-                category.key,
-              ),
-              category.value.toString(),
-              color,
-              category.key,
-            );
-          },
+      itemBuilder: (context, index) {
+        final category = categoryList[index];
+        final color = categoryColors[index % categoryColors.length];
+        return _buildCategoryCard(
+          _formatCategoryName(category.key),
+          category.value.toString(),
+          color,
+          category.key,
+        );
+      },
     );
   }
 
-  String
-  _formatCategoryName(
-    String category,
-  ) {
+  String _formatCategoryName(String category) {
     return category
-        .split(
-          '',
-        )
-        .map(
-          (
-            char,
-          ) {
-            return category.indexOf(
-                      char,
-                    ) ==
-                    0
-                ? char.toUpperCase()
-                : char;
-          },
-        )
-        .join(
-          '',
-        );
+        .split('')
+        .map((char) {
+          return category.indexOf(char) == 0 ? char.toUpperCase() : char;
+        })
+        .join('');
   }
 
-  String
-  _getProductPrice(
-    Map<
-      String,
-      dynamic
-    >
-    product,
-  ) {
+  String _getProductPrice(Map<String, dynamic> product) {
     // ALWAYS show 50% cash + 50% coins for ALL products
-    final basePrice =
-        (product['price'] ??
-                0.0)
-            .toDouble();
-    final cashAmount =
-        basePrice *
-        0.5;
+    final basePrice = (product['price'] ?? 0.0).toDouble();
+    final cashAmount = basePrice * 0.5;
 
     // Convert to user's local currency using cached rate
-    final localAmount =
-        cashAmount *
-        _exchangeRate;
+    final localAmount = cashAmount * _exchangeRate;
 
-    // Calculate coins (1 local currency unit = 100 coins)
-    final coinAmount = CurrencyService.getCoinAmount(
-      localAmount,
-    );
+    // Calculate coins (1 coin = 1 INR)
+    final coinAmount = CurrencyService.getCoinAmount(localAmount);
 
     // Format based on currency
     String formattedPrice;
-    if (_currencyCode ==
-        'JPY') {
+    if (_currencyCode == 'JPY') {
       formattedPrice = '$_currencySymbol${localAmount.toStringAsFixed(0)}';
     } else {
       formattedPrice = '$_currencySymbol${localAmount.toStringAsFixed(2)}';
@@ -1080,8 +716,7 @@ class _StoreScreenState
     return '$formattedPrice + $coinAmount coins';
   }
 
-  Widget
-  _buildCategoryCard(
+  Widget _buildCategoryCard(
     String title,
     String count,
     Color color,
@@ -1093,45 +728,28 @@ class _StoreScreenState
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder:
-                (
-                  context,
-                ) => CategoryProductsScreen(
-                  category: categoryKey,
-                  categoryName: title,
-                ),
+            builder: (context) => CategoryProductsScreen(
+              category: categoryKey,
+              categoryName: title,
+            ),
           ),
         );
       },
       child: Container(
         decoration: BoxDecoration(
-          color: color.withValues(
-            alpha: 0.1,
-          ),
-          borderRadius: BorderRadius.circular(
-            16,
-          ),
-          border: Border.all(
-            color: color.withValues(
-              alpha: 0.3,
-            ),
-          ),
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Stack(
           children: [
             Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(
-                  16,
-                ),
+                borderRadius: BorderRadius.circular(16),
                 gradient: LinearGradient(
                   colors: [
-                    color.withValues(
-                      alpha: 0.2,
-                    ),
-                    color.withValues(
-                      alpha: 0.1,
-                    ),
+                    color.withValues(alpha: 0.2),
+                    color.withValues(alpha: 0.1),
                   ],
                 ),
               ),
@@ -1170,9 +788,7 @@ class _StoreScreenState
               top: 12,
               right: 12,
               child: Icon(
-                _getCategoryIcon(
-                  categoryKey,
-                ),
+                _getCategoryIcon(categoryKey),
                 color: color,
                 size: 24,
               ),
@@ -1183,10 +799,7 @@ class _StoreScreenState
     );
   }
 
-  IconData
-  _getCategoryIcon(
-    String category,
-  ) {
+  IconData _getCategoryIcon(String category) {
     switch (category.toLowerCase()) {
       case 'clothing':
         return Icons.checkroom;

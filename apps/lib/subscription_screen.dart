@@ -1,130 +1,65 @@
 import 'package:flutter/material.dart';
 import 'services/api_service.dart';
 
-class SubscriptionScreen
-    extends
-        StatefulWidget {
-  const SubscriptionScreen({
-    super.key,
-  });
+class SubscriptionScreen extends StatefulWidget {
+  const SubscriptionScreen({super.key});
 
   @override
-  State<
-    SubscriptionScreen
-  >
-  createState() => _SubscriptionScreenState();
+  State<SubscriptionScreen> createState() => _SubscriptionScreenState();
 }
 
-class _SubscriptionScreenState
-    extends
-        State<
-          SubscriptionScreen
-        > {
-  final PageController
-  _pageController = PageController();
-  int
-  _currentPage = 0;
-  List<
-    Map<
-      String,
-      dynamic
-    >
-  >
-  _plans = [];
-  bool
-  _isLoading = true;
-  String?
-  _currentPlanId;
+class _SubscriptionScreenState extends State<SubscriptionScreen> {
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
+  List<Map<String, dynamic>> _plans = [];
+  bool _isLoading = true;
+  String? _currentPlanId;
 
   @override
-  void
-  initState() {
+  void initState() {
     super.initState();
     _loadPlans();
     _loadCurrentSubscription();
   }
 
-  Future<
-    void
-  >
-  _loadPlans() async {
+  Future<void> _loadPlans() async {
     try {
       final response = await ApiService.getSubscriptionPlans();
       if (response['success']) {
-        setState(
-          () {
-            _plans =
-                List<
-                  Map<
-                    String,
-                    dynamic
-                  >
-                >.from(
-                  response['data'] ??
-                      [],
-                );
-            _isLoading = false;
-          },
-        );
-      }
-    } catch (
-      e
-    ) {
-      print(
-        'Error loading plans: $e',
-      );
-      setState(
-        () {
+        setState(() {
+          _plans = List<Map<String, dynamic>>.from(response['data'] ?? []);
           _isLoading = false;
-        },
-      );
+        });
+      }
+    } catch (e) {
+      print('Error loading plans: $e');
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
-  Future<
-    void
-  >
-  _loadCurrentSubscription() async {
+  Future<void> _loadCurrentSubscription() async {
     try {
       final response = await ApiService.getMySubscription();
-      if (response['success'] &&
-          response['data'] !=
-              null) {
-        setState(
-          () {
-            _currentPlanId = response['data']['plan']?['_id'];
-          },
-        );
+      if (response['success'] && response['data'] != null) {
+        setState(() {
+          _currentPlanId = response['data']['plan']?['_id'];
+        });
       }
-    } catch (
-      e
-    ) {
-      print(
-        'No active subscription: $e',
-      );
+    } catch (e) {
+      print('No active subscription: $e');
     }
   }
 
-  Future<
-    void
-  >
-  _subscribeToPlan(
-    String planId,
-    String planName,
-  ) async {
+  Future<void> _subscribeToPlan(String planId, String planName) async {
     try {
       // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder:
-            (
-              context,
-            ) => const Center(
-              child: CircularProgressIndicator(
-                color: Colors.white,
-              ),
-            ),
+        builder: (context) =>
+            const Center(child: CircularProgressIndicator(color: Colors.white)),
       );
 
       final response = await ApiService.subscribeToPlan(
@@ -133,60 +68,35 @@ class _SubscriptionScreenState
         paymentMethod: 'coins',
       );
 
-      Navigator.pop(
-        context,
-      ); // Close loading dialog
+      Navigator.pop(context); // Close loading dialog
 
       if (response['success']) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Successfully subscribed to $planName!',
-            ),
+            content: Text('Successfully subscribed to $planName!'),
             backgroundColor: Colors.green,
           ),
         );
         // Reload subscription status
         await _loadCurrentSubscription();
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              response['message'] ??
-                  'Failed to subscribe',
-            ),
+            content: Text(response['message'] ?? 'Failed to subscribe'),
             backgroundColor: Colors.red,
           ),
         );
       }
-    } catch (
-      e
-    ) {
-      Navigator.pop(
-        context,
-      ); // Close loading dialog
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Error: $e',
-          ),
-          backgroundColor: Colors.red,
-        ),
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
   }
 
   @override
-  Widget
-  build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
         body: Container(
@@ -194,20 +104,11 @@ class _SubscriptionScreenState
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                Color(
-                  0xFF8B5CF6,
-                ),
-                Color(
-                  0xFF7C3AED,
-                ),
-              ],
+              colors: [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
             ),
           ),
           child: const Center(
-            child: CircularProgressIndicator(
-              color: Colors.white,
-            ),
+            child: CircularProgressIndicator(color: Colors.white),
           ),
         ),
       );
@@ -218,14 +119,7 @@ class _SubscriptionScreenState
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(
-                0xFF8B5CF6,
-              ),
-              Color(
-                0xFF7C3AED,
-              ),
-            ],
+            colors: [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
           ),
         ),
         child: SafeArea(
@@ -233,19 +127,12 @@ class _SubscriptionScreenState
             children: [
               // Header
               Padding(
-                padding: const EdgeInsets.all(
-                  20,
-                ),
+                padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(
-                        Icons.arrow_back,
-                        color: Colors.white,
-                      ),
-                      onPressed: () => Navigator.pop(
-                        context,
-                      ),
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
                     ),
                   ],
                 ),
@@ -253,9 +140,7 @@ class _SubscriptionScreenState
 
               // Title and subtitle
               Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 40,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 40),
                 child: Column(
                   children: [
                     const Text(
@@ -267,9 +152,7 @@ class _SubscriptionScreenState
                       ),
                     ),
 
-                    const SizedBox(
-                      height: 16,
-                    ),
+                    const SizedBox(height: 16),
 
                     const Text(
                       'Unlock all the power of this mobile tool and enjoy digital experience like never before!',
@@ -284,9 +167,7 @@ class _SubscriptionScreenState
                 ),
               ),
 
-              const SizedBox(
-                height: 40,
-              ),
+              const SizedBox(height: 40),
 
               // Subscription cards with PageView
               Expanded(
@@ -294,52 +175,31 @@ class _SubscriptionScreenState
                     ? const Center(
                         child: Text(
                           'No plans available',
-                          style: TextStyle(
-                            color: Colors.white,
-                          ),
+                          style: TextStyle(color: Colors.white),
                         ),
                       )
                     : PageView(
                         controller: _pageController,
                         physics: const BouncingScrollPhysics(),
-                        onPageChanged:
-                            (
-                              index,
-                            ) {
-                              setState(
-                                () {
-                                  _currentPage = index;
-                                },
-                              );
-                            },
+                        onPageChanged: (index) {
+                          setState(() {
+                            _currentPage = index;
+                          });
+                        },
                         children: _plans
                             .map(
-                              (
-                                plan,
-                              ) => _buildSubscriptionCard(
+                              (plan) => _buildSubscriptionCard(
                                 planId: plan['_id'],
-                                planName:
-                                    plan['name']?.toUpperCase() ??
-                                    'PLAN',
-                                price: '\$${plan['price']?['monthly'] ?? 0}',
-                                description:
-                                    plan['description'] ??
-                                    '',
-                                features:
-                                    List<
-                                      String
-                                    >.from(
-                                      plan['highlightedFeatures'] ??
-                                          [],
-                                    ),
-                                buttonText:
-                                    _currentPlanId ==
-                                        plan['_id']
+                                planName: plan['name']?.toUpperCase() ?? 'PLAN',
+                                price: '₹${plan['price']?['monthly'] ?? 0}',
+                                description: plan['description'] ?? '',
+                                features: List<String>.from(
+                                  plan['highlightedFeatures'] ?? [],
+                                ),
+                                buttonText: _currentPlanId == plan['_id']
                                     ? 'Current Plan'
                                     : 'Subscribe',
-                                isCurrentPlan:
-                                    _currentPlanId ==
-                                    plan['_id'],
+                                isCurrentPlan: _currentPlanId == plan['_id'],
                               ),
                             )
                             .toList(),
@@ -348,52 +208,27 @@ class _SubscriptionScreenState
 
               // Page indicators
               Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 20,
-                ),
+                padding: const EdgeInsets.symmetric(vertical: 20),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    _plans.length,
-                    (
-                      index,
-                    ) {
-                      return Container(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                        ),
-                        width:
-                            _currentPage ==
-                                index
-                            ? 32
-                            : 8,
-                        height:
-                            _currentPage ==
-                                index
-                            ? 4
-                            : 8,
-                        decoration: BoxDecoration(
-                          color:
-                              _currentPage ==
-                                  index
-                              ? Colors.white
-                              : Colors.white54,
-                          borderRadius:
-                              _currentPage ==
-                                  index
-                              ? BorderRadius.circular(
-                                  2,
-                                )
-                              : null,
-                          shape:
-                              _currentPage ==
-                                  index
-                              ? BoxShape.rectangle
-                              : BoxShape.circle,
-                        ),
-                      );
-                    },
-                  ),
+                  children: List.generate(_plans.length, (index) {
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: _currentPage == index ? 32 : 8,
+                      height: _currentPage == index ? 4 : 8,
+                      decoration: BoxDecoration(
+                        color: _currentPage == index
+                            ? Colors.white
+                            : Colors.white54,
+                        borderRadius: _currentPage == index
+                            ? BorderRadius.circular(2)
+                            : null,
+                        shape: _currentPage == index
+                            ? BoxShape.rectangle
+                            : BoxShape.circle,
+                      ),
+                    );
+                  }),
                 ),
               ),
 
@@ -417,21 +252,16 @@ class _SubscriptionScreenState
                       ),
                       TextSpan(
                         text: 'Terms of Service',
-                        style: TextStyle(
-                          decoration: TextDecoration.underline,
-                        ),
+                        style: TextStyle(decoration: TextDecoration.underline),
                       ),
-                      TextSpan(
-                        text: ' and ',
-                      ),
+                      TextSpan(text: ' and '),
                       TextSpan(
                         text: 'Privacy Policy',
-                        style: TextStyle(
-                          decoration: TextDecoration.underline,
-                        ),
+                        style: TextStyle(decoration: TextDecoration.underline),
                       ),
                       TextSpan(
-                        text: '. Subscription automatically renews unless auto-renew is turned off at least 24-hours before the end of the current period.',
+                        text:
+                            '. Subscription automatically renews unless auto-renew is turned off at least 24-hours before the end of the current period.',
                       ),
                     ],
                   ),
@@ -444,31 +274,21 @@ class _SubscriptionScreenState
     );
   }
 
-  Widget
-  _buildSubscriptionCard({
+  Widget _buildSubscriptionCard({
     required String planId,
     required String planName,
     required String price,
     required String description,
-    required List<
-      String
-    >
-    features,
+    required List<String> features,
     required String buttonText,
     required bool isCurrentPlan,
   }) {
     return Container(
-      margin: const EdgeInsets.symmetric(
-        horizontal: 20,
-      ),
-      padding: const EdgeInsets.all(
-        24,
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(
-          24,
-        ),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -481,21 +301,14 @@ class _SubscriptionScreenState
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  border: Border.all(
-                    color: const Color(
-                      0xFF8B5CF6,
-                    ),
-                    width: 3,
-                  ),
+                  border: Border.all(color: const Color(0xFF8B5CF6), width: 3),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
                   child: Text(
                     planName,
                     style: const TextStyle(
-                      color: Color(
-                        0xFF8B5CF6,
-                      ),
+                      color: Color(0xFF8B5CF6),
                       fontSize: 8,
                       fontWeight: FontWeight.bold,
                     ),
@@ -510,12 +323,8 @@ class _SubscriptionScreenState
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(
-                      0xFF8B5CF6,
-                    ),
-                    borderRadius: BorderRadius.circular(
-                      20,
-                    ),
+                    color: const Color(0xFF8B5CF6),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text(
                     'Current plan',
@@ -529,9 +338,7 @@ class _SubscriptionScreenState
             ],
           ),
 
-          const SizedBox(
-            height: 20,
-          ),
+          const SizedBox(height: 20),
 
           // Plan title and description
           Text(
@@ -543,9 +350,7 @@ class _SubscriptionScreenState
             ),
           ),
 
-          const SizedBox(
-            height: 8,
-          ),
+          const SizedBox(height: 8),
 
           Text(
             description,
@@ -556,9 +361,7 @@ class _SubscriptionScreenState
             ),
           ),
 
-          const SizedBox(
-            height: 20,
-          ),
+          const SizedBox(height: 20),
 
           // Price
           RichText(
@@ -569,25 +372,18 @@ class _SubscriptionScreenState
                   style: const TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
-                    color: Color(
-                      0xFF8B5CF6,
-                    ),
+                    color: Color(0xFF8B5CF6),
                   ),
                 ),
                 const TextSpan(
                   text: '/month',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(
-            height: 24,
-          ),
+          const SizedBox(height: 24),
 
           // Features list
           Expanded(
@@ -595,50 +391,31 @@ class _SubscriptionScreenState
               physics: const NeverScrollableScrollPhysics(),
               child: Column(
                 children: features
-                    .map(
-                      (
-                        feature,
-                      ) => _buildFeatureItem(
-                        feature,
-                      ),
-                    )
+                    .map((feature) => _buildFeatureItem(feature))
                     .toList(),
               ),
             ),
           ),
 
-          const SizedBox(
-            height: 20,
-          ),
+          const SizedBox(height: 20),
 
           // Action button
           Container(
             width: double.infinity,
             height: 56,
             decoration: BoxDecoration(
-              color: isCurrentPlan
-                  ? Colors.grey
-                  : const Color(
-                      0xFF8B5CF6,
-                    ),
-              borderRadius: BorderRadius.circular(
-                28,
-              ),
+              color: isCurrentPlan ? Colors.grey : const Color(0xFF8B5CF6),
+              borderRadius: BorderRadius.circular(28),
             ),
             child: ElevatedButton(
               onPressed: isCurrentPlan
                   ? null
-                  : () => _subscribeToPlan(
-                      planId,
-                      planName,
-                    ),
+                  : () => _subscribeToPlan(planId, planName),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(
-                    28,
-                  ),
+                  borderRadius: BorderRadius.circular(28),
                 ),
               ),
               child: Text(
@@ -656,27 +433,14 @@ class _SubscriptionScreenState
     );
   }
 
-  Widget
-  _buildFeatureItem(
-    String text,
-  ) {
+  Widget _buildFeatureItem(String text) {
     return Padding(
-      padding: const EdgeInsets.only(
-        bottom: 12,
-      ),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.check,
-            color: Color(
-              0xFF10B981,
-            ),
-            size: 20,
-          ),
-          const SizedBox(
-            width: 12,
-          ),
+          const Icon(Icons.check, color: Color(0xFF10B981), size: 20),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               text,

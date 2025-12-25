@@ -23,7 +23,8 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
 
   Future<void> _loadAds() async {
     try {
-      final ads = await RewardedAdService.getAds();
+      // Force refresh ads to get latest rewards from server
+      final ads = await RewardedAdService.refreshAds();
       if (mounted) {
         setState(() {
           _adOptions = ads;
@@ -31,7 +32,7 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
         });
       }
     } catch (e) {
-      print('Error loading ads: $e');
+      debugPrint('Error loading ads: $e');
       if (mounted) {
         setState(() {
           _adOptions = RewardedAdService.getDefaultAds();
@@ -45,11 +46,35 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Track ad impression
-      await RewardedAdService.trackAdClick(ad['adNumber'] ?? 1);
+      final adNumber = ad['adNumber'] ?? 1;
+      final provider = ad['adProvider'] ?? 'admob';
+      final reward = RewardedAdService.getRewardCoins(ad);
 
-      // Show AdMob rewarded ad
-      final adWatched = await AdMobService.showRewardedAd();
+      debugPrint(
+        '🎬 Watching ad: $adNumber (Provider: $provider, Reward: $reward coins)',
+      );
+
+      // Track ad impression
+      await RewardedAdService.trackAdClick(adNumber);
+
+      // Show provider-specific ad
+      bool adWatched = false;
+
+      if (provider == 'admob') {
+        // Show AdMob rewarded ad
+        adWatched = await AdMobService.showRewardedAd();
+      } else if (provider == 'meta') {
+        // For Meta, show AdMob as fallback (Meta SDK integration would go here)
+        debugPrint('📱 Meta provider - using AdMob fallback');
+        adWatched = await AdMobService.showRewardedAd();
+      } else if (provider == 'custom' || provider == 'third-party') {
+        // For custom providers, show AdMob as fallback
+        debugPrint('🔧 Custom provider - using AdMob fallback');
+        adWatched = await AdMobService.showRewardedAd();
+      } else {
+        // Default to AdMob
+        adWatched = await AdMobService.showRewardedAd();
+      }
 
       if (!adWatched) {
         if (mounted) {
@@ -65,19 +90,18 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
       }
 
       // Track conversion
-      await RewardedAdService.trackAdConversion(ad['adNumber'] ?? 1);
+      await RewardedAdService.trackAdConversion(adNumber);
 
-      // Call backend to award coins
+      // Call backend to award coins (flexible reward)
       final response = await ApiService.watchAd();
 
       if (mounted) {
         setState(() => _isLoading = false);
 
         if (response['success']) {
-          // Show success dialog
-          _showSuccessDialog(
-            response['coinsEarned'] ?? ad['rewardCoins'] ?? 10,
-          );
+          // Show success dialog with actual reward earned
+          final coinsEarned = response['coinsEarned'] ?? reward;
+          _showSuccessDialog(coinsEarned, ad['title'] ?? 'Ad');
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -97,7 +121,7 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
     }
   }
 
-  void _showSuccessDialog(int coinsEarned) {
+  void _showSuccessDialog(int coinsEarned, String adTitle) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -127,8 +151,8 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'You earned $coinsEarned coins!',
-                style: const TextStyle(fontSize: 18, color: Colors.grey),
+                'You earned $coinsEarned coins from $adTitle!',
+                style: const TextStyle(fontSize: 16, color: Colors.grey),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 30),
@@ -277,12 +301,15 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
   }
 
   Widget _buildAdCard(Map<String, dynamic> ad) {
-    // Get default color if not provided
-    final Color cardColor = ad['color'] ?? const Color(0xFF701CF5);
-    final IconData cardIcon = ad['icon'] ?? Icons.play_circle_filled;
+    // Get dynamic values from ad
+    final String colorHex = ad['color'] ?? '#667eea';
+    final Color cardColor = _hexToColor(colorHex);
+    final String iconName = ad['icon'] ?? 'gift';
+    final IconData cardIcon = _getIconFromName(iconName);
     final String title = ad['title'] ?? 'Ad ${ad['adNumber'] ?? 1}';
     final String description = ad['description'] ?? 'Watch this ad';
-    final int reward = ad['rewardCoins'] ?? ad['reward'] ?? 10;
+    final int reward = RewardedAdService.getRewardCoins(ad);
+    final String provider = ad['adProvider'] ?? 'admob';
     final bool isActive = ad['isActive'] ?? true;
 
     return InkWell(
@@ -305,76 +332,163 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
             ),
           ],
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Icon
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: cardColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(cardIcon, color: cardColor, size: 32),
-            ),
-            const SizedBox(width: 16),
+            // Top row: Icon, Title, Reward
+            Row(
+              children: [
+                // Icon
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: cardColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(cardIcon, color: cardColor, size: 32),
+                ),
+                const SizedBox(width: 16),
 
-            // Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
+                // Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: isActive ? Colors.grey[600] : Colors.grey[400],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isActive ? Colors.grey[600] : Colors.grey[400],
-                    ),
+                ),
+
+                // Reward badge
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
                   ),
-                ],
-              ),
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? const Color(0xFFFBBF24)
+                        : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.monetization_on,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '+$reward',
+                        style: TextStyle(
+                          color: isActive ? Colors.white : Colors.grey.shade600,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
 
-            // Reward badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: isActive
-                    ? const Color(0xFFFBBF24)
-                    : Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.monetization_on,
-                    color: Colors.white,
-                    size: 16,
+            // Provider badge (NEW)
+            if (provider != 'admob')
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '+$reward',
+                  decoration: BoxDecoration(
+                    color: cardColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Provider: ${provider.toUpperCase()}',
                     style: TextStyle(
-                      color: isActive ? Colors.white : Colors.grey.shade600,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: cardColor,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
           ],
         ),
       ),
     );
+  }
+
+  // Helper function to convert hex color to Color
+  Color _hexToColor(String hexString) {
+    try {
+      final buffer = StringBuffer();
+      if (hexString.length == 6 || hexString.length == 7) {
+        hexString = hexString.replaceFirst('#', '');
+      }
+      if (hexString.length != 6) {
+        return const Color(0xFF667eea); // Default color
+      }
+      buffer.write('ff');
+      buffer.write(hexString);
+      return Color(int.parse(buffer.toString(), radix: 16));
+    } catch (e) {
+      return const Color(0xFF667eea); // Default color on error
+    }
+  }
+
+  // Helper function to get icon from name
+  IconData _getIconFromName(String iconName) {
+    switch (iconName.toLowerCase()) {
+      case 'gift':
+        return Icons.card_giftcard;
+      case 'star':
+        return Icons.star;
+      case 'heart':
+        return Icons.favorite;
+      case 'fire':
+        return Icons.local_fire_department;
+      case 'trophy':
+        return Icons.emoji_events;
+      case 'coins':
+        return Icons.monetization_on;
+      case 'gem':
+        return Icons.diamond;
+      case 'crown':
+        return Icons.workspace_premium;
+      case 'zap':
+        return Icons.flash_on;
+      case 'target':
+        return Icons.track_changes;
+      case 'play-circle':
+        return Icons.play_circle_filled;
+      case 'video':
+        return Icons.video_library;
+      case 'hand-pointer':
+        return Icons.touch_app;
+      case 'clipboard':
+        return Icons.assignment;
+      default:
+        return Icons.play_circle_filled;
+    }
   }
 }

@@ -13,6 +13,7 @@ import 'notification_screen.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
 import 'services/ad_service.dart';
+import 'services/background_music_service.dart';
 import 'config/api_config.dart';
 
 class ReelScreen extends StatefulWidget {
@@ -31,6 +32,7 @@ class ReelScreenState extends State<ReelScreen>
 
   // Track if screen is currently visible
   bool _isScreenVisible = true;
+  bool _isDisposed = false; // Track if screen is being disposed
 
   List<Map<String, dynamic>> _posts = [];
   bool _isLoading = true;
@@ -97,6 +99,10 @@ class ReelScreenState extends State<ReelScreen>
   final int _adFrequency = 4; // Show ad every 4 reels
   bool _isLoadingAd = false;
 
+  // Background music tracking
+  String? _currentMusicId;
+  final BackgroundMusicService _musicService = BackgroundMusicService();
+
   @override
   void initState() {
     super.initState();
@@ -114,7 +120,15 @@ class ReelScreenState extends State<ReelScreen>
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       _isScreenVisible = false;
-      print('📱 App paused/inactive - stopping all videos');
+      print('📱 App paused/inactive - stopping all videos and music');
+
+      // Stop background music
+      try {
+        _musicService.pauseBackgroundMusic();
+        print('🎵 Background music paused');
+      } catch (e) {
+        print('Error pausing background music: $e');
+      }
 
       // Stop ALL videos immediately
       _videoControllers.forEach((key, controller) {
@@ -133,7 +147,15 @@ class ReelScreenState extends State<ReelScreen>
     // Resume video when app comes back to foreground
     else if (state == AppLifecycleState.resumed) {
       _isScreenVisible = true;
-      print('📱 App resumed - checking if we should resume videos');
+      print('📱 App resumed - checking if we should resume videos and music');
+
+      // Resume background music
+      try {
+        _musicService.resumeBackgroundMusic();
+        print('🎵 Background music resumed');
+      } catch (e) {
+        print('Error resuming background music: $e');
+      }
 
       // Reload feed if posts are empty (fixes black screen on app restart)
       if (_posts.isEmpty && !_isLoading) {
@@ -151,8 +173,68 @@ class ReelScreenState extends State<ReelScreen>
   }
 
   void _pauseCurrentVideo() {
-    _videoControllers[_currentIndex]?.pause();
-    print('⏸️ Video paused');
+    final controller = _videoControllers[_currentIndex];
+    if (controller != null) {
+      try {
+        controller.pause();
+        controller.setVolume(0.0); // Mute audio
+        print('⏸️ Video paused and muted');
+      } catch (e) {
+        print('Error pausing video: $e');
+      }
+    }
+  }
+
+  void _stopAllVideos() {
+    // Stop and mute ALL videos immediately
+    _isScreenVisible = false;
+    _videoControllers.forEach((key, controller) {
+      if (controller != null) {
+        try {
+          controller.pause();
+          controller.setVolume(0.0);
+          controller.seekTo(Duration.zero);
+          print('🔇 Stopped, muted, and reset video $key');
+        } catch (e) {
+          print('Error stopping video $key: $e');
+        }
+      }
+    });
+    _lastPlayAttempt.clear();
+  }
+
+  @override
+  void didPush() {
+    // Called when this route is pushed onto the navigator
+    print('📍 ReelScreen pushed - resuming videos');
+    _isScreenVisible = true;
+    _isDisposed = false;
+    _resumeCurrentVideo();
+  }
+
+  @override
+  void didPopNext() {
+    // Called when the route above this one has been popped off
+    print('📍 ReelScreen resumed (route popped) - resuming videos');
+    _isScreenVisible = true;
+    _isDisposed = false;
+    _resumeCurrentVideo();
+  }
+
+  @override
+  void didPop() {
+    // Called when this route is popped off the navigator
+    print('📍 ReelScreen popped - stopping all videos');
+    _isDisposed = true;
+    _stopAllVideos();
+  }
+
+  @override
+  void didPushNext() {
+    // Called when a new route has been pushed on top of this one
+    print('📍 New route pushed on top - stopping all videos');
+    _isDisposed = true;
+    _stopAllVideos();
   }
 
   void _resumeCurrentVideo() {
@@ -167,15 +249,16 @@ class ReelScreenState extends State<ReelScreen>
   void pauseVideo() {
     print('🔇🔇🔇 PAUSE VIDEO CALLED FROM MAIN SCREEN');
     _isScreenVisible = false;
+    _isDisposed = true; // Mark as disposed when pausing from main screen
 
-    // Pause all videos and mute them
+    // Pause all videos and mute them AGGRESSIVELY
     _videoControllers.forEach((key, controller) {
       if (controller != null) {
         try {
-          // Seek to beginning to stop playback completely
-          controller.seekTo(Duration.zero);
+          // Aggressive stop: pause, mute, seek to beginning
           controller.pause();
           controller.setVolume(0.0); // Mute the video
+          controller.seekTo(Duration.zero); // Seek to beginning
           print('🔇 Paused, muted, and reset video $key');
         } catch (e) {
           print('Error pausing video $key: $e');
@@ -188,9 +271,33 @@ class ReelScreenState extends State<ReelScreen>
     print('🔇 Cleared all pending play attempts');
   }
 
+  void stopAllVideosCompletely() {
+    // ULTRA AGGRESSIVE: Stop all videos completely
+    print('🔇🔇🔇 STOP ALL VIDEOS COMPLETELY');
+    _isScreenVisible = false;
+    _isDisposed = true;
+
+    _videoControllers.forEach((key, controller) {
+      if (controller != null) {
+        try {
+          controller.pause();
+          controller.setVolume(0.0);
+          controller.seekTo(Duration.zero);
+          print('🔇 Completely stopped video $key');
+        } catch (e) {
+          print('Error stopping video $key: $e');
+        }
+      }
+    });
+
+    _lastPlayAttempt.clear();
+    print('🔇 All videos completely stopped');
+  }
+
   void resumeVideo() {
     print('🔊🔊🔊 RESUME VIDEO CALLED FROM MAIN SCREEN');
     _isScreenVisible = true;
+    _isDisposed = false; // Mark as not disposed when resuming
 
     // Unmute and resume current video
     final controller = _videoControllers[_currentIndex];
@@ -289,8 +396,32 @@ class ReelScreenState extends State<ReelScreen>
 
       // Initialize first video only
       if (_posts.isNotEmpty) {
-        _initializeVideoController(0);
-        _trackView(_posts[0]['_id']);
+        // CRITICAL FIX: Check for initialPostId even with cached data
+        int initialIndex = 0;
+        if (widget.initialPostId != null) {
+          final index = _posts.indexWhere(
+            (post) => post['_id'] == widget.initialPostId,
+          );
+          if (index != -1) {
+            print('✅ Found initial post at index $index (from cache)');
+            initialIndex = index;
+          } else {
+            print(
+              '⚠️ Initial post ID not found in cached posts, starting from 0',
+            );
+          }
+        }
+
+        // Jump to the initial post if provided
+        if (widget.initialPostId != null && initialIndex >= 0) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            print('📍 Jumping to page $initialIndex (from cache)');
+            _pageController.jumpToPage(initialIndex);
+          });
+        }
+
+        _initializeVideoController(initialIndex);
+        _trackView(_posts[initialIndex]['_id']);
 
         // Load stats only for first 3 posts (current + next 2)
         final postsToLoadStats = _posts.take(3).toList();
@@ -313,74 +444,87 @@ class ReelScreenState extends State<ReelScreen>
 
     try {
       print('🔄 Lazy loading: Fetching first $_postsPerPage posts...');
+
+      List<Map<String, dynamic>> posts = [];
+
+      // Always load the general feed first
       final response = await ApiService.getFeed(page: 1, limit: _postsPerPage);
       print('Feed response: ${response['success']}');
 
-      if (!mounted) return;
-
-      if (response['success']) {
-        final posts = List<Map<String, dynamic>>.from(response['data']);
-        print('✅ Loaded ${posts.length} posts (lazy loading)');
-
-        // 🚀 OPTIMIZATION: Batch fetch pre-signed URLs for all videos
-        await _batchFetchPresignedUrls(posts);
-
-        // Cache the data
-        _cachedPosts = posts;
-        _hasFetchedData = true;
-        _hasMorePosts = posts.length >= _postsPerPage;
-
-        // Immediately show posts and initialize first video
-        if (posts.isNotEmpty) {
-          setState(() {
-            _posts = posts;
-            _isLoading = false;
-          });
-
-          // Find initial post index if provided
-          int initialIndex = 0;
-          if (widget.initialPostId != null) {
-            final index = _posts.indexWhere(
-              (post) => post['_id'] == widget.initialPostId,
-            );
-            if (index != -1) {
-              initialIndex = index;
-            }
-          }
-
-          // Initialize first video immediately
-          if (initialIndex > 0) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _pageController.jumpToPage(initialIndex);
-            });
-          }
-          _initializeVideoController(initialIndex);
-          _trackView(_posts[initialIndex]['_id']);
-
-          // Load stats only for first 3 posts (non-blocking)
-          final postsToLoadStats = posts.take(3).toList();
-          _loadStatsInBackground(postsToLoadStats);
-
-          // Check follow status only for first 3 posts (non-blocking)
-          for (final post in postsToLoadStats) {
-            final userId = post['user']?['_id'] ?? post['user']?['id'];
-            if (userId != null) {
-              _checkFollowStatus(userId);
-            }
-          }
-        } else {
-          print('No posts found');
-          setState(() {
-            _posts = posts;
-            _isLoading = false;
-            _hasMorePosts = false;
-          });
-        }
-      } else {
+      if (!response['success']) {
         print('Feed API returned success: false');
         if (mounted) {
           setState(() => _isLoading = false);
         }
+        return;
+      }
+
+      posts = List<Map<String, dynamic>>.from(response['data']);
+
+      print('✅ Loaded ${posts.length} posts');
+
+      if (!mounted) return;
+
+      // 🚀 OPTIMIZATION: Batch fetch pre-signed URLs for all videos
+      await _batchFetchPresignedUrls(posts);
+
+      // Cache the data
+      _cachedPosts = posts;
+      _hasFetchedData = true;
+      _hasMorePosts = posts.length >= _postsPerPage;
+
+      // Immediately show posts and initialize first video
+      if (posts.isNotEmpty) {
+        setState(() {
+          _posts = posts;
+          _isLoading = false;
+        });
+
+        // Find initial post index if provided
+        int initialIndex = 0;
+        if (widget.initialPostId != null) {
+          final index = _posts.indexWhere(
+            (post) => post['_id'] == widget.initialPostId,
+          );
+          if (index != -1) {
+            print('✅ Found initial post at index $index');
+            initialIndex = index;
+          } else {
+            print(
+              '⚠️ Initial post ID not found in loaded posts, starting from 0',
+            );
+          }
+        }
+
+        // Initialize first video immediately
+        // Jump to the initial post if provided (even if it's at index 0)
+        if (widget.initialPostId != null && initialIndex >= 0) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            print('📍 Jumping to page $initialIndex');
+            _pageController.jumpToPage(initialIndex);
+          });
+        }
+        _initializeVideoController(initialIndex);
+        _trackView(_posts[initialIndex]['_id']);
+
+        // Load stats only for first 3 posts (non-blocking)
+        final postsToLoadStats = posts.take(3).toList();
+        _loadStatsInBackground(postsToLoadStats);
+
+        // Check follow status only for first 3 posts (non-blocking)
+        for (final post in postsToLoadStats) {
+          final userId = post['user']?['_id'] ?? post['user']?['id'];
+          if (userId != null) {
+            _checkFollowStatus(userId);
+          }
+        }
+      } else {
+        print('No posts found');
+        setState(() {
+          _posts = posts;
+          _isLoading = false;
+          _hasMorePosts = false;
+        });
       }
     } catch (e) {
       print('Error loading feed: $e');
@@ -589,6 +733,14 @@ class ReelScreenState extends State<ReelScreen>
   }
 
   Future<void> _initializeVideoController(int index) async {
+    // CRITICAL: Check if screen is disposed before starting initialization
+    if (_isDisposed || !mounted) {
+      print(
+        '⚠️ Screen disposed, skipping video initialization for index $index',
+      );
+      return;
+    }
+
     if (_posts.isEmpty || index >= _posts.length) {
       return;
     }
@@ -736,7 +888,11 @@ class ReelScreenState extends State<ReelScreen>
 
       // Add listener to monitor playback state and loading
       controller.addListener(() {
-        if (!mounted) return;
+        // CRITICAL: Check if screen is disposed before doing anything
+        if (_isDisposed || !mounted) {
+          print('⚠️ Screen disposed, ignoring video listener for index $index');
+          return;
+        }
 
         // Check if video has enough buffer to play smoothly
         if (controller.value.isInitialized) {
@@ -750,7 +906,7 @@ class ReelScreenState extends State<ReelScreen>
             // INSTANT PLAY: Video is ready when buffered to just 10%
             // This gives near-instant playback from Wasabi
             if (bufferedEnd.inMilliseconds >= duration.inMilliseconds * 0.1) {
-              if (_videoFullyLoaded[index] != true && mounted) {
+              if (_videoFullyLoaded[index] != true && mounted && !_isDisposed) {
                 setState(() {
                   _videoFullyLoaded[index] = true;
                 });
@@ -759,11 +915,15 @@ class ReelScreenState extends State<ReelScreen>
                 );
 
                 // Auto-play from start if this is the current video
-                if (index == _currentIndex && mounted) {
-                  controller.setVolume(1.0);
-                  controller.seekTo(Duration.zero);
-                  controller.play();
-                  print('🔊 Auto-playing video $index with volume 1.0');
+                if (index == _currentIndex && mounted && !_isDisposed) {
+                  try {
+                    controller.setVolume(1.0);
+                    controller.seekTo(Duration.zero);
+                    controller.play();
+                    print('🔊 Auto-playing video $index with volume 1.0');
+                  } catch (e) {
+                    print('Error auto-playing video $index: $e');
+                  }
                 }
               }
             }
@@ -773,8 +933,8 @@ class ReelScreenState extends State<ReelScreen>
         // Auto-resume logic (only for current video and if ready)
         if (index != _currentIndex || _videoFullyLoaded[index] != true) return;
 
-        // Don't auto-resume if screen is not visible
-        if (!_isScreenVisible) return;
+        // Don't auto-resume if screen is not visible or disposed
+        if (!_isScreenVisible || _isDisposed) return;
 
         final now = DateTime.now();
         final lastAttempt = _lastPlayAttempt[index];
@@ -801,6 +961,15 @@ class ReelScreenState extends State<ReelScreen>
       });
 
       await controller.initialize();
+
+      // CRITICAL: Check if screen is disposed after initialization
+      if (_isDisposed || !mounted) {
+        print('⚠️ Screen disposed after initialization, stopping video $index');
+        controller.pause();
+        controller.setVolume(0.0);
+        return;
+      }
+
       controller.setLooping(true);
       controller.setPlaybackSpeed(1.0);
 
@@ -808,7 +977,7 @@ class ReelScreenState extends State<ReelScreen>
       controller.setVolume(1.0);
       print('🔊 Audio enabled for video $index (volume: 1.0)');
 
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         setState(() {
           _videoInitialized[index] = true;
         });
@@ -818,7 +987,7 @@ class ReelScreenState extends State<ReelScreen>
       }
     } catch (e) {
       print('Error initializing video $index: $e');
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         setState(() {
           _videoInitialized[index] = false;
           _videoFullyLoaded[index] = false;
@@ -832,6 +1001,14 @@ class ReelScreenState extends State<ReelScreen>
     VideoPlayerController controller,
     int index,
   ) async {
+    // CRITICAL: Check if screen is disposed before waiting
+    if (_isDisposed || !mounted) {
+      print('⚠️ Screen disposed, stopping wait for video $index');
+      controller.pause();
+      controller.setVolume(0.0);
+      return;
+    }
+
     if (!controller.value.isInitialized) return;
 
     final duration = controller.value.duration;
@@ -843,6 +1020,14 @@ class ReelScreenState extends State<ReelScreen>
     final maxWaitTime = DateTime.now().add(const Duration(seconds: 3));
 
     while (DateTime.now().isBefore(maxWaitTime)) {
+      // CRITICAL: Check if screen is disposed during wait loop
+      if (_isDisposed || !mounted) {
+        print('⚠️ Screen disposed during buffer wait for video $index');
+        controller.pause();
+        controller.setVolume(0.0);
+        return;
+      }
+
       final buffered = controller.value.buffered;
 
       if (buffered.isNotEmpty) {
@@ -853,7 +1038,7 @@ class ReelScreenState extends State<ReelScreen>
         // Video will continue buffering in background while playing
         // This gives near-instant playback for Wasabi videos
         if (bufferedEnd.inMilliseconds >= duration.inMilliseconds * 0.1) {
-          if (mounted) {
+          if (mounted && !_isDisposed) {
             setState(() {
               _videoFullyLoaded[index] = true;
             });
@@ -863,11 +1048,15 @@ class ReelScreenState extends State<ReelScreen>
           );
 
           // Seek to start and play if this is the current video
-          if (index == _currentIndex && mounted) {
-            controller.setVolume(1.0);
-            await controller.seekTo(Duration.zero);
-            await controller.play();
-            print('🔊 Playing video $index with volume 1.0');
+          if (index == _currentIndex && mounted && !_isDisposed) {
+            try {
+              controller.setVolume(1.0);
+              await controller.seekTo(Duration.zero);
+              await controller.play();
+              print('🔊 Playing video $index with volume 1.0');
+            } catch (e) {
+              print('Error playing video $index: $e');
+            }
           }
           return;
         }
@@ -879,43 +1068,51 @@ class ReelScreenState extends State<ReelScreen>
 
     // Timeout after 3 seconds - mark as ready and play anyway
     print('Video $index buffer timeout (3s), playing anyway');
-    if (mounted) {
+    if (mounted && !_isDisposed) {
       setState(() {
         _videoFullyLoaded[index] = true;
       });
 
       // Play even if not fully buffered
-      if (index == _currentIndex) {
-        controller.setVolume(1.0);
-        await controller.seekTo(Duration.zero);
-        await controller.play();
-        print('🔊 Playing video $index (timeout) with volume 1.0');
+      if (index == _currentIndex && !_isDisposed) {
+        try {
+          controller.setVolume(1.0);
+          await controller.seekTo(Duration.zero);
+          await controller.play();
+          print('🔊 Playing video $index (timeout) with volume 1.0');
+        } catch (e) {
+          print('Error playing video $index (timeout): $e');
+        }
       }
+    } else if (_isDisposed) {
+      // Screen disposed, stop the video
+      print('⚠️ Screen disposed during timeout, stopping video $index');
+      controller.pause();
+      controller.setVolume(0.0);
     }
-  }
-
-  // Get video duration as formatted string
-  String _getVideoDuration(int index) {
-    if (_videoInitialized[index] != true || _videoControllers[index] == null) {
-      return '00:00';
-    }
-
-    final controller = _videoControllers[index]!;
-    if (!controller.value.isInitialized) {
-      return '00:00';
-    }
-
-    final duration = controller.value.duration;
-    final minutes = duration.inMinutes;
-    final seconds = duration.inSeconds % 60;
-
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   void _onPageChanged(int index) {
     setState(() {
       _currentIndex = index;
     });
+
+    // 🎵 CRITICAL: Stop any currently playing music IMMEDIATELY before loading new music
+    // This prevents music overlap when scrolling
+    if (_currentMusicId != null) {
+      print('🎵 IMMEDIATE STOP: Stopping current music before page change');
+      // Stop music in background (don't await, just fire and forget)
+      _musicService
+          .stopBackgroundMusic()
+          .then((_) {
+            print('✅ Music stopped');
+          })
+          .catchError((e) {
+            print('Error stopping music: $e');
+          });
+      // CRITICAL: Reset music ID immediately so new music can be loaded
+      _currentMusicId = null;
+    }
 
     // Lazy loading: Load more posts when approaching the end
     if (index >= _posts.length - 2 && _hasMorePosts && !_isLoadingMore) {
@@ -984,6 +1181,57 @@ class ReelScreenState extends State<ReelScreen>
     // Track view
     if (_posts.isNotEmpty && index < _posts.length) {
       _trackView(_posts[index]['_id']);
+    }
+
+    // 🎵 Background music playback - Load new music for current reel
+    if (_posts.isNotEmpty && index < _posts.length) {
+      _playBackgroundMusicForReel(index);
+    }
+  }
+
+  // Load and play background music for current reel
+  Future<void> _playBackgroundMusicForReel(int index) async {
+    try {
+      final post = _posts[index];
+      final backgroundMusicId =
+          post['backgroundMusic']?['_id'] ??
+          post['backgroundMusic']?['id'] ??
+          post['backgroundMusicId'];
+
+      // If no music, don't play anything (music already stopped in _onPageChanged)
+      if (backgroundMusicId == null || backgroundMusicId.isEmpty) {
+        print('🎵 No background music for this reel');
+        return;
+      }
+
+      print('🎵 Loading background music for reel: $backgroundMusicId');
+
+      // Fetch music details from API
+      final response = await ApiService.getMusic(backgroundMusicId);
+
+      if (response['success']) {
+        final musicData = response['data'];
+        final rawAudioUrl = musicData['audioUrl'];
+
+        if (rawAudioUrl == null || rawAudioUrl.isEmpty) {
+          print('❌ Audio URL is empty or null');
+          return;
+        }
+
+        // Convert relative URL to full URL using ApiService helper
+        final audioUrl = ApiService.getAudioUrl(rawAudioUrl);
+        print('🎵 Playing background music: $audioUrl');
+
+        // Play background music
+        await _musicService.playBackgroundMusic(audioUrl, backgroundMusicId);
+        _currentMusicId = backgroundMusicId;
+
+        print('✅ Background music loaded and playing for reel');
+      } else {
+        print('❌ Failed to fetch music: ${response['message']}');
+      }
+    } catch (e) {
+      print('❌ Error loading background music: $e');
     }
   }
 
@@ -1258,6 +1506,30 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
       if (response['success'] && mounted) {
         // Reload stats to get accurate counts
         await _reloadPostStats(postId, index);
+
+        // 💰 Show coin reward notification
+        final coinsAwarded = response['coinsAwarded'] ?? 5;
+        if (coinsAwarded > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.monetization_on, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    '+$coinsAwarded coins earned for sharing! 🎉',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFF701CF5),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     } catch (e) {
       print('Error sharing post: $e');
@@ -1342,6 +1614,15 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
   @override
   void dispose() {
     print('🗑️ Disposing ReelScreen - cleaning up all resources');
+
+    // CRITICAL: Stop background music immediately
+    try {
+      _musicService.stopBackgroundMusic();
+      _currentMusicId = null;
+      print('🎵 Background music stopped on dispose');
+    } catch (e) {
+      print('Error stopping background music: $e');
+    }
 
     // CRITICAL: Stop all videos immediately
     _isScreenVisible = false;
@@ -1529,23 +1810,9 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            _getVideoDuration(index),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
+                        // Empty space to push buttons to the right
+                        const SizedBox.shrink(),
+                        // Time display removed
                         Container(
                           decoration: BoxDecoration(
                             image: const DecorationImage(

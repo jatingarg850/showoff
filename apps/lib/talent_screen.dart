@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'leaderboard_screen.dart';
 import 'notification_screen.dart';
 import 'syt_reel_screen.dart';
-import 'camera_screen.dart';
+import 'music_selection_screen.dart';
 import 'services/api_service.dart';
 import 'ai_chat_screen.dart';
 
@@ -394,7 +394,7 @@ class _TalentScreenState extends State<TalentScreen> {
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) =>
-                                            const CameraScreen(
+                                            const MusicSelectionScreen(
                                               selectedPath: 'SYT',
                                             ),
                                       ),
@@ -561,9 +561,10 @@ class _TalentScreenState extends State<TalentScreen> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => const CameraScreen(
-                                        selectedPath: 'SYT',
-                                      ),
+                                      builder: (context) =>
+                                          const MusicSelectionScreen(
+                                            selectedPath: 'SYT',
+                                          ),
                                     ),
                                   );
                                 },

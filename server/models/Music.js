@@ -5,11 +5,13 @@ const musicSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
+    trim: true,
   },
   
   artist: {
     type: String,
     required: true,
+    trim: true,
   },
   
   // File Information
@@ -20,17 +22,20 @@ const musicSchema = new mongoose.Schema({
   
   duration: {
     type: Number, // in seconds
-    required: true,
+    default: 0,
   },
   
   // Metadata
   genre: {
     type: String,
+    default: 'other',
+    trim: true,
   },
   
   mood: {
     type: String,
     enum: ['happy', 'sad', 'energetic', 'calm', 'romantic', 'other'],
+    default: 'other',
   },
   
   // Thumbnail/Cover
@@ -74,5 +79,6 @@ const musicSchema = new mongoose.Schema({
 musicSchema.index({ isActive: 1, isApproved: 1 });
 musicSchema.index({ genre: 1 });
 musicSchema.index({ mood: 1 });
+musicSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Music', musicSchema);

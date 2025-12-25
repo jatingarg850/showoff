@@ -452,6 +452,10 @@
 
                             <div class="ad-info">
                                 <div class="ad-info-row">
+                                    <span class="ad-info-label">Title:</span>
+                                    <span class="ad-info-value"><%= ad.title %></span>
+                                </div>
+                                <div class="ad-info-row">
                                     <span class="ad-info-label">Provider:</span>
                                     <span class="ad-info-value"><%= ad.adProvider.toUpperCase() %></span>
                                 </div>
@@ -529,22 +533,55 @@
                     </div>
 
                     <div class="form-group">
+                        <label>Title *</label>
+                        <input type="text" id="title" placeholder="Rewarded Ad" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Description *</label>
+                        <textarea id="description" placeholder="Watch this ad to earn coins" required></textarea>
+                    </div>
+
+                    <div class="form-group">
                         <label>Ad Link *</label>
                         <input type="url" id="adLink" placeholder="https://example.com/ad" required>
                     </div>
 
                     <div class="form-group">
                         <label>Ad Provider *</label>
-                        <select id="adProvider" required>
+                        <select id="adProvider" onchange="updateProviderFields()" required>
                             <option value="admob">AdMob</option>
+                            <option value="meta">Meta (Facebook)</option>
                             <option value="custom">Custom</option>
                             <option value="third-party">Third Party</option>
                         </select>
                     </div>
 
+                    <!-- Provider-specific fields -->
+                    <div id="providerFields"></div>
+
+                    <div class="form-group">
+                        <label>Icon (Font Awesome name)</label>
+                        <input type="text" id="icon" placeholder="gift" value="gift">
+                        <small style="color: #64748b; display: block; margin-top: 0.25rem;">
+                            Examples: gift, star, heart, fire, trophy, etc.
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Color (Hex code)</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="color" id="colorPicker" style="width: 60px; height: 40px; border: 1px solid #e2e8f0; border-radius: 0.5rem; cursor: pointer;">
+                            <input type="text" id="color" placeholder="#667eea" style="flex: 1;">
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label>Reward Coins *</label>
-                        <input type="number" id="rewardCoins" min="1" max="1000" placeholder="10" required>
+                        <input type="number" id="rewardCoins" min="1" max="10000" placeholder="10" required>
+                        <small style="color: #64748b; display: block; margin-top: 0.25rem;">
+                            Flexible reward: 1-10000 coins
+                        </small>
                     </div>
 
                     <div class="form-group">
@@ -568,9 +605,99 @@
 
     <script>
         let currentAdNumber = null;
+        let currentProviderConfig = {};
+
+        // Provider field templates
+        const providerFieldTemplates = {
+            admob: `
+                <div class="form-group">
+                    <label>AdMob Ad Unit ID *</label>
+                    <input type="text" id="admobAdUnitId" placeholder="ca-app-pub-xxxxxxxxxxxxxxxx/xxxxxxxxxx" required>
+                    <small style="color: #64748b; display: block; margin-top: 0.25rem;">
+                        Get from AdMob console
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label>AdMob App ID</label>
+                    <input type="text" id="admobAppId" placeholder="ca-app-pub-xxxxxxxxxxxxxxxx~xxxxxxxxxx">
+                </div>
+            `,
+            meta: `
+                <div class="form-group">
+                    <label>Meta Placement ID *</label>
+                    <input type="text" id="metaPlacementId" placeholder="YOUR_PLACEMENT_ID" required>
+                    <small style="color: #64748b; display: block; margin-top: 0.25rem;">
+                        Get from Meta Audience Network
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label>Meta App ID *</label>
+                    <input type="text" id="metaAppId" placeholder="YOUR_APP_ID" required>
+                </div>
+                <div class="form-group">
+                    <label>Meta Access Token *</label>
+                    <input type="password" id="metaAccessToken" placeholder="YOUR_ACCESS_TOKEN" required>
+                </div>
+            `,
+            custom: `
+                <div class="form-group">
+                    <label>API Key *</label>
+                    <input type="password" id="customApiKey" placeholder="YOUR_API_KEY" required>
+                </div>
+                <div class="form-group">
+                    <label>API Secret *</label>
+                    <input type="password" id="customApiSecret" placeholder="YOUR_API_SECRET" required>
+                </div>
+                <div class="form-group">
+                    <label>API Endpoint *</label>
+                    <input type="url" id="customEndpoint" placeholder="https://api.example.com" required>
+                </div>
+            `,
+            'third-party': `
+                <div class="form-group">
+                    <label>API Key *</label>
+                    <input type="password" id="thirdPartyApiKey" placeholder="YOUR_API_KEY" required>
+                </div>
+                <div class="form-group">
+                    <label>API Secret *</label>
+                    <input type="password" id="thirdPartyApiSecret" placeholder="YOUR_API_SECRET" required>
+                </div>
+                <div class="form-group">
+                    <label>API Endpoint *</label>
+                    <input type="url" id="thirdPartyEndpoint" placeholder="https://api.example.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Custom Field 1</label>
+                    <input type="text" id="thirdPartyCustomField1" placeholder="Optional custom field">
+                </div>
+                <div class="form-group">
+                    <label>Custom Field 2</label>
+                    <input type="text" id="thirdPartyCustomField2" placeholder="Optional custom field">
+                </div>
+            `
+        };
+
+        function updateProviderFields() {
+            const provider = document.getElementById('adProvider').value;
+            const fieldsContainer = document.getElementById('providerFields');
+            fieldsContainer.innerHTML = providerFieldTemplates[provider] || '';
+            
+            // Restore saved values if editing
+            if (currentProviderConfig[provider]) {
+                const config = currentProviderConfig[provider];
+                Object.keys(config).forEach(key => {
+                    const fieldId = provider + key.charAt(0).toUpperCase() + key.slice(1);
+                    const field = document.getElementById(fieldId);
+                    if (field) {
+                        field.value = config[key] || '';
+                    }
+                });
+            }
+        }
 
         function editAd(adNumber) {
             currentAdNumber = adNumber;
+            currentProviderConfig = {};
             
             // Fetch ad data
             fetch(`/api/admin/rewarded-ads/${adNumber}`, {
@@ -582,11 +709,24 @@
                 if (data.success) {
                     const ad = data.data;
                     document.getElementById('adNumber').value = ad.adNumber;
+                    document.getElementById('title').value = ad.title || 'Rewarded Ad';
+                    document.getElementById('description').value = ad.description || 'Watch this ad to earn coins';
                     document.getElementById('adLink').value = ad.adLink;
                     document.getElementById('adProvider').value = ad.adProvider;
+                    document.getElementById('icon').value = ad.icon || 'gift';
+                    document.getElementById('color').value = ad.color || '#667eea';
+                    document.getElementById('colorPicker').value = ad.color || '#667eea';
                     document.getElementById('rewardCoins').value = ad.rewardCoins;
                     document.getElementById('rotationOrder').value = ad.rotationOrder;
                     document.getElementById('isActive').checked = ad.isActive;
+                    
+                    // Store provider config for restoration
+                    if (ad.providerConfig) {
+                        currentProviderConfig = ad.providerConfig;
+                    }
+                    
+                    // Update provider fields
+                    updateProviderFields();
                     
                     document.getElementById('editModal').classList.add('active');
                 } else {
@@ -596,18 +736,150 @@
             .catch(error => alert('Error: ' + error.message));
         }
 
+        // Sync color picker with text input
+        document.addEventListener('DOMContentLoaded', function() {
+            const colorPicker = document.getElementById('colorPicker');
+            const colorInput = document.getElementById('color');
+            
+            if (colorPicker && colorInput) {
+                colorPicker.addEventListener('change', function() {
+                    colorInput.value = this.value;
+                });
+                
+                colorInput.addEventListener('change', function() {
+                    if (/^#[0-9A-F]{6}$/i.test(this.value)) {
+                        colorPicker.value = this.value;
+                    }
+                });
+            }
+        });
+
+        function getProviderConfig() {
+            const provider = document.getElementById('adProvider').value;
+            const config = {};
+
+            if (provider === 'admob') {
+                config.admob = {
+                    adUnitId: document.getElementById('admobAdUnitId')?.value || '',
+                    appId: document.getElementById('admobAppId')?.value || ''
+                };
+            } else if (provider === 'meta') {
+                config.meta = {
+                    placementId: document.getElementById('metaPlacementId')?.value || '',
+                    appId: document.getElementById('metaAppId')?.value || '',
+                    accessToken: document.getElementById('metaAccessToken')?.value || ''
+                };
+            } else if (provider === 'custom') {
+                config.custom = {
+                    apiKey: document.getElementById('customApiKey')?.value || '',
+                    apiSecret: document.getElementById('customApiSecret')?.value || '',
+                    endpoint: document.getElementById('customEndpoint')?.value || ''
+                };
+            } else if (provider === 'third-party') {
+                config.thirdParty = {
+                    apiKey: document.getElementById('thirdPartyApiKey')?.value || '',
+                    apiSecret: document.getElementById('thirdPartyApiSecret')?.value || '',
+                    endpoint: document.getElementById('thirdPartyEndpoint')?.value || '',
+                    customField1: document.getElementById('thirdPartyCustomField1')?.value || '',
+                    customField2: document.getElementById('thirdPartyCustomField2')?.value || ''
+                };
+            }
+
+            return config;
+        }
+
         function saveAd() {
             const adNumber = currentAdNumber;
+            const provider = document.getElementById('adProvider').value;
+            const rewardCoins = parseInt(document.getElementById('rewardCoins').value);
+
+            // Validate reward coins
+            if (isNaN(rewardCoins) || rewardCoins < 1 || rewardCoins > 10000) {
+                alert('Reward coins must be between 1 and 10000');
+                return;
+            }
+
             const data = {
+                title: document.getElementById('title').value,
+                description: document.getElementById('description').value,
                 adLink: document.getElementById('adLink').value,
-                adProvider: document.getElementById('adProvider').value,
-                rewardCoins: parseInt(document.getElementById('rewardCoins').value),
-                isActive: document.getElementById('isActive').checked
+                adProvider: provider,
+                icon: document.getElementById('icon').value,
+                color: document.getElementById('color').value,
+                rewardCoins: rewardCoins,
+                isActive: document.getElementById('isActive').checked,
+                providerConfig: getProviderConfig()
             };
+
+            if (!data.title) {
+                alert('Please enter a title');
+                return;
+            }
+
+            if (!data.description) {
+                alert('Please enter a description');
+                return;
+            }
 
             if (!data.adLink) {
                 alert('Please enter an ad link');
                 return;
+            }
+
+            if (!/^#[0-9A-F]{6}$/i.test(data.color)) {
+                alert('Please enter a valid hex color code (e.g., #667eea)');
+                return;
+            }
+
+            // Validate provider-specific fields
+            if (provider === 'admob' && !document.getElementById('admobAdUnitId')?.value) {
+                alert('Please enter AdMob Ad Unit ID');
+                return;
+            }
+
+            if (provider === 'meta') {
+                if (!document.getElementById('metaPlacementId')?.value) {
+                    alert('Please enter Meta Placement ID');
+                    return;
+                }
+                if (!document.getElementById('metaAppId')?.value) {
+                    alert('Please enter Meta App ID');
+                    return;
+                }
+                if (!document.getElementById('metaAccessToken')?.value) {
+                    alert('Please enter Meta Access Token');
+                    return;
+                }
+            }
+
+            if (provider === 'custom') {
+                if (!document.getElementById('customApiKey')?.value) {
+                    alert('Please enter API Key');
+                    return;
+                }
+                if (!document.getElementById('customApiSecret')?.value) {
+                    alert('Please enter API Secret');
+                    return;
+                }
+                if (!document.getElementById('customEndpoint')?.value) {
+                    alert('Please enter API Endpoint');
+                    return;
+                }
+            }
+
+            if (provider === 'third-party') {
+                if (!document.getElementById('thirdPartyApiKey')?.value) {
+                    alert('Please enter API Key');
+                    return;
+                }
+                if (!document.getElementById('thirdPartyApiSecret')?.value) {
+                    alert('Please enter API Secret');
+                    return;
+                }
+                if (!document.getElementById('thirdPartyEndpoint')?.value) {
+                    alert('Please enter API Endpoint');
+                    return;
+                }
             }
 
             fetch(`/api/admin/rewarded-ads/${adNumber}`, {

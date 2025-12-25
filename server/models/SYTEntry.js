@@ -30,6 +30,12 @@ const sytEntrySchema = new mongoose.Schema({
     required: true,
   },
   
+  // Music
+  backgroundMusic: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Music',
+  },
+  
   // Competition Details
   competitionType: {
     type: String,

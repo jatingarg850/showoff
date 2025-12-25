@@ -5,6 +5,10 @@ import 'main_screen.dart';
 import 'services/api_service.dart';
 import 'services/wasabi_service.dart';
 import 'services/storage_service.dart';
+import 'services/thumbnail_service.dart';
+import 'services/file_persistence_service.dart';
+import 'services/background_music_service.dart';
+import 'services/video_audio_merge_service.dart';
 
 class PreviewScreen extends StatefulWidget {
   final String selectedPath;
@@ -14,6 +18,7 @@ class PreviewScreen extends StatefulWidget {
   final bool isVideo;
   final String? thumbnailPath;
   final List<String> hashtags;
+  final String? backgroundMusicId;
 
   const PreviewScreen({
     super.key,
@@ -24,6 +29,7 @@ class PreviewScreen extends StatefulWidget {
     this.isVideo = false,
     this.thumbnailPath,
     this.hashtags = const [],
+    this.backgroundMusicId,
   });
 
   @override
@@ -37,8 +43,19 @@ class _PreviewScreenState extends State<PreviewScreen> {
   @override
   void initState() {
     super.initState();
+    print('🎬 PreviewScreen initialized');
+    print('  - selectedPath: ${widget.selectedPath}');
+    print('  - mediaPath: ${widget.mediaPath}');
+    print('  - isVideo: ${widget.isVideo}');
+    print('  - backgroundMusicId: ${widget.backgroundMusicId}');
+
     if (widget.isVideo && widget.mediaPath != null) {
       _initializeVideo();
+    }
+
+    // Load background music if selected
+    if (widget.backgroundMusicId != null) {
+      _loadBackgroundMusic();
     }
   }
 
@@ -53,15 +70,124 @@ class _PreviewScreenState extends State<PreviewScreen> {
 
   Future<void> _initializeVideo() async {
     try {
-      _videoController = VideoPlayerController.file(File(widget.mediaPath!));
+      print('🎬 Initializing video...');
+      print('  - Path: ${widget.mediaPath}');
+
+      // Check if file exists
+      final file = File(widget.mediaPath!);
+      final exists = await file.exists();
+      print('  - File exists: $exists');
+
+      if (!exists) {
+        print('❌ Video file not found at: ${widget.mediaPath}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Video file not found: ${widget.mediaPath}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Get file size
+      final fileSizeMB = await FilePersistenceService.getVideoFileSizeMB(
+        widget.mediaPath!,
+      );
+      print('📹 Video file size: ${fileSizeMB.toStringAsFixed(2)} MB');
+
+      // Initialize video controller
+      _videoController = VideoPlayerController.file(file);
       await _videoController!.initialize();
+
       setState(() {
         _isVideoInitialized = true;
       });
+
       _videoController!.setLooping(true);
       _videoController!.play();
+      print('✅ Video initialized and playing');
     } catch (e) {
-      debugPrint('Error initializing video: $e');
+      print('❌ Error initializing video: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading video: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadBackgroundMusic() async {
+    try {
+      print('🎵 Loading background music: ${widget.backgroundMusicId}');
+
+      // Fetch music details from API
+      final response = await ApiService.getMusic(widget.backgroundMusicId!);
+
+      print('🎵 Music Response: $response');
+
+      if (response['success']) {
+        final musicData = response['data'];
+
+        print('🎵 Music Data: $musicData');
+
+        final rawAudioUrl = musicData['audioUrl'];
+
+        if (rawAudioUrl == null || rawAudioUrl.isEmpty) {
+          print('❌ Audio URL is empty or null');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Music audio URL not found'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+          return;
+        }
+
+        // Convert relative URL to full URL using ApiService helper
+        final audioUrl = ApiService.getAudioUrl(rawAudioUrl);
+        print('🎵 Final Music URL: $audioUrl');
+
+        // Play background music
+        final musicService = BackgroundMusicService();
+        await musicService.playBackgroundMusic(
+          audioUrl,
+          widget.backgroundMusicId!,
+        );
+
+        print('✅ Background music loaded and playing');
+      } else {
+        print('❌ Failed to fetch music: ${response['message']}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error loading music: ${response['message']}'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ Error loading background music: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading background music: $e'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -124,6 +250,22 @@ class _PreviewScreenState extends State<PreviewScreen> {
   @override
   void dispose() {
     _videoController?.dispose();
+
+    // Stop background music
+    try {
+      final musicService = BackgroundMusicService();
+      musicService.stopBackgroundMusic();
+      print('🎵 Background music stopped on dispose');
+    } catch (e) {
+      print('Error stopping background music: $e');
+    }
+
+    // Clean up temporary files when leaving preview screen
+    if (widget.isVideo && widget.mediaPath != null) {
+      // Don't delete the persisted video - it will be used for upload
+      // Only clean up if user navigates back without uploading
+      print('🧹 Preview screen disposed');
+    }
     super.dispose();
   }
 
@@ -211,6 +353,40 @@ class _PreviewScreenState extends State<PreviewScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Background Music Badge (NEW)
+                if (widget.backgroundMusicId != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF701CF5).withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.music_note,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Background Music Added',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                const SizedBox(height: 12),
+
                 // Competition badge
                 if (widget.selectedPath == 'SYT')
                   Container(
@@ -219,7 +395,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(15),
                     ),
                     child: const Text(
@@ -403,8 +579,70 @@ class _PreviewScreenState extends State<PreviewScreen> {
                         thumbnailFile = File(widget.thumbnailPath!);
                       }
 
+                      print('📤 Submitting SYT entry with:');
+                      print(
+                        '  - title: ${widget.caption.isEmpty ? "My Talent" : widget.caption}',
+                      );
+                      print('  - category: ${widget.category ?? "other"}');
+                      print('  - competitionType: weekly');
+                      print('  - description: ${widget.caption}');
+                      print(
+                        '  - backgroundMusicId: ${widget.backgroundMusicId}',
+                      );
+
+                      // CRITICAL: Merge video with background music if selected
+                      File fileToUpload = mediaFile;
+                      if (widget.isVideo && widget.backgroundMusicId != null) {
+                        try {
+                          print(
+                            '🎬 Merging SYT video with background music...',
+                          );
+                          final mergeService = VideoAudioMergeService();
+
+                          // Fetch music details to get audio URL
+                          final musicResponse = await ApiService.getMusic(
+                            widget.backgroundMusicId!,
+                          );
+
+                          if (musicResponse['success']) {
+                            final musicData = musicResponse['data'];
+                            final rawAudioUrl = musicData['audioUrl'];
+
+                            if (rawAudioUrl != null && rawAudioUrl.isNotEmpty) {
+                              final audioUrl = ApiService.getAudioUrl(
+                                rawAudioUrl,
+                              );
+                              print('🎵 Audio URL: $audioUrl');
+
+                              // Merge video with audio
+                              final mergedVideoPath = await mergeService
+                                  .mergeVideoWithAudioUrl(
+                                    videoPath: widget.mediaPath!,
+                                    audioUrl: audioUrl,
+                                  );
+
+                              fileToUpload = File(mergedVideoPath);
+                              print('✅ SYT video merged successfully');
+                              print('  - Merged file: $mergedVideoPath');
+                            } else {
+                              print(
+                                '⚠️ Audio URL not found, uploading SYT video without music',
+                              );
+                            }
+                          } else {
+                            print(
+                              '⚠️ Failed to fetch music, uploading SYT video without music',
+                            );
+                          }
+                        } catch (e) {
+                          print('⚠️ Error merging SYT video with audio: $e');
+                          print('  - Continuing with original video');
+                          // Continue with original video if merge fails
+                        }
+                      }
+
                       final response = await ApiService.submitSYTEntry(
-                        videoFile: mediaFile,
+                        videoFile: fileToUpload,
                         thumbnailFile: thumbnailFile,
                         title: widget.caption.isEmpty
                             ? 'My Talent'
@@ -412,6 +650,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                         category: widget.category ?? 'other',
                         competitionType: 'weekly', // Default to weekly
                         description: widget.caption,
+                        backgroundMusicId: widget.backgroundMusicId,
                       );
 
                       if (!mounted) return;
@@ -430,20 +669,132 @@ class _PreviewScreenState extends State<PreviewScreen> {
                     } else {
                       // Upload directly to Wasabi S3
                       final wasabiService = WasabiService();
+                      final thumbnailService = ThumbnailService();
+                      final mergeService = VideoAudioMergeService();
                       String mediaUrl;
                       String mediaType;
                       String? thumbnailUrl;
+                      File fileToUpload = mediaFile;
 
                       if (widget.isVideo) {
-                        mediaUrl = await wasabiService.uploadVideo(mediaFile);
+                        // CRITICAL: Merge video with background music if selected
+                        if (widget.backgroundMusicId != null) {
+                          try {
+                            print('🎬 Merging video with background music...');
+
+                            // Fetch music details to get audio URL
+                            final musicResponse = await ApiService.getMusic(
+                              widget.backgroundMusicId!,
+                            );
+
+                            if (musicResponse['success']) {
+                              final musicData = musicResponse['data'];
+                              final rawAudioUrl = musicData['audioUrl'];
+
+                              if (rawAudioUrl != null &&
+                                  rawAudioUrl.isNotEmpty) {
+                                final audioUrl = ApiService.getAudioUrl(
+                                  rawAudioUrl,
+                                );
+                                print('🎵 Audio URL: $audioUrl');
+
+                                // Merge video with audio
+                                final mergedVideoPath = await mergeService
+                                    .mergeVideoWithAudioUrl(
+                                      videoPath: widget.mediaPath!,
+                                      audioUrl: audioUrl,
+                                    );
+
+                                fileToUpload = File(mergedVideoPath);
+                                print('✅ Video merged successfully');
+                                print('  - Merged file: $mergedVideoPath');
+                              } else {
+                                print(
+                                  '⚠️ Audio URL not found, uploading video without music',
+                                );
+                              }
+                            } else {
+                              print(
+                                '⚠️ Failed to fetch music, uploading video without music',
+                              );
+                            }
+                          } catch (e) {
+                            print('⚠️ Error merging video with audio: $e');
+                            print('  - Continuing with original video');
+                            // Continue with original video if merge fails
+                          }
+                        }
+
+                        mediaUrl = await wasabiService.uploadVideo(
+                          fileToUpload,
+                        );
                         mediaType = 'video';
 
-                        // Upload thumbnail if available
+                        // Use provided thumbnail or auto-generate
                         if (widget.thumbnailPath != null) {
+                          // Use user-selected thumbnail
                           final thumbnailFile = File(widget.thumbnailPath!);
-                          thumbnailUrl = await wasabiService.uploadImage(
-                            thumbnailFile,
-                          );
+
+                          // Check if thumbnail file exists before uploading
+                          if (await thumbnailFile.exists()) {
+                            try {
+                              thumbnailUrl = await wasabiService.uploadImage(
+                                thumbnailFile,
+                              );
+                              print('✅ Using user-selected thumbnail');
+                            } catch (e) {
+                              print(
+                                '⚠️ Error uploading user-selected thumbnail: $e',
+                              );
+                              // Fall back to auto-generate
+                            }
+                          } else {
+                            print(
+                              '⚠️ User-selected thumbnail file not found: ${widget.thumbnailPath}',
+                            );
+                          }
+                        }
+
+                        // Auto-generate thumbnail if no thumbnail URL yet
+                        if (thumbnailUrl == null) {
+                          print('🎬 Auto-generating thumbnail for video...');
+                          try {
+                            final generatedThumbnailPath =
+                                await thumbnailService.generateThumbnail(
+                                  videoPath: widget.mediaPath!,
+                                  maxWidth: 640,
+                                  maxHeight: 480,
+                                  quality: 75,
+                                  timeMs: 0, // First frame
+                                );
+
+                            if (generatedThumbnailPath != null) {
+                              final thumbnailFile = File(
+                                generatedThumbnailPath,
+                              );
+
+                              if (await thumbnailFile.exists()) {
+                                thumbnailUrl = await wasabiService.uploadImage(
+                                  thumbnailFile,
+                                );
+                                print('✅ Auto-generated thumbnail uploaded');
+
+                                // Clean up temporary thumbnail
+                                await thumbnailService.cleanupThumbnail(
+                                  generatedThumbnailPath,
+                                );
+                              } else {
+                                print('⚠️ Generated thumbnail file not found');
+                              }
+                            } else {
+                              print(
+                                '⚠️ Failed to auto-generate thumbnail, continuing without',
+                              );
+                            }
+                          } catch (e) {
+                            print('⚠️ Error auto-generating thumbnail: $e');
+                            // Continue without thumbnail if generation fails
+                          }
                         }
                       } else {
                         mediaUrl = await wasabiService.uploadImage(mediaFile);
@@ -451,6 +802,14 @@ class _PreviewScreenState extends State<PreviewScreen> {
                       }
 
                       // Create post with uploaded URL
+                      print('📤 Creating post with:');
+                      print('  - mediaUrl: $mediaUrl');
+                      print('  - mediaType: $mediaType');
+                      print('  - thumbnailUrl: $thumbnailUrl');
+                      print('  - caption: ${widget.caption}');
+                      print('  - musicId: ${widget.backgroundMusicId}');
+                      print('  - isPublic: true');
+
                       final response = await ApiService.createPostWithUrl(
                         mediaUrl: mediaUrl,
                         mediaType: mediaType,
@@ -459,6 +818,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                         hashtags: widget.hashtags.isNotEmpty
                             ? widget.hashtags
                             : hashtags,
+                        musicId: widget.backgroundMusicId,
                         isPublic: true,
                       );
 
@@ -479,12 +839,26 @@ class _PreviewScreenState extends State<PreviewScreen> {
                           );
                         }
                       } else {
-                        throw Exception(response['message'] ?? 'Upload failed');
+                        final errorMsg = response['message'] ?? 'Upload failed';
+                        print('❌ Post creation failed: $errorMsg');
+                        throw Exception(errorMsg);
                       }
                     }
 
                     // Navigate based on upload type
                     if (!mounted) return;
+
+                    // Cleanup thumbnail if it was user-selected
+                    if (widget.thumbnailPath != null) {
+                      try {
+                        final thumbnailService = ThumbnailService();
+                        await thumbnailService.cleanupThumbnail(
+                          widget.thumbnailPath!,
+                        );
+                      } catch (e) {
+                        debugPrint('Error cleaning up thumbnail: $e');
+                      }
+                    }
 
                     if (widget.selectedPath == 'selfie_challenge') {
                       // For selfie challenge, go back to daily selfie screen
@@ -507,6 +881,21 @@ class _PreviewScreenState extends State<PreviewScreen> {
                   } catch (e) {
                     if (!mounted) return;
                     navigator.pop(); // Close loading
+
+                    // Cleanup thumbnail on error too
+                    if (widget.thumbnailPath != null) {
+                      try {
+                        final thumbnailService = ThumbnailService();
+                        await thumbnailService.cleanupThumbnail(
+                          widget.thumbnailPath!,
+                        );
+                      } catch (cleanupError) {
+                        debugPrint(
+                          'Error cleaning up thumbnail: $cleanupError',
+                        );
+                      }
+                    }
+
                     scaffoldMessenger.showSnackBar(
                       SnackBar(
                         content: Text('Upload failed: $e'),

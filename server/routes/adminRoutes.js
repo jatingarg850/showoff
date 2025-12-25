@@ -202,4 +202,16 @@ router.get('/terms', termsController.getAllTerms);
 router.put('/terms/:id', termsController.updateTerms);
 router.delete('/terms/:id', termsController.deleteTerms);
 
+// Music Management
+const musicController = require('../controllers/musicController');
+router.post('/music/upload', musicController.upload.single('audio'), musicController.uploadMusic);
+router.get('/music/stats', musicController.getMusicStats);
+router.post('/music/:id/approve', musicController.approveMusic);
+router.post('/music/:id/reject', musicController.rejectMusic);
+router.get('/music/:id', musicController.getMusic);
+router.put('/music/:id', musicController.updateMusic);
+router.delete('/music/:id', musicController.deleteMusic);
+router.get('/music/approved', musicController.getApprovedMusic);
+router.get('/music', musicController.getAllMusic);
+
 module.exports = router;

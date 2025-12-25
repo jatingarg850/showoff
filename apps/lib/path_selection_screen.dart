@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'camera_screen.dart';
 import 'daily_selfie_screen.dart';
+import 'music_selection_screen.dart';
 import 'services/api_service.dart';
 
 class PathSelectionScreen extends StatefulWidget {
@@ -586,8 +586,9 @@ class _PathSelectionScreenState extends State<PathSelectionScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) =>
-                                      CameraScreen(selectedPath: selectedPath!),
+                                  builder: (context) => MusicSelectionScreen(
+                                    selectedPath: selectedPath!,
+                                  ),
                                 ),
                               );
                             }

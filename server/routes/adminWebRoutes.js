@@ -739,4 +739,47 @@ router.get('/terms-and-conditions', checkAdminWeb, async (req, res) => {
   }
 });
 
+// Music Management
+const musicController = require('../controllers/musicController');
+
+// Music Upload (must come before /:id routes)
+router.post('/music/upload', checkAdminWeb, musicController.upload.single('audio'), musicController.uploadMusic);
+
+// Get Music Page or List (handles both HTML and JSON)
+router.get('/music', checkAdminWeb, async (req, res) => {
+  try {
+    // If it's an AJAX request (has query params), return JSON
+    if (req.query.page || req.query.limit || req.query.isApproved || req.query.genre || req.query.mood) {
+      return musicController.getAllMusic(req, res);
+    }
+    
+    // Otherwise render the HTML page
+    res.render('admin/music', {
+      currentPage: 'music',
+      pageTitle: 'Music Management'
+    });
+  } catch (error) {
+    console.error('Music page error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// Get Music Stats
+router.get('/music/stats', checkAdminWeb, musicController.getMusicStats);
+
+// Get Single Music
+router.get('/music/:id', checkAdminWeb, musicController.getMusic);
+
+// Approve Music
+router.post('/music/:id/approve', checkAdminWeb, musicController.approveMusic);
+
+// Reject Music
+router.post('/music/:id/reject', checkAdminWeb, musicController.rejectMusic);
+
+// Update Music
+router.put('/music/:id', checkAdminWeb, musicController.updateMusic);
+
+// Delete Music
+router.delete('/music/:id', checkAdminWeb, musicController.deleteMusic);
+
 module.exports = router;

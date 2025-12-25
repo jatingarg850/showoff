@@ -3,74 +3,52 @@ import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 import 'upload_content_screen.dart';
+import 'services/file_persistence_service.dart';
 
-class CameraScreen
-    extends
-        StatefulWidget {
-  final String
-  selectedPath; // 'reels' or 'SYT'
+class CameraScreen extends StatefulWidget {
+  final String selectedPath; // 'reels' or 'SYT'
+  final String? backgroundMusicId;
 
   const CameraScreen({
     super.key,
     required this.selectedPath,
+    this.backgroundMusicId,
   });
 
   @override
-  State<
-    CameraScreen
-  >
-  createState() => _CameraScreenState();
+  State<CameraScreen> createState() => _CameraScreenState();
 }
 
-class _CameraScreenState
-    extends
-        State<
-          CameraScreen
-        > {
-  CameraController?
-  _cameraController;
-  List<
-    CameraDescription
-  >?
-  _cameras;
-  bool
-  isRecording = false;
-  FlashMode
-  _flashMode = FlashMode.off;
-  bool
-  isFrontCamera = false;
-  bool
-  _isCameraInitialized = false;
+class _CameraScreenState extends State<CameraScreen> {
+  CameraController? _cameraController;
+  List<CameraDescription>? _cameras;
+  bool isRecording = false;
+  FlashMode _flashMode = FlashMode.off;
+  bool isFrontCamera = false;
+  bool _isCameraInitialized = false;
 
   // Check if this is selfie challenge mode
-  bool
-  get _isSelfieMode =>
-      widget.selectedPath ==
-      'selfie_challenge';
+  bool get _isSelfieMode => widget.selectedPath == 'selfie_challenge';
 
   @override
-  void
-  initState() {
+  void initState() {
     super.initState();
     _initializeCamera();
   }
 
   @override
-  void
-  dispose() {
+  void dispose() {
     _cameraController?.dispose();
     super.dispose();
   }
 
-  Future<
-    void
-  >
-  _initializeCamera() async {
+  Future<void> _initializeCamera() async {
     // Request camera permission
     final cameraPermission = await Permission.camera.request();
-    if (cameraPermission !=
-        PermissionStatus.granted) {
+    if (cameraPermission != PermissionStatus.granted) {
       // Handle permission denied
       return;
     }
@@ -81,104 +59,65 @@ class _CameraScreenState
 
     // Initialize camera controller
     _cameraController = CameraController(
-      _cameras![isFrontCamera
-          ? 1
-          : 0],
+      _cameras![isFrontCamera ? 1 : 0],
       ResolutionPreset.high,
       enableAudio: true,
     );
 
     try {
       await _cameraController!.initialize();
-      setState(
-        () {
-          _isCameraInitialized = true;
-        },
-      );
-    } catch (
-      e
-    ) {
-      debugPrint(
-        'Error initializing camera: $e',
-      );
+      setState(() {
+        _isCameraInitialized = true;
+      });
+    } catch (e) {
+      debugPrint('Error initializing camera: $e');
     }
   }
 
-  Future<
-    void
-  >
-  _switchCamera() async {
-    if (_cameras ==
-            null ||
-        _cameras!.length <
-            2) {
+  Future<void> _switchCamera() async {
+    if (_cameras == null || _cameras!.length < 2) {
       return;
     }
 
-    setState(
-      () {
-        isFrontCamera = !isFrontCamera;
-        _isCameraInitialized = false;
-      },
-    );
+    setState(() {
+      isFrontCamera = !isFrontCamera;
+      _isCameraInitialized = false;
+    });
 
     await _cameraController?.dispose();
 
     _cameraController = CameraController(
-      _cameras![isFrontCamera
-          ? 1
-          : 0],
+      _cameras![isFrontCamera ? 1 : 0],
       ResolutionPreset.high,
       enableAudio: true,
     );
 
     try {
       await _cameraController!.initialize();
-      setState(
-        () {
-          _isCameraInitialized = true;
-        },
-      );
-    } catch (
-      e
-    ) {
-      debugPrint(
-        'Error switching camera: $e',
-      );
+      setState(() {
+        _isCameraInitialized = true;
+      });
+    } catch (e) {
+      debugPrint('Error switching camera: $e');
     }
   }
 
-  Future<
-    void
-  >
-  _toggleFlash() async {
-    if (_cameraController ==
-        null) {
+  Future<void> _toggleFlash() async {
+    if (_cameraController == null) {
       return;
     }
 
-    setState(
-      () {
-        _flashMode =
-            _flashMode ==
-                FlashMode.off
-            ? FlashMode.torch
-            : FlashMode.off;
-      },
-    );
+    setState(() {
+      _flashMode = _flashMode == FlashMode.off
+          ? FlashMode.torch
+          : FlashMode.off;
+    });
 
-    await _cameraController!.setFlashMode(
-      _flashMode,
-    );
+    await _cameraController!.setFlashMode(_flashMode);
   }
 
-  Future<
-    void
-  >
-  _takePicture() async {
-    if (_cameraController ==
-            null ||
-        !_cameraController!.value.isInitialized) {
+  Future<void> _takePicture() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return;
     }
 
@@ -193,144 +132,208 @@ class _CameraScreenState
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder:
-                (
-                  context,
-                ) => UploadContentScreen(
-                  selectedPath: widget.selectedPath,
-                  mediaPath: image.path,
-                  isVideo: false,
-                ),
+            builder: (context) => UploadContentScreen(
+              selectedPath: widget.selectedPath,
+              mediaPath: image.path,
+              isVideo: false,
+              backgroundMusicId: widget.backgroundMusicId,
+            ),
           ),
         );
       }
-    } catch (
-      e
-    ) {
-      debugPrint(
-        'Error taking picture: $e',
-      );
+    } catch (e) {
+      debugPrint('Error taking picture: $e');
     }
   }
 
-  Future<
-    void
-  >
-  _startVideoRecording() async {
-    if (_cameraController ==
-            null ||
-        !_cameraController!.value.isInitialized) {
+  Future<void> _startVideoRecording() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return;
     }
 
     try {
       await _cameraController!.startVideoRecording();
-      setState(
-        () {
-          isRecording = true;
-        },
-      );
+      setState(() {
+        isRecording = true;
+      });
 
       // Haptic feedback
       HapticFeedback.mediumImpact();
-    } catch (
-      e
-    ) {
-      debugPrint(
-        'Error starting video recording: $e',
-      );
+    } catch (e) {
+      debugPrint('Error starting video recording: $e');
     }
   }
 
-  Future<
-    void
-  >
-  _stopVideoRecording() async {
-    if (_cameraController ==
-            null ||
-        !isRecording) {
+  Future<void> _stopVideoRecording() async {
+    if (_cameraController == null || !isRecording) {
       return;
     }
 
     try {
-      final XFile video = await _cameraController!.stopVideoRecording();
-      setState(
-        () {
-          isRecording = false;
-        },
-      );
+      setState(() {
+        isRecording = false;
+      });
 
       // Haptic feedback
       HapticFeedback.mediumImpact();
 
-      // Navigate to upload screen with the recorded video
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder:
-                (
-                  context,
-                ) => UploadContentScreen(
+      print('⏹️ Stopping video recording...');
+
+      // Store the video path before stopping
+      String? videoPath;
+
+      // Add timeout to prevent hanging
+      try {
+        final video = await _cameraController!.stopVideoRecording().timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            print('⚠️ Video recording stop timed out');
+            throw Exception('Video recording stop timed out');
+          },
+        );
+        videoPath = video.path;
+      } catch (stopError) {
+        print('⚠️ Error during stop: $stopError');
+        // Try to recover the video file from cache
+        videoPath = await _recoverVideoFromCache();
+      }
+
+      print('✅ Video recording stopped');
+
+      // If we got the video file, persist it
+      if (videoPath != null && videoPath.isNotEmpty) {
+        try {
+          print('📹 Checking if video file exists: $videoPath');
+          final videoFile = File(videoPath);
+          final exists = await videoFile.exists();
+
+          if (!exists) {
+            print('❌ Video file not found at: $videoPath');
+            throw Exception('Video file not found: $videoPath');
+          }
+
+          print('📹 Persisting video file...');
+          final persistedVideoPath =
+              await FilePersistenceService.persistVideoFile(videoPath);
+          print('✅ Video persisted to: $persistedVideoPath');
+
+          // Navigate to upload screen with the persisted video path
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => UploadContentScreen(
                   selectedPath: widget.selectedPath,
-                  mediaPath: video.path,
+                  mediaPath: persistedVideoPath,
                   isVideo: true,
+                  backgroundMusicId: widget.backgroundMusicId,
                 ),
+              ),
+            );
+          }
+        } catch (persistError) {
+          print('❌ Error persisting video: $persistError');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error saving video: $persistError'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Video recording timed out. Please try again.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ Error stopping video recording: $e');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving video: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
-    } catch (
-      e
-    ) {
-      debugPrint(
-        'Error stopping video recording: $e',
-      );
-      setState(
-        () {
-          isRecording = false;
-        },
-      );
     }
   }
 
+  /// Recover video file from cache directory
+  Future<String?> _recoverVideoFromCache() async {
+    try {
+      print('📹 Attempting to recover video file from cache...');
+
+      // Get the app's cache directory
+      final cacheDir = await getTemporaryDirectory();
+
+      if (await cacheDir.exists()) {
+        final files = cacheDir
+            .listSync()
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.mp4'))
+            .toList();
+
+        if (files.isNotEmpty) {
+          // Sort by modification time, most recent first
+          files.sort(
+            (a, b) => b.statSync().modified.compareTo(a.statSync().modified),
+          );
+
+          final latestVideo = files.first;
+          print('📹 Found latest video file: ${latestVideo.path}');
+
+          // Verify file exists and has content
+          final fileSize = await latestVideo.length();
+          if (fileSize > 0) {
+            print(
+              '✅ Video file size: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB',
+            );
+            return latestVideo.path;
+          } else {
+            print('❌ Video file is empty');
+          }
+        }
+      }
+    } catch (e) {
+      print('❌ Recovery failed: $e');
+    }
+    return null;
+  }
+
   @override
-  Widget
-  build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
           // Camera preview
-          if (_isCameraInitialized &&
-              _cameraController !=
-                  null)
-            Positioned.fill(
-              child: CameraPreview(
-                _cameraController!,
-              ),
-            )
+          if (_isCameraInitialized && _cameraController != null)
+            Positioned.fill(child: CameraPreview(_cameraController!))
           else
             // Loading or permission denied placeholder
             Positioned.fill(
               child: Container(
                 color: Colors.black,
                 child: const Center(
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                  ),
+                  child: CircularProgressIndicator(color: Colors.white),
                 ),
               ),
             ),
 
           // Top controls
           Positioned(
-            top:
-                MediaQuery.of(
-                  context,
-                ).padding.top +
-                20,
+            top: MediaQuery.of(context).padding.top + 20,
             left: 20,
             right: 20,
             child: Row(
@@ -338,16 +341,12 @@ class _CameraScreenState
               children: [
                 // Close button
                 GestureDetector(
-                  onTap: () => Navigator.pop(
-                    context,
-                  ),
+                  onTap: () => Navigator.pop(context),
                   child: Container(
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(
-                        alpha: 0.5,
-                      ),
+                      color: Colors.black.withValues(alpha: 0.5),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -365,19 +364,13 @@ class _CameraScreenState
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(
-                      alpha: 0.5,
-                    ),
-                    borderRadius: BorderRadius.circular(
-                      20,
-                    ),
+                    color: Colors.black.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    widget.selectedPath ==
-                            'reels'
+                    widget.selectedPath == 'reels'
                         ? 'Reels'
-                        : widget.selectedPath ==
-                              'selfie_challenge'
+                        : widget.selectedPath == 'selfie_challenge'
                         ? 'Daily Selfie'
                         : 'SYT',
                     style: const TextStyle(
@@ -395,19 +388,14 @@ class _CameraScreenState
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(
-                        alpha: 0.5,
-                      ),
+                      color: Colors.black.withValues(alpha: 0.5),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      _flashMode ==
-                              FlashMode.off
+                      _flashMode == FlashMode.off
                           ? Icons.flash_off
                           : Icons.flash_on,
-                      color:
-                          _flashMode ==
-                              FlashMode.off
+                      color: _flashMode == FlashMode.off
                           ? Colors.white
                           : Colors.yellow,
                       size: 24,
@@ -421,11 +409,7 @@ class _CameraScreenState
           // Side controls (right side)
           Positioned(
             right: 20,
-            top:
-                MediaQuery.of(
-                  context,
-                ).size.height *
-                0.4,
+            top: MediaQuery.of(context).size.height * 0.4,
             child: Column(
               children: [
                 // Camera flip button
@@ -435,9 +419,7 @@ class _CameraScreenState
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(
-                        alpha: 0.5,
-                      ),
+                      color: Colors.black.withValues(alpha: 0.5),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -454,11 +436,7 @@ class _CameraScreenState
           // Recording indicator
           if (isRecording)
             Positioned(
-              top:
-                  MediaQuery.of(
-                    context,
-                  ).padding.top +
-                  60,
+              top: MediaQuery.of(context).padding.top + 60,
               left: 20,
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -467,9 +445,7 @@ class _CameraScreenState
                 ),
                 decoration: BoxDecoration(
                   color: Colors.red,
-                  borderRadius: BorderRadius.circular(
-                    15,
-                  ),
+                  borderRadius: BorderRadius.circular(15),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -482,9 +458,7 @@ class _CameraScreenState
                         shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(
-                      width: 6,
-                    ),
+                    const SizedBox(width: 6),
                     const Text(
                       'REC',
                       style: TextStyle(
@@ -500,11 +474,7 @@ class _CameraScreenState
 
           // Bottom controls
           Positioned(
-            bottom:
-                MediaQuery.of(
-                  context,
-                ).padding.bottom +
-                40,
+            bottom: MediaQuery.of(context).padding.bottom + 40,
             left: 0,
             right: 0,
             child: Row(
@@ -521,20 +491,16 @@ class _CameraScreenState
                         source: ImageSource.gallery,
                       );
 
-                      if (image !=
-                              null &&
-                          mounted) {
+                      if (image != null && mounted) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder:
-                                (
-                                  context,
-                                ) => UploadContentScreen(
-                                  selectedPath: widget.selectedPath,
-                                  mediaPath: image.path,
-                                  isVideo: false,
-                                ),
+                            builder: (context) => UploadContentScreen(
+                              selectedPath: widget.selectedPath,
+                              mediaPath: image.path,
+                              isVideo: false,
+                              backgroundMusicId: widget.backgroundMusicId,
+                            ),
                           ),
                         );
                       }
@@ -544,20 +510,16 @@ class _CameraScreenState
                         source: ImageSource.gallery,
                       );
 
-                      if (video !=
-                              null &&
-                          mounted) {
+                      if (video != null && mounted) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder:
-                                (
-                                  context,
-                                ) => UploadContentScreen(
-                                  selectedPath: widget.selectedPath,
-                                  mediaPath: video.path,
-                                  isVideo: true,
-                                ),
+                            builder: (context) => UploadContentScreen(
+                              selectedPath: widget.selectedPath,
+                              mediaPath: video.path,
+                              isVideo: true,
+                              backgroundMusicId: widget.backgroundMusicId,
+                            ),
                           ),
                         );
                       }
@@ -567,23 +529,15 @@ class _CameraScreenState
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(
-                        alpha: 0.2,
-                      ),
-                      borderRadius: BorderRadius.circular(
-                        12,
-                      ),
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: Colors.white.withValues(
-                          alpha: 0.3,
-                        ),
+                        color: Colors.white.withValues(alpha: 0.3),
                         width: 1,
                       ),
                     ),
                     child: Icon(
-                      _isSelfieMode
-                          ? Icons.photo_library
-                          : Icons.video_library,
+                      _isSelfieMode ? Icons.photo_library : Icons.video_library,
                       color: Colors.white,
                       size: 24,
                     ),
@@ -603,22 +557,16 @@ class _CameraScreenState
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isRecording
-                            ? Colors.red
-                            : Colors.white,
+                        color: isRecording ? Colors.red : Colors.white,
                         width: 4,
                       ),
                     ),
                     child: Container(
-                      margin: const EdgeInsets.all(
-                        8,
-                      ),
+                      margin: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: _isSelfieMode
                             ? Colors.white
-                            : (isRecording
-                                  ? Colors.red
-                                  : Colors.white),
+                            : (isRecording ? Colors.red : Colors.white),
                         shape: _isSelfieMode
                             ? BoxShape.circle
                             : (isRecording
@@ -626,11 +574,7 @@ class _CameraScreenState
                                   : BoxShape.circle),
                         borderRadius: _isSelfieMode
                             ? null
-                            : (isRecording
-                                  ? BorderRadius.circular(
-                                      8,
-                                    )
-                                  : null),
+                            : (isRecording ? BorderRadius.circular(8) : null),
                       ),
                     ),
                   ),
@@ -643,9 +587,7 @@ class _CameraScreenState
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(
-                        alpha: 0.2,
-                      ),
+                      color: Colors.white.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(

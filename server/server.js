@@ -213,6 +213,10 @@ app.use('/api/cart', require('./routes/cartRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/spin-wheel', require('./routes/spinWheelRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
+app.use('/api/music', require('./routes/musicRoutes'));
+// Public routes (NO AUTHENTICATION REQUIRED)
+app.use('/api', require('./routes/publicRoutes'));
+// Admin routes (AUTHENTICATION REQUIRED)
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/kyc', require('./routes/kycRoutes'));
 app.use('/api/fraud', require('./routes/fraudRoutes'));

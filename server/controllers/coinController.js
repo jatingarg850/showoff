@@ -567,9 +567,14 @@ exports.confirmStripePayment = async (req, res) => {
       });
     }
 
-    // Convert amount to coins (1 USD = 83 coins, approximate INR rate)
+    // Convert amount to coins (1 INR = 1 coin)
     const amountInUSD = paymentIntent.amount / 100;
-    const coinsToAdd = Math.floor(amountInUSD * 83); // 1 USD ≈ 83 INR ≈ 83 coins
+    let coinsToAdd;
+    if (currency.toLowerCase() === 'inr') {
+      coinsToAdd = Math.floor(amountInUSD); // 1 INR = 1 coin
+    } else {
+      coinsToAdd = Math.floor(amountInUSD * 83); // 1 USD ≈ 83 INR ≈ 83 coins
+    }
 
     // Award coins to user
     await awardCoins(
@@ -794,3 +799,4 @@ exports.addMoney = async (req, res) => {
     });
   }
 };
+

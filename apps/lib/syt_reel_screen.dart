@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import 'comments_screen.dart';
 import 'gift_screen.dart';
 import 'services/api_service.dart';
+import 'services/background_music_service.dart';
 
 class SYTReelScreen extends StatefulWidget {
   final List<Map<String, dynamic>> competitions;
@@ -28,6 +29,7 @@ class _SYTReelScreenState extends State<SYTReelScreen>
   late Animation<double> _fadeAnimation;
 
   int _currentIndex = 0;
+  bool _isDisposed = false; // Track if screen is being disposed
 
   // Track liked, voted and saved states for each reel
   final Map<int, bool> _likedReels = {};
@@ -37,6 +39,10 @@ class _SYTReelScreenState extends State<SYTReelScreen>
 
   // Video controllers for each reel
   final Map<int, VideoPlayerController?> _videoControllers = {};
+
+  // Background music tracking
+  String? _currentMusicId;
+  final BackgroundMusicService _musicService = BackgroundMusicService();
 
   @override
   void initState() {
@@ -81,7 +87,16 @@ class _SYTReelScreenState extends State<SYTReelScreen>
 
   @override
   void dispose() {
-    print('🗑️ Disposing SYTReelScreen - stopping all videos');
+    print('🗑️ Disposing SYTReelScreen - stopping all videos and music');
+    _isDisposed = true;
+
+    // Stop background music
+    try {
+      _musicService.stopBackgroundMusic();
+      print('🎵 Background music stopped on dispose');
+    } catch (e) {
+      print('Error stopping background music: $e');
+    }
 
     // CRITICAL: Stop all videos immediately before disposal
     for (final controller in _videoControllers.values) {
@@ -111,6 +126,14 @@ class _SYTReelScreenState extends State<SYTReelScreen>
   }
 
   Future<void> _initializeVideoForIndex(int index) async {
+    // CRITICAL: Check if screen is disposed before starting initialization
+    if (_isDisposed || !mounted) {
+      print(
+        '⚠️ SYT screen disposed, skipping video initialization for index $index',
+      );
+      return;
+    }
+
     if (index < 0 || index >= widget.competitions.length) {
       return;
     }
@@ -133,10 +156,21 @@ class _SYTReelScreenState extends State<SYTReelScreen>
       final controller = VideoPlayerController.networkUrl(Uri.parse(fullUrl));
 
       await controller.initialize();
+
+      // CRITICAL: Check if screen is disposed after initialization
+      if (_isDisposed || !mounted) {
+        print(
+          '⚠️ SYT screen disposed after initialization, stopping video $index',
+        );
+        controller.pause();
+        controller.setVolume(0.0);
+        return;
+      }
+
       controller.setLooping(true);
       await controller.play();
 
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         setState(() {
           _videoControllers[index] = controller;
         });
@@ -148,14 +182,31 @@ class _SYTReelScreenState extends State<SYTReelScreen>
 
   void _pauseAllVideos() {
     for (final controller in _videoControllers.values) {
-      controller?.pause();
+      if (controller != null) {
+        try {
+          controller.pause();
+          controller.setVolume(0.0);
+        } catch (e) {
+          print('Error pausing video: $e');
+        }
+      }
     }
   }
 
   void _playVideoAtIndex(int index) {
+    // CRITICAL: Check if screen is disposed before playing
+    if (_isDisposed || !mounted) {
+      print('⚠️ SYT screen disposed, skipping video play for index $index');
+      return;
+    }
+
     _pauseAllVideos();
     if (_videoControllers[index] != null) {
-      _videoControllers[index]!.play();
+      try {
+        _videoControllers[index]!.play();
+      } catch (e) {
+        print('Error playing video: $e');
+      }
     } else {
       _initializeVideoForIndex(index);
     }
@@ -321,6 +372,76 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
     }
   }
 
+  // Load and play background music for current SYT reel
+  Future<void> _playBackgroundMusicForSYTReel(int index) async {
+    try {
+      if (index < 0 || index >= widget.competitions.length) {
+        return;
+      }
+
+      final competition = widget.competitions[index];
+      final backgroundMusicId =
+          competition['backgroundMusic']?['_id'] ??
+          competition['backgroundMusic']?['id'] ??
+          competition['backgroundMusicId'];
+
+      // If no music, stop current music
+      if (backgroundMusicId == null || backgroundMusicId.isEmpty) {
+        if (_currentMusicId != null) {
+          print('🎵 No background music for this SYT reel, stopping music');
+          await _musicService.stopBackgroundMusic();
+          _currentMusicId = null;
+        }
+        return;
+      }
+
+      // If same music is already playing, don't reload
+      if (_currentMusicId == backgroundMusicId) {
+        print('🎵 Same music already playing, skipping reload');
+        return;
+      }
+
+      print('🎵 Loading background music for SYT reel: $backgroundMusicId');
+
+      // Fetch music details from API
+      final response = await ApiService.getMusic(backgroundMusicId);
+
+      if (response['success']) {
+        final musicData = response['data'];
+        final rawAudioUrl = musicData['audioUrl'];
+
+        if (rawAudioUrl == null || rawAudioUrl.isEmpty) {
+          print('❌ Audio URL is empty or null');
+          await _musicService.stopBackgroundMusic();
+          _currentMusicId = null;
+          return;
+        }
+
+        // Convert relative URL to full URL using ApiService helper
+        final audioUrl = ApiService.getAudioUrl(rawAudioUrl);
+        print('🎵 Playing background music: $audioUrl');
+
+        // Play background music
+        await _musicService.playBackgroundMusic(audioUrl, backgroundMusicId);
+        _currentMusicId = backgroundMusicId;
+
+        print('✅ Background music loaded and playing for SYT reel');
+      } else {
+        print('❌ Failed to fetch music: ${response['message']}');
+        await _musicService.stopBackgroundMusic();
+        _currentMusicId = null;
+      }
+    } catch (e) {
+      print('❌ Error loading background music: $e');
+      try {
+        await _musicService.stopBackgroundMusic();
+      } catch (stopError) {
+        print('Error stopping music: $stopError');
+      }
+      _currentMusicId = null;
+    }
+  }
+
   // Convert competition data to reel format
   Map<String, dynamic> _convertToReelData(Map<String, dynamic> competition) {
     // Use real data from backend, not calculated values
@@ -381,6 +502,11 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
           _reloadEntryStats(index);
           if (index + 1 < widget.competitions.length) {
             _reloadEntryStats(index + 1);
+          }
+
+          // 🎵 Background music playback
+          if (index < widget.competitions.length) {
+            _playBackgroundMusicForSYTReel(index);
           }
         },
         itemCount: widget.competitions.length,
@@ -536,25 +662,7 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
         ),
 
         // Duration indicator (top left)
-        Positioned(
-          top: MediaQuery.of(context).padding.top + 20,
-          left: 70,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              reel['duration'],
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
+        // Duration indicator removed
 
         // Right side action buttons with vote button
         Positioned(

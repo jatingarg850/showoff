@@ -236,7 +236,7 @@ exports.checkout = async (req, res) => {
 
       // Calculate 50% cash and 50% coins for each item
       const cashAmount = (basePrice * 0.5) * quantity;
-      const coinAmount = Math.ceil((basePrice * 0.5) * 100) * quantity; // Convert to coins (1 USD = 100 coins)
+      const coinAmount = Math.ceil((basePrice * 0.5) * 1) * quantity; // Convert to coins (1 coin = 1 INR)
 
       totalCash += cashAmount;
       totalCoins += coinAmount;
@@ -307,7 +307,7 @@ exports.processPayment = async (req, res) => {
 
       // 50% cash and 50% coins
       totalCash += (basePrice * 0.5) * quantity;
-      totalCoins += Math.ceil((basePrice * 0.5) * 100) * quantity;
+      totalCoins += Math.ceil((basePrice * 0.5) * 1) * quantity;
     });
 
     // Verify user has enough coins

@@ -1000,10 +1000,10 @@ exports.createProduct = async (req, res) => {
     if (paymentType === 'mixed') {
       mixedPayment = {
         cashAmount: price / 2,
-        coinAmount: (price / 2) * 10 // Assuming 1 USD = 10 coins
+        coinAmount: (price / 2) * 1 // 1 coin = 1 INR
       };
     } else if (paymentType === 'coins') {
-      finalCoinPrice = coinPrice || price * 10;
+      finalCoinPrice = coinPrice || price * 1;
     }
 
     const product = await Product.create({
@@ -1076,10 +1076,10 @@ exports.updateProduct = async (req, res) => {
     if (paymentType === 'mixed') {
       mixedPayment = {
         cashAmount: price / 2,
-        coinAmount: (price / 2) * 10
+        coinAmount: (price / 2) * 1 // 1 coin = 1 INR
       };
     } else if (paymentType === 'coins') {
-      finalCoinPrice = coinPrice || price * 10;
+      finalCoinPrice = coinPrice || price * 1;
     }
 
     // Update fields
@@ -1454,7 +1454,17 @@ exports.getRewardedAds = async (req, res) => {
 exports.updateRewardedAd = async (req, res) => {
   try {
     const RewardedAd = require('../models/RewardedAd');
-    const { adLink, adProvider, rewardCoins, isActive } = req.body;
+    const { 
+      adLink, 
+      adProvider, 
+      rewardCoins, 
+      isActive, 
+      title, 
+      description, 
+      icon, 
+      color,
+      providerConfig 
+    } = req.body;
     
     let ad = await RewardedAd.findOne({ adNumber: req.params.adNumber });
     
@@ -1464,13 +1474,30 @@ exports.updateRewardedAd = async (req, res) => {
         adLink,
         adProvider,
         rewardCoins,
-        isActive
+        isActive,
+        title,
+        description,
+        icon,
+        color,
+        providerConfig: providerConfig || {}
       });
     } else {
       if (adLink) ad.adLink = adLink;
       if (adProvider) ad.adProvider = adProvider;
-      if (rewardCoins) ad.rewardCoins = rewardCoins;
+      if (rewardCoins !== undefined) ad.rewardCoins = rewardCoins;
       if (isActive !== undefined) ad.isActive = isActive;
+      if (title) ad.title = title;
+      if (description) ad.description = description;
+      if (icon) ad.icon = icon;
+      if (color) ad.color = color;
+      
+      // Update provider-specific configuration
+      // Only save the config for the selected provider
+      if (providerConfig && adProvider) {
+        ad.providerConfig = {};
+        ad.providerConfig[adProvider] = providerConfig[adProvider] || {};
+      }
+      
       await ad.save();
     }
     
@@ -1480,6 +1507,7 @@ exports.updateRewardedAd = async (req, res) => {
       data: ad
     });
   } catch (error) {
+    console.error('Update rewarded ad error:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -1580,10 +1608,16 @@ exports.getAdsForApp = async (req, res) => {
     const adsForApp = ads.map(ad => ({
       id: ad._id,
       adNumber: ad.adNumber,
+      title: ad.title,
+      description: ad.description,
+      icon: ad.icon,
+      color: ad.color,
       adLink: ad.adLink,
       adProvider: ad.adProvider,
       rewardCoins: ad.rewardCoins,
-      isActive: ad.isActive
+      isActive: ad.isActive,
+      // Include provider-specific configuration
+      providerConfig: ad.providerConfig
     }));
     
     res.status(200).json({

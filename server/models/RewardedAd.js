@@ -17,14 +17,43 @@ const rewardedAdSchema = new mongoose.Schema({
   
   adProvider: {
     type: String,
-    enum: ['admob', 'custom', 'third-party'],
+    enum: ['admob', 'meta', 'custom', 'third-party'],
     default: 'custom',
   },
   
-  // Reward Configuration
+  // Provider-specific API Keys and Configuration
+  providerConfig: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {},
+  },
+  
+  // Ad Display Information
+  title: {
+    type: String,
+    default: 'Rewarded Ad',
+  },
+  
+  description: {
+    type: String,
+    default: 'Watch this ad to earn coins',
+  },
+  
+  icon: {
+    type: String,
+    default: 'gift', // Font Awesome icon name
+  },
+  
+  color: {
+    type: String,
+    default: '#667eea', // Hex color code
+  },
+  
+  // Reward Configuration - NOW FLEXIBLE
   rewardCoins: {
     type: Number,
     default: 10,
+    min: 1,
+    max: 10000,
   },
   
   // Status
@@ -68,8 +97,7 @@ const rewardedAdSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-// Index for faster queries
-rewardedAdSchema.index({ adNumber: 1 });
+// Index for faster queries (adNumber already has unique index from field definition)
 rewardedAdSchema.index({ isActive: 1 });
 
 module.exports = mongoose.model('RewardedAd', rewardedAdSchema);

@@ -13,11 +13,38 @@ exports.createPostWithUrl = async (req, res) => {
   try {
     const { mediaUrl, mediaType, thumbnailUrl, caption, location, hashtags, musicId, isPublic } = req.body;
 
+    console.log('📥 Server: createPostWithUrl received:');
+    console.log('  - mediaUrl:', mediaUrl);
+    console.log('  - mediaType:', mediaType);
+    console.log('  - thumbnailUrl:', thumbnailUrl);
+    console.log('  - caption:', caption);
+    console.log('  - musicId:', musicId);
+    console.log('  - isPublic:', isPublic);
+
     // Validate required fields
     if (!mediaUrl || !mediaType) {
       return res.status(400).json({
         success: false,
         message: 'Media URL and type are required',
+      });
+    }
+
+    // Validate user is authenticated
+    if (!req.user || !req.user.id) {
+      console.error('❌ User not authenticated or user ID missing');
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated',
+      });
+    }
+
+    // Verify user still exists in database
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      console.error('❌ User not found in database:', req.user.id);
+      return res.status(401).json({
+        success: false,
+        message: 'User account not found. Please log in again.',
       });
     }
 
@@ -39,6 +66,7 @@ exports.createPostWithUrl = async (req, res) => {
     }
 
     // Create post with provided URL
+    console.log('📝 Creating post with backgroundMusic:', musicId);
     const post = await Post.create({
       user: req.user.id,
       type: type,
@@ -48,26 +76,34 @@ exports.createPostWithUrl = async (req, res) => {
       caption: caption || '',
       location: location || '',
       hashtags: hashtags || [],
-      musicId,
+      backgroundMusic: musicId || null,
       isPublic: isPublic !== false,
     });
+
+    console.log('✅ Post created with ID:', post._id);
+    console.log('✅ Post backgroundMusic field:', post.backgroundMusic);
 
     // Populate user data
     await post.populate('user', 'username displayName profilePicture isVerified');
 
     // Award coins for upload
     const { awardCoins } = require('../utils/coinSystem');
-    await awardCoins(
-      req.user.id,
-      10, // 10 coins for upload
-      'upload_reward',
-      'Content upload reward'
-    );
+    try {
+      await awardCoins(
+        req.user.id,
+        10, // 10 coins for upload
+        'upload_reward',
+        'Content upload reward'
+      );
 
-    // Update user's coin balance
-    await User.findByIdAndUpdate(req.user.id, {
-      $inc: { coinBalance: 10 }
-    });
+      // Update user's coin balance
+      await User.findByIdAndUpdate(req.user.id, {
+        $inc: { coinBalance: 10 }
+      });
+    } catch (coinError) {
+      console.warn('⚠️ Error awarding coins:', coinError.message);
+      // Continue even if coin award fails
+    }
 
     res.status(201).json({
       success: true,
@@ -180,7 +216,8 @@ exports.getFeed = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('user', 'username displayName profilePicture isVerified');
+      .populate('user', 'username displayName profilePicture isVerified')
+      .populate('backgroundMusic', 'title artist audioUrl duration genre mood');
 
     const total = await Post.countDocuments({ isActive: true });
 
@@ -257,7 +294,8 @@ exports.getUserPosts = async (req, res) => {
       isActive: true,
     })
       .sort({ createdAt: -1 })
-      .populate('user', 'username displayName profilePicture isVerified');
+      .populate('user', 'username displayName profilePicture isVerified')
+      .populate('backgroundMusic', 'title artist audioUrl duration genre mood');
 
     res.status(200).json({
       success: true,
@@ -449,8 +487,18 @@ exports.getComments = async (req, res) => {
 // @access  Public
 exports.incrementView = async (req, res) => {
   try {
+    const { id } = req.params;
+
+    // Validate post ID format
+    if (!id || id.length !== 24) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid post ID',
+      });
+    }
+
     const post = await Post.findByIdAndUpdate(
-      req.params.id,
+      id,
       { $inc: { viewsCount: 1 } },
       { new: true }
     );
@@ -462,16 +510,19 @@ exports.incrementView = async (req, res) => {
       });
     }
 
-    // Update user total views
-    await User.findByIdAndUpdate(post.user, {
-      $inc: { totalViews: 1 },
-    });
+    // Update user total views if user exists
+    if (post.user) {
+      await User.findByIdAndUpdate(post.user, {
+        $inc: { totalViews: 1 },
+      }).catch(err => console.error('Error updating user views:', err));
+    }
 
     res.status(200).json({
       success: true,
       viewsCount: post.viewsCount,
     });
   } catch (error) {
+    console.error('Error incrementing view:', error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -554,10 +605,41 @@ exports.sharePost = async (req, res) => {
     post.sharesCount += 1;
     await post.save();
 
+    // 💰 REWARD: Add 5 coins to user's wallet for sharing
+    const User = require('../models/User');
+    const Transaction = require('../models/Transaction');
+    
+    const shareRewardCoins = 5;
+    
+    try {
+      const user = await User.findById(req.user.id);
+      if (user) {
+        // Add coins to wallet
+        user.coinBalance += shareRewardCoins;
+        user.totalCoinsEarned += shareRewardCoins;
+        await user.save();
+
+        // Create transaction record
+        await Transaction.create({
+          user: req.user.id,
+          type: 'share_reward',
+          amount: shareRewardCoins,
+          balanceAfter: user.coinBalance,
+          description: `Share reward for post`,
+        });
+
+        console.log(`✅ Share reward: ${shareRewardCoins} coins added to user ${req.user.id}`);
+      }
+    } catch (coinError) {
+      console.error('⚠️ Error adding share reward:', coinError);
+      // Don't fail the share if coin reward fails
+    }
+
     res.status(200).json({
       success: true,
       sharesCount: post.sharesCount,
       message: 'Post shared successfully',
+      coinsAwarded: shareRewardCoins,
     });
   } catch (error) {
     res.status(500).json({

@@ -522,7 +522,7 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
                                       ],
                                     ),
                                     child: const Text(
-                                      '\$0',
+                                      '₹0',
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontSize: 20,

@@ -32,7 +32,7 @@ const getCurrentCompetition = async (type) => {
 // @access  Private
 exports.submitEntry = async (req, res) => {
   try {
-    const { title, description, category, competitionType } = req.body;
+    const { title, description, category, competitionType, backgroundMusicId } = req.body;
 
     // Handle both single file and multiple files (video + thumbnail)
     const videoFile = req.files?.video?.[0] || req.file;
@@ -130,6 +130,7 @@ exports.submitEntry = async (req, res) => {
       category,
       competitionType,
       competitionPeriod: competition.periodId,
+      backgroundMusic: backgroundMusicId || null,
     });
 
     await entry.populate('user', 'username displayName profilePicture isVerified');
@@ -179,7 +180,8 @@ exports.getEntries = async (req, res) => {
 
     const entries = await SYTEntry.find(query)
       .sort({ votesCount: -1, createdAt: -1 })
-      .populate('user', 'username displayName profilePicture isVerified');
+      .populate('user', 'username displayName profilePicture isVerified')
+      .populate('backgroundMusic', 'title artist audioUrl duration genre mood');
 
     res.status(200).json({
       success: true,
@@ -296,7 +298,8 @@ exports.getLeaderboard = async (req, res) => {
     })
       .sort({ votesCount: -1 })
       .limit(10)
-      .populate('user', 'username displayName profilePicture isVerified');
+      .populate('user', 'username displayName profilePicture isVerified')
+      .populate('backgroundMusic', 'title artist audioUrl duration genre mood');
 
     res.status(200).json({
       success: true,
