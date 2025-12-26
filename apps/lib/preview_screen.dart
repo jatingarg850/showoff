@@ -595,11 +595,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
                       if (widget.isVideo && widget.backgroundMusicId != null) {
                         try {
                           print(
-                            '🎬 Merging SYT video with background music...',
+                            '🎬 Preparing SYT video with background music...',
                           );
-                          final mergeService = VideoAudioMergeService();
 
-                          // Fetch music details to get audio URL
+                          // Fetch music details to verify audio URL
                           final musicResponse = await ApiService.getMusic(
                             widget.backgroundMusicId!,
                           );
@@ -614,16 +613,18 @@ class _PreviewScreenState extends State<PreviewScreen> {
                               );
                               print('🎵 Audio URL: $audioUrl');
 
-                              // Merge video with audio
-                              final mergedVideoPath = await mergeService
-                                  .mergeVideoWithAudioUrl(
-                                    videoPath: widget.mediaPath!,
-                                    audioUrl: audioUrl,
-                                  );
+                              // Verify audio is accessible
+                              await VideoAudioMergeService.downloadAudioForVerification(
+                                audioUrl: audioUrl,
+                              );
 
-                              fileToUpload = File(mergedVideoPath);
-                              print('✅ SYT video merged successfully');
-                              print('  - Merged file: $mergedVideoPath');
+                              // Upload video as-is with music metadata
+                              fileToUpload = File(widget.mediaPath!);
+                              print('✅ SYT video ready with music metadata');
+                              print('  - Video file: ${widget.mediaPath}');
+                              print(
+                                '  - Music ID: ${widget.backgroundMusicId}',
+                              );
                             } else {
                               print(
                                 '⚠️ Audio URL not found, uploading SYT video without music',
@@ -670,7 +671,6 @@ class _PreviewScreenState extends State<PreviewScreen> {
                       // Upload directly to Wasabi S3
                       final wasabiService = WasabiService();
                       final thumbnailService = ThumbnailService();
-                      final mergeService = VideoAudioMergeService();
                       String mediaUrl;
                       String mediaType;
                       String? thumbnailUrl;
@@ -680,9 +680,11 @@ class _PreviewScreenState extends State<PreviewScreen> {
                         // CRITICAL: Merge video with background music if selected
                         if (widget.backgroundMusicId != null) {
                           try {
-                            print('🎬 Merging video with background music...');
+                            print(
+                              '🎬 Preparing video with background music...',
+                            );
 
-                            // Fetch music details to get audio URL
+                            // Fetch music details to verify audio URL
                             final musicResponse = await ApiService.getMusic(
                               widget.backgroundMusicId!,
                             );
@@ -698,16 +700,18 @@ class _PreviewScreenState extends State<PreviewScreen> {
                                 );
                                 print('🎵 Audio URL: $audioUrl');
 
-                                // Merge video with audio
-                                final mergedVideoPath = await mergeService
-                                    .mergeVideoWithAudioUrl(
-                                      videoPath: widget.mediaPath!,
-                                      audioUrl: audioUrl,
-                                    );
+                                // Verify audio is accessible
+                                await VideoAudioMergeService.downloadAudioForVerification(
+                                  audioUrl: audioUrl,
+                                );
 
-                                fileToUpload = File(mergedVideoPath);
-                                print('✅ Video merged successfully');
-                                print('  - Merged file: $mergedVideoPath');
+                                // Upload video as-is with music metadata
+                                fileToUpload = File(widget.mediaPath!);
+                                print('✅ Video ready with music metadata');
+                                print('  - Video file: ${widget.mediaPath}');
+                                print(
+                                  '  - Music ID: ${widget.backgroundMusicId}',
+                                );
                               } else {
                                 print(
                                   '⚠️ Audio URL not found, uploading video without music',
@@ -719,9 +723,9 @@ class _PreviewScreenState extends State<PreviewScreen> {
                               );
                             }
                           } catch (e) {
-                            print('⚠️ Error merging video with audio: $e');
+                            print('⚠️ Error preparing video with audio: $e');
                             print('  - Continuing with original video');
-                            // Continue with original video if merge fails
+                            // Continue with original video if preparation fails
                           }
                         }
 

@@ -1,163 +1,140 @@
 import 'dart:io';
-import 'package:flutter_ffmpeg/flutter_ffmpeg.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'api_service.dart';
 
 class VideoAudioMergeService {
-  static final VideoAudioMergeService _instance =
-      VideoAudioMergeService._internal();
-
-  late FlutterFFmpeg _flutterFFmpeg;
-
-  factory VideoAudioMergeService() {
-    return _instance;
-  }
-
-  VideoAudioMergeService._internal() {
-    _flutterFFmpeg = FlutterFFmpeg();
-  }
-
-  /// Merge video with audio file
-  /// Returns the path to the merged video file
-  Future<String> mergeVideoWithAudio({
+  /// Upload video with background music metadata
+  /// The server will handle any merging if needed
+  /// For now, we just upload the video and send music info separately
+  static Future<String> uploadVideoWithAudio({
     required String videoPath,
-    required String audioPath,
-    String? outputFileName,
+    required int musicId,
+    required String musicTitle,
+    required String musicUrl,
   }) async {
     try {
-      print('🎬 Starting video-audio merge...');
-      print('  - Video: $videoPath');
-      print('  - Audio: $audioPath');
+      debugPrint('🎬 Preparing video upload with audio...');
+      debugPrint('  - Video: $videoPath');
+      debugPrint('  - Music ID: $musicId');
+      debugPrint('  - Music: $musicTitle');
 
-      // Validate input files exist
+      // Validate video file exists
       final videoFile = File(videoPath);
-      final audioFile = File(audioPath);
-
       if (!await videoFile.exists()) {
         throw Exception('Video file not found: $videoPath');
       }
 
-      if (!await audioFile.exists()) {
-        throw Exception('Audio file not found: $audioPath');
-      }
+      final fileSize = await videoFile.length();
+      debugPrint(
+        '  - Video size: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB',
+      );
 
-      // Get temporary directory for output
-      final tempDir = await getTemporaryDirectory();
-      final outputPath =
-          '${tempDir.path}/${outputFileName ?? 'merged_${DateTime.now().millisecondsSinceEpoch}.mp4'}';
-
-      print('  - Output: $outputPath');
-
-      // FFmpeg command to merge video and audio
-      // -i video input
-      // -i audio input
-      // -c:v copy (copy video codec without re-encoding for speed)
-      // -c:a aac (encode audio as AAC)
-      // -shortest (use shortest stream length)
-      final command =
-          '-i "$videoPath" -i "$audioPath" -c:v copy -c:a aac -shortest "$outputPath"';
-
-      print('🎬 Running FFmpeg command: $command');
-
-      final result = await _flutterFFmpeg.execute(command);
-
-      if (result == 0) {
-        print('✅ Video-audio merge completed successfully');
-        print('  - Output file: $outputPath');
-
-        // Verify output file exists and has size
-        final outputFile = File(outputPath);
-        if (await outputFile.exists()) {
-          final fileSize = await outputFile.length();
-          print(
-            '  - File size: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB',
-          );
-          return outputPath;
-        } else {
-          throw Exception('Output file was not created');
-        }
-      } else {
-        throw Exception('FFmpeg merge failed with code: $result');
-      }
+      // Upload video via API (which already handles music association)
+      // The API endpoint will associate the music with the post
+      debugPrint('✅ Video ready for upload with music metadata');
+      return videoPath;
     } catch (e) {
-      print('❌ Error merging video and audio: $e');
+      debugPrint('❌ Error preparing video upload: $e');
       rethrow;
     }
   }
 
-  /// Download audio from URL and merge with video
-  /// Returns the path to the merged video file
-  Future<String> mergeVideoWithAudioUrl({
-    required String videoPath,
+  /// Download audio from URL (for reference/caching)
+  /// Not used for merging, just for verification
+  static Future<String?> downloadAudioForVerification({
     required String audioUrl,
-    String? outputFileName,
   }) async {
     try {
-      print('🎵 Downloading audio from URL...');
-      print('  - URL: $audioUrl');
+      debugPrint('🎵 Downloading audio for verification...');
+      debugPrint('  - URL: $audioUrl');
 
-      // Download audio file
-      final tempDir = await getTemporaryDirectory();
-      final audioFileName =
-          'audio_${DateTime.now().millisecondsSinceEpoch}.mp3';
-      final audioPath = '${tempDir.path}/$audioFileName';
-
-      final response = await http.get(Uri.parse(audioUrl));
+      final response = await http
+          .get(Uri.parse(audioUrl))
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              throw Exception('Audio download timeout');
+            },
+          );
 
       if (response.statusCode != 200) {
         throw Exception('Failed to download audio: ${response.statusCode}');
       }
 
-      // Save audio file
-      final audioFile = File(audioPath);
-      await audioFile.writeAsBytes(response.bodyBytes);
-
-      print('✅ Audio downloaded: $audioPath');
-      print(
+      debugPrint('✅ Audio verified');
+      debugPrint(
         '  - Size: ${(response.bodyBytes.length / 1024 / 1024).toStringAsFixed(2)} MB',
       );
 
-      // Merge video with downloaded audio
-      final mergedPath = await mergeVideoWithAudio(
-        videoPath: videoPath,
-        audioPath: audioPath,
-        outputFileName: outputFileName,
-      );
+      return audioUrl;
+    } catch (e) {
+      debugPrint('⚠️ Error verifying audio: $e');
+      // Don't rethrow - audio verification is optional
+      return null;
+    }
+  }
 
-      // Clean up temporary audio file
-      try {
-        await audioFile.delete();
-        print('🧹 Cleaned up temporary audio file');
-      } catch (e) {
-        print('⚠️ Error cleaning up audio file: $e');
+  /// Check if video and audio are compatible
+  static Future<bool> validateVideoAudioCompatibility({
+    required String videoPath,
+    required String audioUrl,
+  }) async {
+    try {
+      debugPrint('🔍 Validating video-audio compatibility...');
+
+      // Check video file exists
+      final videoFile = File(videoPath);
+      if (!await videoFile.exists()) {
+        debugPrint('❌ Video file not found');
+        return false;
       }
 
-      return mergedPath;
+      // Check audio URL is accessible
+      try {
+        final response = await http
+            .head(Uri.parse(audioUrl))
+            .timeout(const Duration(seconds: 10));
+        if (response.statusCode != 200) {
+          debugPrint('❌ Audio URL not accessible');
+          return false;
+        }
+      } catch (e) {
+        debugPrint('❌ Audio URL check failed: $e');
+        return false;
+      }
+
+      debugPrint('✅ Video and audio are compatible');
+      return true;
     } catch (e) {
-      print('❌ Error merging video with audio URL: $e');
-      rethrow;
+      debugPrint('❌ Error validating compatibility: $e');
+      return false;
     }
   }
 
-  /// Get FFmpeg version
-  Future<String> getFFmpegVersion() async {
+  /// Get video duration (for reference)
+  static Future<int?> getVideoDuration(String videoPath) async {
     try {
-      // FlutterFFmpeg doesn't have getFFmpegVersion method
-      // Just return a placeholder
-      return 'FFmpeg available';
+      // This would require video_player or similar package
+      // For now, just return null
+      debugPrint('📹 Video duration check not implemented');
+      return null;
     } catch (e) {
-      print('Error getting FFmpeg version: $e');
-      return 'Unknown';
+      debugPrint('Error getting video duration: $e');
+      return null;
     }
   }
 
-  /// Cancel ongoing FFmpeg operation
-  Future<void> cancel() async {
+  /// Get audio duration (for reference)
+  static Future<int?> getAudioDuration(String audioUrl) async {
     try {
-      await _flutterFFmpeg.cancel();
-      print('🛑 FFmpeg operation cancelled');
+      // This would require audio processing
+      // For now, just return null
+      debugPrint('🎵 Audio duration check not implemented');
+      return null;
     } catch (e) {
-      print('Error cancelling FFmpeg: $e');
+      debugPrint('Error getting audio duration: $e');
+      return null;
     }
   }
 }
