@@ -1,5 +1,9 @@
 import 'package:just_audio/just_audio.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:async';
 
+/// Instagram-style background music service for reels
+/// Handles music playback with proper scroll handling
 class BackgroundMusicService {
   static final BackgroundMusicService _instance =
       BackgroundMusicService._internal();
@@ -8,6 +12,11 @@ class BackgroundMusicService {
   String? _currentMusicId;
   String? _currentMusicUrl;
   bool _isPlaying = false;
+  bool _isPaused = false;
+
+  // Prevent rapid music changes during scroll
+  DateTime? _lastMusicChange;
+  static const int _musicChangeDebounceMs = 100;
 
   factory BackgroundMusicService() {
     return _instance;
@@ -20,18 +29,11 @@ class BackgroundMusicService {
 
   void _setupListeners() {
     _audioPlayer.playerStateStream.listen((playerState) {
-      if (playerState.playing) {
-        _isPlaying = true;
-        print('🎵 Background music playing');
-      } else {
-        _isPlaying = false;
-        print('⏸️ Background music paused');
-      }
+      _isPlaying = playerState.playing;
     });
 
     _audioPlayer.processingStateStream.listen((processingState) {
       if (processingState == ProcessingState.completed) {
-        print('✅ Background music completed');
         // Loop the music
         _audioPlayer.seek(Duration.zero);
         _audioPlayer.play();
@@ -40,71 +42,94 @@ class BackgroundMusicService {
   }
 
   /// Load and play background music
-  Future<void> playBackgroundMusic(String musicUrl, String musicId) async {
+  /// Returns true if music started playing, false otherwise
+  Future<bool> playBackgroundMusic(String musicUrl, String musicId) async {
     try {
-      print('🎵 Loading background music: $musicUrl');
+      debugPrint('🎵 BackgroundMusicService: Playing $musicUrl');
 
-      // Stop current music if playing
-      if (_isPlaying) {
+      // Debounce rapid music changes
+      final now = DateTime.now();
+      if (_lastMusicChange != null &&
+          now.difference(_lastMusicChange!).inMilliseconds <
+              _musicChangeDebounceMs) {
+        debugPrint('🎵 BackgroundMusicService: Debounced, skipping');
+        return false;
+      }
+      _lastMusicChange = now;
+
+      // Same music already playing
+      if (_currentMusicId == musicId && _isPlaying) {
+        debugPrint('🎵 BackgroundMusicService: Same music already playing');
+        return true;
+      }
+
+      // Stop current music first
+      if (_isPlaying || _currentMusicUrl != null) {
+        debugPrint('🎵 BackgroundMusicService: Stopping current music');
         await _audioPlayer.stop();
       }
 
       _currentMusicId = musicId;
       _currentMusicUrl = musicUrl;
+      _isPaused = false;
 
       // Set audio source
+      debugPrint('🎵 BackgroundMusicService: Setting audio source');
       await _audioPlayer.setAudioSource(AudioSource.uri(Uri.parse(musicUrl)));
 
-      // Set volume to 0.85 (85%) so music is prominent
+      // Set volume to 85% so music is prominent but not overwhelming
       await _audioPlayer.setVolume(0.85);
 
       // Play the music
+      debugPrint('🎵 BackgroundMusicService: Starting playback');
       await _audioPlayer.play();
 
-      print('✅ Background music started playing at 85% volume');
+      debugPrint('🎵 BackgroundMusicService: Playback started successfully');
+      return true;
     } catch (e) {
-      print('❌ Error playing background music: $e');
-      rethrow;
-    }
-  }
-
-  /// Stop background music
-  Future<void> stopBackgroundMusic() async {
-    try {
-      // CRITICAL: Always stop, don't check _isPlaying flag
-      // The flag might be out of sync with actual playback state
-      await _audioPlayer.stop();
-      print('⏹️ Background music stopped');
-
-      // Reset current music tracking
+      debugPrint('🎵 BackgroundMusicService ERROR: $e');
       _currentMusicId = null;
       _currentMusicUrl = null;
-    } catch (e) {
-      print('❌ Error stopping background music: $e');
+      return false;
     }
   }
 
-  /// Pause background music
+  /// Stop background music immediately
+  /// Call this when scrolling starts
+  Future<void> stopBackgroundMusic() async {
+    try {
+      await _audioPlayer.stop();
+      _currentMusicId = null;
+      _currentMusicUrl = null;
+      _isPaused = false;
+    } catch (e) {
+      // Ignore errors during stop
+    }
+  }
+
+  /// Pause background music (keeps position)
+  /// Call this when app goes to background
   Future<void> pauseBackgroundMusic() async {
     try {
       if (_isPlaying) {
         await _audioPlayer.pause();
-        print('⏸️ Background music paused');
+        _isPaused = true;
       }
     } catch (e) {
-      print('❌ Error pausing background music: $e');
+      // Ignore errors during pause
     }
   }
 
-  /// Resume background music
+  /// Resume background music from paused position
+  /// Call this when app comes back to foreground
   Future<void> resumeBackgroundMusic() async {
     try {
-      if (!_isPlaying && _currentMusicUrl != null) {
+      if (_isPaused && _currentMusicUrl != null) {
         await _audioPlayer.play();
-        print('▶️ Background music resumed');
+        _isPaused = false;
       }
     } catch (e) {
-      print('❌ Error resuming background music: $e');
+      // Ignore errors during resume
     }
   }
 
@@ -112,33 +137,26 @@ class BackgroundMusicService {
   Future<void> setVolume(double volume) async {
     try {
       await _audioPlayer.setVolume(volume.clamp(0.0, 1.0));
-      print(
-        '🔊 Background music volume set to: ${(volume * 100).toStringAsFixed(0)}%',
-      );
     } catch (e) {
-      print('❌ Error setting volume: $e');
+      // Ignore errors
     }
   }
 
   /// Get current music ID
   String? getCurrentMusicId() => _currentMusicId;
 
-  /// Get current music URL
-  String? getCurrentMusicUrl() => _currentMusicUrl;
-
   /// Check if music is playing
   bool isPlaying() => _isPlaying;
 
-  /// Get audio player for advanced control
-  AudioPlayer getAudioPlayer() => _audioPlayer;
+  /// Check if music is paused
+  bool isPaused() => _isPaused;
 
   /// Dispose resources
   Future<void> dispose() async {
     try {
       await _audioPlayer.dispose();
-      print('🗑️ Background music service disposed');
     } catch (e) {
-      print('❌ Error disposing background music service: $e');
+      // Ignore errors during dispose
     }
   }
 

@@ -433,8 +433,8 @@ class _CameraScreenState extends State<CameraScreen> {
             ),
           ),
 
-          // Recording indicator
-          if (isRecording)
+          // Recording/Photo mode indicator
+          if (isRecording || _isSelfieMode)
             Positioned(
               top: MediaQuery.of(context).padding.top + 60,
               left: 20,
@@ -444,7 +444,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.red,
+                  color: _isSelfieMode ? Colors.blue : Colors.red,
                   borderRadius: BorderRadius.circular(15),
                 ),
                 child: Row(
@@ -459,9 +459,9 @@ class _CameraScreenState extends State<CameraScreen> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Text(
-                      'REC',
-                      style: TextStyle(
+                    Text(
+                      _isSelfieMode ? 'PHOTO' : 'REC',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -546,11 +546,20 @@ class _CameraScreenState extends State<CameraScreen> {
 
                 // Capture button
                 GestureDetector(
-                  onTap: _isSelfieMode
-                      ? _takePicture
-                      : (isRecording
-                            ? _stopVideoRecording
-                            : _startVideoRecording),
+                  onTap: () {
+                    if (_isSelfieMode) {
+                      debugPrint('📸 Selfie mode: Taking picture');
+                      _takePicture();
+                    } else {
+                      if (isRecording) {
+                        debugPrint('⏹️ Stopping video recording');
+                        _stopVideoRecording();
+                      } else {
+                        debugPrint('🎥 Starting video recording');
+                        _startVideoRecording();
+                      }
+                    }
+                  },
                   child: Container(
                     width: 80,
                     height: 80,

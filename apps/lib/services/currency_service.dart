@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'storage_service.dart';
 
@@ -49,10 +50,11 @@ class CurrencyService {
 
       // Detect currency based on location
       final detectedCurrency = await _detectCurrency();
+      debugPrint('🌍 Detected currency: $detectedCurrency');
       await StorageService.saveString(_currencyKey, detectedCurrency);
       return detectedCurrency;
     } catch (e) {
-      print('Error getting user currency: $e');
+      debugPrint('Error getting user currency: $e');
       return 'INR'; // Default to INR
     }
   }
@@ -70,6 +72,7 @@ class CurrencyService {
         final countryCode = data['country_code'] as String?;
 
         if (countryCode != null) {
+          debugPrint('🌍 Detected country code: $countryCode');
           // Return currency for country
           return countryCurrencyMap[countryCode] ??
               data['currency'] as String? ??
@@ -77,7 +80,7 @@ class CurrencyService {
         }
       }
     } catch (e) {
-      print('Error detecting currency: $e');
+      debugPrint('Error detecting currency: $e');
     }
 
     return 'INR'; // Default to INR
@@ -96,6 +99,7 @@ class CurrencyService {
 
         // Use cache if less than 1 hour old
         if (now.difference(cacheTime).inHours < 1) {
+          debugPrint('💱 Using cached exchange rates');
           return Map<String, double>.from(jsonDecode(cachedRates));
         }
       }
@@ -120,13 +124,15 @@ class CurrencyService {
           DateTime.now().toIso8601String(),
         );
 
+        debugPrint('💱 Fetched fresh exchange rates');
         return rates;
       }
     } catch (e) {
-      print('Error fetching exchange rates: $e');
+      debugPrint('Error fetching exchange rates: $e');
     }
 
     // Return default rates if fetch fails
+    debugPrint('💱 Using default exchange rates');
     return {
       'USD': 1.0,
       'INR': 83.0,
@@ -150,9 +156,10 @@ class CurrencyService {
       final rates = await getExchangeRates();
       final rate = rates[currency] ?? 1.0;
 
+      debugPrint('💱 Converting $usdAmount USD to $currency at rate $rate');
       return usdAmount * rate;
     } catch (e) {
-      print('Error converting currency: $e');
+      debugPrint('Error converting currency: $e');
       return usdAmount;
     }
   }

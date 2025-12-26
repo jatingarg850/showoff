@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:visibility_detector/visibility_detector.dart';
 import 'package:share_plus/share_plus.dart';
+import 'dart:async';
 import 'comments_screen.dart';
 import 'gift_screen.dart';
 import 'user_profile_screen.dart';
@@ -25,88 +25,70 @@ class ReelScreen extends StatefulWidget {
   ReelScreenState createState() => ReelScreenState();
 }
 
-// Make state public so MainScreen can access it
 class ReelScreenState extends State<ReelScreen>
-    with WidgetsBindingObserver, AutomaticKeepAliveClientMixin, RouteAware {
-  final PageController _pageController = PageController();
+    with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
+  // Page controller for vertical scrolling like Instagram
+  late PageController _pageController;
 
-  // Track if screen is currently visible
+  // State tracking
   bool _isScreenVisible = true;
-  bool _isDisposed = false; // Track if screen is being disposed
+  bool _isDisposed = false;
+  bool _isScrolling = false;
 
+  // Posts data
   List<Map<String, dynamic>> _posts = [];
   bool _isLoading = true;
   int _currentIndex = 0;
   String? _currentUserId;
   final Map<String, bool> _followStatus = {};
-  bool _isAdFree = false; // Track if user has ad-free subscription
+  bool _isAdFree = false;
 
-  // Lazy loading variables
+  // Lazy loading
   int _currentPage = 1;
   bool _hasMorePosts = true;
   bool _isLoadingMore = false;
-  static const int _postsPerPage =
-      3; // Load only 3 posts at a time to reduce memory usage
+  static const int _postsPerPage = 5;
 
-  // Static cache for feed data (persists across widget rebuilds)
+  // Static cache for feed data
   static List<Map<String, dynamic>>? _cachedPosts;
   static bool _hasFetchedData = false;
 
-  // Keep state alive when navigating away
   @override
   bool get wantKeepAlive => true;
 
-  // Video controllers
+  // Video controllers - only keep 3 at a time (current, prev, next)
   final Map<int, VideoPlayerController?> _videoControllers = {};
   final Map<int, bool> _videoInitialized = {};
-  final Map<int, bool> _videoFullyLoaded = {}; // Track if video is 100% loaded
-  final Map<int, DateTime> _lastPlayAttempt = {};
+  final Map<int, bool> _videoReady = {};
 
-  // 🚀 OPTIMIZATION: Cache manager for reel videos (permanent cache for looping)
-  // Increased to store more videos for smooth looping without network interruption
+  // Cache manager for videos
   static final _cacheManager = CacheManager(
     Config(
       'reelVideoCache',
-      stalePeriod: const Duration(days: 7), // Keep cached for 7 days
-      maxNrOfCacheObjects: 5, // Store up to 5 videos for looping
+      stalePeriod: const Duration(days: 3),
+      maxNrOfCacheObjects: 10,
     ),
   );
 
-  // Temporary cache manager for next reel preloading (longer expiry for looping)
-  // This cache is for videos being preloaded ahead of time
-  static final _tempCacheManager = CacheManager(
-    Config(
-      'reelTempCache',
-      stalePeriod: const Duration(
-        hours: 1,
-      ), // Keep for 1 hour (longer for looping)
-      maxNrOfCacheObjects: 3, // Store up to 3 videos for preloading
-    ),
-  );
+  // Like debounce
+  final Map<String, DateTime> _lastLikeClick = {};
+  static const int _likeDebounceMs = 500;
 
-  // Track which videos are being preloaded
-  final Set<int> _preloadingVideos = {};
-  final Map<int, DateTime> _cacheTimestamps = {};
-
-  // 🚀 OPTIMIZATION: Track like button state to prevent rapid clicking
-  final Map<String, DateTime> _lastLikeClick = {}; // postId -> last click time
-  static const int _likeDebounceMs =
-      500; // Prevent clicking more than once per 500ms
-
-  // Ad related
+  // Ads
   InterstitialAd? _interstitialAd;
   int _reelsSinceLastAd = 0;
-  final int _adFrequency = 4; // Show ad every 4 reels
-  bool _isLoadingAd = false;
+  final int _adFrequency = 4;
 
-  // Background music tracking
-  String? _currentMusicId;
+  // Background music - Instagram style
   final BackgroundMusicService _musicService = BackgroundMusicService();
+  String? _currentMusicId;
+  Timer? _musicLoadTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _pageController = PageController();
     _loadCurrentUser();
     _checkSubscriptionStatus();
     _loadFeed();
@@ -116,60 +98,36 @@ class ReelScreenState extends State<ReelScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
 
-    // Pause video when app goes to background
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       _isScreenVisible = false;
-      print('📱 App paused/inactive - stopping all videos and music');
-
-      // Stop background music
-      try {
-        _musicService.pauseBackgroundMusic();
-        print('🎵 Background music paused');
-      } catch (e) {
-        print('Error pausing background music: $e');
-      }
-
-      // Stop ALL videos immediately
-      _videoControllers.forEach((key, controller) {
-        if (controller != null) {
-          try {
-            controller.pause();
-            controller.setVolume(0.0);
-            print('🔇 Stopped video $key due to app lifecycle change');
-          } catch (e) {
-            print('Error stopping video $key: $e');
-          }
-        }
-      });
-      _lastPlayAttempt.clear();
-    }
-    // Resume video when app comes back to foreground
-    else if (state == AppLifecycleState.resumed) {
+      _stopAllMedia();
+    } else if (state == AppLifecycleState.resumed) {
       _isScreenVisible = true;
-      print('📱 App resumed - checking if we should resume videos and music');
-
-      // Resume background music
-      try {
-        _musicService.resumeBackgroundMusic();
-        print('🎵 Background music resumed');
-      } catch (e) {
-        print('Error resuming background music: $e');
-      }
-
-      // Reload feed if posts are empty (fixes black screen on app restart)
       if (_posts.isEmpty && !_isLoading) {
-        print('App resumed with no posts, reloading feed...');
         _loadFeed();
-      } else if (_videoInitialized[_currentIndex] == true) {
-        try {
-          _videoControllers[_currentIndex]?.play();
-          print('▶️ Resumed video $_currentIndex');
-        } catch (e) {
-          print('Error resuming video: $e');
-        }
+      } else {
+        _resumeCurrentVideo();
       }
     }
+  }
+
+  void _stopAllMedia() {
+    // Stop all videos
+    _videoControllers.forEach((key, controller) {
+      if (controller != null) {
+        try {
+          controller.pause();
+          controller.setVolume(0.0);
+        } catch (e) {
+          debugPrint('Error stopping video $key: $e');
+        }
+      }
+    });
+
+    // Stop music
+    _musicService.stopBackgroundMusic();
+    _currentMusicId = null;
   }
 
   void _pauseCurrentVideo() {
@@ -177,349 +135,131 @@ class ReelScreenState extends State<ReelScreen>
     if (controller != null) {
       try {
         controller.pause();
-        controller.setVolume(0.0); // Mute audio
-        print('⏸️ Video paused and muted');
+        controller.setVolume(0.0);
       } catch (e) {
-        print('Error pausing video: $e');
+        debugPrint('Error pausing video: $e');
       }
     }
-  }
-
-  void _stopAllVideos() {
-    // Stop and mute ALL videos immediately
-    _isScreenVisible = false;
-    _videoControllers.forEach((key, controller) {
-      if (controller != null) {
-        try {
-          controller.pause();
-          controller.setVolume(0.0);
-          controller.seekTo(Duration.zero);
-          print('🔇 Stopped, muted, and reset video $key');
-        } catch (e) {
-          print('Error stopping video $key: $e');
-        }
-      }
-    });
-    _lastPlayAttempt.clear();
-  }
-
-  @override
-  void didPush() {
-    // Called when this route is pushed onto the navigator
-    print('📍 ReelScreen pushed - resuming videos');
-    _isScreenVisible = true;
-    _isDisposed = false;
-    _resumeCurrentVideo();
-  }
-
-  @override
-  void didPopNext() {
-    // Called when the route above this one has been popped off
-    print('📍 ReelScreen resumed (route popped) - resuming videos');
-    _isScreenVisible = true;
-    _isDisposed = false;
-    _resumeCurrentVideo();
-  }
-
-  @override
-  void didPop() {
-    // Called when this route is popped off the navigator
-    print('📍 ReelScreen popped - stopping all videos');
-    _isDisposed = true;
-    _stopAllVideos();
-  }
-
-  @override
-  void didPushNext() {
-    // Called when a new route has been pushed on top of this one
-    print('📍 New route pushed on top - stopping all videos');
-    _isDisposed = true;
-    _stopAllVideos();
   }
 
   void _resumeCurrentVideo() {
-    // Only resume if screen is visible
-    if (_isScreenVisible && _videoInitialized[_currentIndex] == true) {
-      _videoControllers[_currentIndex]?.play();
-      print('▶️ Video resumed');
+    if (!_isScreenVisible || _isDisposed) return;
+
+    final controller = _videoControllers[_currentIndex];
+    if (controller != null && _videoReady[_currentIndex] == true) {
+      try {
+        controller.setVolume(1.0);
+        controller.play();
+      } catch (e) {
+        debugPrint('Error resuming video: $e');
+      }
     }
+
+    // Resume music
+    _musicService.resumeBackgroundMusic();
   }
 
-  // Public methods for MainScreen to control video playback
+  // Public methods for MainScreen
   void pauseVideo() {
-    print('🔇🔇🔇 PAUSE VIDEO CALLED FROM MAIN SCREEN');
     _isScreenVisible = false;
-    _isDisposed = true; // Mark as disposed when pausing from main screen
-
-    // Pause all videos and mute them AGGRESSIVELY
-    _videoControllers.forEach((key, controller) {
-      if (controller != null) {
-        try {
-          // Aggressive stop: pause, mute, seek to beginning
-          controller.pause();
-          controller.setVolume(0.0); // Mute the video
-          controller.seekTo(Duration.zero); // Seek to beginning
-          print('🔇 Paused, muted, and reset video $key');
-        } catch (e) {
-          print('Error pausing video $key: $e');
-        }
-      }
-    });
-
-    // Clear all pending play attempts
-    _lastPlayAttempt.clear();
-    print('🔇 Cleared all pending play attempts');
+    _stopAllMedia();
   }
 
   void stopAllVideosCompletely() {
-    // ULTRA AGGRESSIVE: Stop all videos completely
-    print('🔇🔇🔇 STOP ALL VIDEOS COMPLETELY');
     _isScreenVisible = false;
     _isDisposed = true;
-
-    _videoControllers.forEach((key, controller) {
-      if (controller != null) {
-        try {
-          controller.pause();
-          controller.setVolume(0.0);
-          controller.seekTo(Duration.zero);
-          print('🔇 Completely stopped video $key');
-        } catch (e) {
-          print('Error stopping video $key: $e');
-        }
-      }
-    });
-
-    _lastPlayAttempt.clear();
-    print('🔇 All videos completely stopped');
+    _stopAllMedia();
   }
 
   void resumeVideo() {
-    print('🔊🔊🔊 RESUME VIDEO CALLED FROM MAIN SCREEN');
     _isScreenVisible = true;
-    _isDisposed = false; // Mark as not disposed when resuming
-
-    // Unmute and resume current video
-    final controller = _videoControllers[_currentIndex];
-    if (controller != null && _videoInitialized[_currentIndex] == true) {
-      try {
-        controller.setVolume(1.0); // Unmute
-        controller.play();
-        print('🔊 Resumed and unmuted video $_currentIndex');
-      } catch (e) {
-        print('Error resuming video $_currentIndex: $e');
-      }
-    }
+    _isDisposed = false;
+    _resumeCurrentVideo();
   }
 
   Future<void> _loadCurrentUser() async {
     try {
       final user = await StorageService.getUser();
-      if (user != null) {
+      if (user != null && mounted) {
         setState(() {
           _currentUserId = user['_id'] ?? user['id'];
         });
       }
     } catch (e) {
-      print('Error loading current user: $e');
+      debugPrint('Error loading current user: $e');
     }
   }
 
   Future<void> _checkSubscriptionStatus() async {
     try {
       final response = await ApiService.getMySubscription();
-
-      // Check if response is successful and has data
       if (response['success'] == true && response['data'] != null) {
-        try {
-          // Safely convert nested maps
-          final dataRaw = response['data'];
-          if (dataRaw is! Map) {
-            throw Exception('Invalid data format');
+        final data = Map<String, dynamic>.from(response['data']);
+        final plan = data['plan'];
+        if (plan != null && plan is Map) {
+          final features = plan['features'];
+          if (features != null && features is Map) {
+            setState(() {
+              _isAdFree = features['adFree'] == true;
+            });
           }
-
-          final data = Map<String, dynamic>.from(dataRaw);
-
-          final planRaw = data['plan'];
-          if (planRaw != null && planRaw is Map) {
-            final plan = Map<String, dynamic>.from(planRaw);
-
-            final featuresRaw = plan['features'];
-            if (featuresRaw != null && featuresRaw is Map) {
-              final features = Map<String, dynamic>.from(featuresRaw);
-
-              setState(() {
-                _isAdFree = features['adFree'] == true;
-              });
-              print('Subscription check: adFree = $_isAdFree');
-            }
-          }
-        } catch (conversionError) {
-          print('Error converting subscription data: $conversionError');
-          setState(() {
-            _isAdFree = false;
-          });
         }
-      } else {
-        // No active subscription
-        print('No active subscription found');
-        setState(() {
-          _isAdFree = false;
-        });
       }
     } catch (e) {
-      print('Error checking subscription: $e');
-      // Default to showing ads if check fails
-      setState(() {
-        _isAdFree = false;
-      });
+      debugPrint('Error checking subscription: $e');
     }
 
-    // Only load ads if user is not ad-free
     if (!_isAdFree) {
       _loadInterstitialAd();
-    } else {
-      print('User has ad-free subscription, skipping ad load');
     }
   }
 
   Future<void> _loadFeed() async {
     if (!mounted) return;
 
-    // Check if we already have cached data
+    // Use cached data if available
     if (_hasFetchedData && _cachedPosts != null && _cachedPosts!.isNotEmpty) {
-      print('✅ Using cached feed data (${_cachedPosts!.length} posts)');
       setState(() {
         _posts = _cachedPosts!;
         _isLoading = false;
       });
-
-      // Initialize first video only
-      if (_posts.isNotEmpty) {
-        // CRITICAL FIX: Check for initialPostId even with cached data
-        int initialIndex = 0;
-        if (widget.initialPostId != null) {
-          final index = _posts.indexWhere(
-            (post) => post['_id'] == widget.initialPostId,
-          );
-          if (index != -1) {
-            print('✅ Found initial post at index $index (from cache)');
-            initialIndex = index;
-          } else {
-            print(
-              '⚠️ Initial post ID not found in cached posts, starting from 0',
-            );
-          }
-        }
-
-        // Jump to the initial post if provided
-        if (widget.initialPostId != null && initialIndex >= 0) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            print('📍 Jumping to page $initialIndex (from cache)');
-            _pageController.jumpToPage(initialIndex);
-          });
-        }
-
-        _initializeVideoController(initialIndex);
-        _trackView(_posts[initialIndex]['_id']);
-
-        // Load stats only for first 3 posts (current + next 2)
-        final postsToLoadStats = _posts.take(3).toList();
-        _loadStatsInBackground(postsToLoadStats);
-
-        // Check follow status only for first 3 posts
-        for (final post in postsToLoadStats) {
-          final userId = post['user']?['_id'] ?? post['user']?['id'];
-          if (userId != null) {
-            _checkFollowStatus(userId);
-          }
-        }
-      }
+      _initializeForIndex(_getInitialIndex());
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      print('🔄 Lazy loading: Fetching first $_postsPerPage posts...');
-
-      List<Map<String, dynamic>> posts = [];
-
-      // Always load the general feed first
       final response = await ApiService.getFeed(page: 1, limit: _postsPerPage);
-      print('Feed response: ${response['success']}');
 
-      if (!response['success']) {
-        print('Feed API returned success: false');
-        if (mounted) {
-          setState(() => _isLoading = false);
-        }
+      if (!response['success'] || !mounted) {
+        setState(() => _isLoading = false);
         return;
       }
 
-      posts = List<Map<String, dynamic>>.from(response['data']);
-
-      print('✅ Loaded ${posts.length} posts');
-
-      if (!mounted) return;
-
-      // 🚀 OPTIMIZATION: Batch fetch pre-signed URLs for all videos
+      final posts = List<Map<String, dynamic>>.from(response['data']);
       await _batchFetchPresignedUrls(posts);
 
-      // Cache the data
       _cachedPosts = posts;
       _hasFetchedData = true;
       _hasMorePosts = posts.length >= _postsPerPage;
 
-      // Immediately show posts and initialize first video
-      if (posts.isNotEmpty) {
+      if (posts.isNotEmpty && mounted) {
         setState(() {
           _posts = posts;
           _isLoading = false;
         });
 
-        // Find initial post index if provided
-        int initialIndex = 0;
-        if (widget.initialPostId != null) {
-          final index = _posts.indexWhere(
-            (post) => post['_id'] == widget.initialPostId,
-          );
-          if (index != -1) {
-            print('✅ Found initial post at index $index');
-            initialIndex = index;
-          } else {
-            print(
-              '⚠️ Initial post ID not found in loaded posts, starting from 0',
-            );
-          }
-        }
+        final initialIndex = _getInitialIndex();
+        _initializeForIndex(initialIndex);
 
-        // Initialize first video immediately
-        // Jump to the initial post if provided (even if it's at index 0)
-        if (widget.initialPostId != null && initialIndex >= 0) {
+        // Jump to initial post if specified
+        if (widget.initialPostId != null && initialIndex > 0) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            print('📍 Jumping to page $initialIndex');
             _pageController.jumpToPage(initialIndex);
           });
         }
-        _initializeVideoController(initialIndex);
-        _trackView(_posts[initialIndex]['_id']);
-
-        // Load stats only for first 3 posts (non-blocking)
-        final postsToLoadStats = posts.take(3).toList();
-        _loadStatsInBackground(postsToLoadStats);
-
-        // Check follow status only for first 3 posts (non-blocking)
-        for (final post in postsToLoadStats) {
-          final userId = post['user']?['_id'] ?? post['user']?['id'];
-          if (userId != null) {
-            _checkFollowStatus(userId);
-          }
-        }
       } else {
-        print('No posts found');
         setState(() {
           _posts = posts;
           _isLoading = false;
@@ -527,25 +267,48 @@ class ReelScreenState extends State<ReelScreen>
         });
       }
     } catch (e) {
-      print('Error loading feed: $e');
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      debugPrint('Error loading feed: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // Load more posts when user scrolls near the end
+  int _getInitialIndex() {
+    if (widget.initialPostId != null) {
+      final index = _posts.indexWhere(
+        (post) => post['_id'] == widget.initialPostId,
+      );
+      if (index != -1) return index;
+    }
+    return 0;
+  }
+
+  void _initializeForIndex(int index) {
+    // Initialize current video
+    _initializeVideoController(index);
+    _trackView(_posts[index]['_id']);
+
+    // Preload adjacent videos
+    if (index + 1 < _posts.length) {
+      _initializeVideoController(index + 1);
+    }
+    if (index > 0) {
+      _initializeVideoController(index - 1);
+    }
+
+    // Load stats for visible posts
+    _loadStatsForVisiblePosts(index);
+
+    // Load music for current reel
+    _loadMusicForReel(index);
+  }
+
   Future<void> _loadMorePosts() async {
     if (_isLoadingMore || !_hasMorePosts || !mounted) return;
 
-    setState(() {
-      _isLoadingMore = true;
-    });
+    setState(() => _isLoadingMore = true);
 
     try {
       _currentPage++;
-      print('🔄 Loading more posts (page $_currentPage)...');
-
       final response = await ApiService.getFeed(
         page: _currentPage,
         limit: _postsPerPage,
@@ -555,26 +318,16 @@ class ReelScreenState extends State<ReelScreen>
 
       if (response['success']) {
         final newPosts = List<Map<String, dynamic>>.from(response['data']);
-        print('✅ Loaded ${newPosts.length} more posts');
 
         if (newPosts.isNotEmpty) {
+          await _batchFetchPresignedUrls(newPosts);
+
           setState(() {
             _posts.addAll(newPosts);
             _cachedPosts = _posts;
             _hasMorePosts = newPosts.length >= _postsPerPage;
             _isLoadingMore = false;
           });
-
-          // Load stats for new posts (non-blocking)
-          _loadStatsInBackground(newPosts);
-
-          // Check follow status for new posts (non-blocking)
-          for (final post in newPosts) {
-            final userId = post['user']?['_id'] ?? post['user']?['id'];
-            if (userId != null) {
-              _checkFollowStatus(userId);
-            }
-          }
         } else {
           setState(() {
             _hasMorePosts = false;
@@ -582,26 +335,18 @@ class ReelScreenState extends State<ReelScreen>
           });
         }
       } else {
-        setState(() {
-          _isLoadingMore = false;
-        });
+        setState(() => _isLoadingMore = false);
       }
     } catch (e) {
-      print('Error loading more posts: $e');
-      if (mounted) {
-        setState(() {
-          _isLoadingMore = false;
-        });
-      }
+      debugPrint('Error loading more posts: $e');
+      if (mounted) setState(() => _isLoadingMore = false);
     }
   }
 
-  // 🚀 Batch fetch pre-signed URLs for faster video loading
   Future<void> _batchFetchPresignedUrls(
     List<Map<String, dynamic>> posts,
   ) async {
     try {
-      // Extract video URLs that need pre-signed URLs
       final videoUrls = posts
           .where(
             (post) =>
@@ -611,147 +356,101 @@ class ReelScreenState extends State<ReelScreen>
           .map((post) => post['mediaUrl'].toString())
           .toList();
 
-      if (videoUrls.isEmpty) {
-        print('No Wasabi videos to optimize');
-        return;
-      }
+      if (videoUrls.isEmpty) return;
 
-      print('🚀 Batch fetching ${videoUrls.length} pre-signed URLs...');
       final response = await ApiService.getPresignedUrlsBatch(videoUrls);
 
       if (response['success'] == true && response['data'] != null) {
         final presignedData = response['data'] as List;
-        print('✅ Got ${presignedData.length} pre-signed URLs');
-
-        // Update posts with pre-signed URLs
         for (final item in presignedData) {
           if (item['presignedUrl'] != null && item['originalUrl'] != null) {
-            final originalUrl = item['originalUrl'];
-            final presignedUrl = item['presignedUrl'];
-
-            // Find and update the post
             for (final post in posts) {
-              if (post['mediaUrl'] == originalUrl) {
-                post['_presignedUrl'] = presignedUrl;
+              if (post['mediaUrl'] == item['originalUrl']) {
+                post['_presignedUrl'] = item['presignedUrl'];
                 break;
               }
             }
           }
         }
-        print('✅ Updated posts with pre-signed URLs for instant loading');
       }
     } catch (e) {
-      print('⚠️ Batch pre-signed URL fetch failed: $e');
-      // Continue without pre-signed URLs
+      debugPrint('Batch pre-signed URL fetch failed: $e');
     }
   }
 
-  // Load stats in background without blocking UI
-  Future<void> _loadStatsInBackground(List<Map<String, dynamic>> posts) async {
-    // 🚀 OPTIMIZATION: Skip posts that already have stats (from feed response)
-    final postsNeedingStats = posts
-        .where((post) => post['stats'] == null)
-        .toList();
+  Future<void> _loadStatsForVisiblePosts(int centerIndex) async {
+    final indices = [
+      centerIndex - 1,
+      centerIndex,
+      centerIndex + 1,
+    ].where((i) => i >= 0 && i < _posts.length).toList();
 
-    if (postsNeedingStats.isEmpty) {
-      print('✅ All posts already have stats (from feed response)');
-      return;
-    }
-
-    print('📊 Loading stats for ${postsNeedingStats.length} posts...');
-
-    // Load stats in parallel for better performance
-    final futures = postsNeedingStats.map((post) async {
-      try {
-        final statsResponse = await ApiService.getPostStats(post['_id']);
-        if (statsResponse['success'] && mounted) {
-          // Update data without setState to avoid video stuttering
-          final index = _posts.indexWhere((p) => p['_id'] == post['_id']);
-          if (index != -1) {
-            _posts[index]['stats'] = statsResponse['data'];
-
-            // Only call setState for the currently visible post to update UI
-            // This prevents multiple rebuilds that cause video stuttering
-            if (index == _currentIndex && mounted) {
-              setState(() {
-                // Just trigger a rebuild for the current post
-              });
-            }
-          }
-        }
-      } catch (e) {
-        print('Error loading stats: $e');
+    for (final index in indices) {
+      final post = _posts[index];
+      if (post['stats'] == null) {
+        _loadStatsForPost(index);
       }
-    }).toList();
 
-    // Wait for all stats to load (but don't block the UI)
-    await Future.wait(futures);
+      final userId = post['user']?['_id'] ?? post['user']?['id'];
+      if (userId != null) {
+        _checkFollowStatus(userId);
+      }
+    }
   }
 
-  // Load interstitial ad
-  Future<void> _loadInterstitialAd() async {
-    if (_isLoadingAd) return;
+  Future<void> _loadStatsForPost(int index) async {
+    if (index < 0 || index >= _posts.length) return;
 
-    setState(() {
-      _isLoadingAd = true;
-    });
+    final post = _posts[index];
+    if (post['stats'] != null) return;
 
     try {
-      _interstitialAd = await AdService.loadInterstitialAd();
-      print('Interstitial ad loaded successfully');
+      final statsResponse = await ApiService.getPostStats(post['_id']);
+      if (statsResponse['success'] && mounted) {
+        _posts[index]['stats'] = statsResponse['data'];
+        if (index == _currentIndex) {
+          setState(() {});
+        }
+      }
     } catch (e) {
-      print('Error loading interstitial ad: $e');
-    } finally {
-      setState(() {
-        _isLoadingAd = false;
-      });
+      debugPrint('Error loading stats for post $index: $e');
     }
   }
 
-  // Show ad if ready
+  Future<void> _loadInterstitialAd() async {
+    try {
+      _interstitialAd = await AdService.loadInterstitialAd();
+    } catch (e) {
+      debugPrint('Error loading interstitial ad: $e');
+    }
+  }
+
   void _showAdIfReady() {
     if (_interstitialAd != null) {
-      // Pause current video before showing ad
-      _videoControllers[_currentIndex]?.pause();
-
+      _pauseCurrentVideo();
       AdService.showInterstitialAd(
         _interstitialAd,
         onAdDismissed: () {
-          // Reset counter and load next ad
           _reelsSinceLastAd = 0;
           _interstitialAd = null;
           _loadInterstitialAd();
-
-          // Resume video after ad
-          _videoControllers[_currentIndex]?.play();
+          _resumeCurrentVideo();
         },
       );
     } else {
-      // Ad not ready, try loading again
       _loadInterstitialAd();
     }
   }
 
-  Future<void> _initializeVideoController(int index) async {
-    // CRITICAL: Check if screen is disposed before starting initialization
-    if (_isDisposed || !mounted) {
-      print(
-        '⚠️ Screen disposed, skipping video initialization for index $index',
-      );
-      return;
-    }
+  // ============ VIDEO CONTROLLER MANAGEMENT ============
 
-    if (_posts.isEmpty || index >= _posts.length) {
-      return;
-    }
+  Future<void> _initializeVideoController(int index) async {
+    if (_isDisposed || !mounted) return;
+    if (_posts.isEmpty || index >= _posts.length || index < 0) return;
+    if (_videoControllers[index] != null) return; // Already initialized
 
     final mediaUrl = _posts[index]['mediaUrl'];
-    if (mediaUrl == null || mediaUrl.isEmpty) {
-      return;
-    }
-
-    // Dispose existing controller
-    _videoControllers[index]?.dispose();
+    if (mediaUrl == null || mediaUrl.isEmpty) return;
 
     try {
       String videoUrl = mediaUrl;
@@ -759,65 +458,35 @@ class ReelScreenState extends State<ReelScreen>
         videoUrl = '${ApiConfig.baseUrl}$mediaUrl';
       }
 
-      // 🚀 OPTIMIZATION: Use pre-signed URL if already fetched (batch)
+      // Use pre-signed URL if available
       if (_posts[index]['_presignedUrl'] != null) {
         videoUrl = _posts[index]['_presignedUrl'];
-        print('✅ Using cached pre-signed URL for video $index');
-      }
-      // Fallback: Get pre-signed URL individually if not in batch
-      else if (videoUrl.contains('wasabisys.com')) {
-        print('🔄 Getting pre-signed URL for video $index...');
+      } else if (videoUrl.contains('wasabisys.com')) {
         try {
           final presignedResponse = await ApiService.getPresignedUrl(videoUrl);
           if (presignedResponse['success'] == true &&
               presignedResponse['data'] != null) {
             videoUrl = presignedResponse['data']['presignedUrl'];
-            _posts[index]['_presignedUrl'] = videoUrl; // Cache it
-            print('✅ Using pre-signed URL for video $index');
+            _posts[index]['_presignedUrl'] = videoUrl;
           }
         } catch (e) {
-          print('⚠️ Pre-signed URL failed, using direct URL: $e');
+          debugPrint('Pre-signed URL failed: $e');
         }
       }
 
+      // Try to use cached file first
       VideoPlayerController controller;
-
-      // Try to use cache for first reel (permanent cache)
-      if (index == 0) {
-        try {
-          // Check if file is already cached
-          final fileInfo = await _cacheManager.getFileFromCache(videoUrl);
-          if (fileInfo != null) {
-            print('First reel loaded from permanent cache (instant)');
-            controller = VideoPlayerController.file(
-              fileInfo.file,
-              videoPlayerOptions: VideoPlayerOptions(
-                mixWithOthers: true,
-                allowBackgroundPlayback: false,
-              ),
-            );
-          } else {
-            // Not cached yet, use network and cache in background
-            print('First reel not cached, loading from network');
-            controller = VideoPlayerController.networkUrl(
-              Uri.parse(videoUrl),
-              videoPlayerOptions: VideoPlayerOptions(
-                mixWithOthers: true,
-                allowBackgroundPlayback: false,
-              ),
-            );
-            // Cache in background (non-blocking)
-            _cacheManager
-                .downloadFile(videoUrl)
-                .then((_) {
-                  print('First reel cached for next time');
-                })
-                .catchError((e) {
-                  print('Cache error: $e');
-                });
-          }
-        } catch (e) {
-          print('Cache check error: $e, using network');
+      try {
+        final fileInfo = await _cacheManager.getFileFromCache(videoUrl);
+        if (fileInfo != null) {
+          controller = VideoPlayerController.file(
+            fileInfo.file,
+            videoPlayerOptions: VideoPlayerOptions(
+              mixWithOthers: true,
+              allowBackgroundPlayback: false,
+            ),
+          );
+        } else {
           controller = VideoPlayerController.networkUrl(
             Uri.parse(videoUrl),
             videoPlayerOptions: VideoPlayerOptions(
@@ -825,302 +494,265 @@ class ReelScreenState extends State<ReelScreen>
               allowBackgroundPlayback: false,
             ),
           );
+          // Cache in background
+          _cacheManager.downloadFile(videoUrl).then((_) {}).catchError((e) {
+            debugPrint('Cache error: $e');
+          });
         }
-      } else {
-        // For other videos, check both caches (permanent first, then temp)
-        try {
-          // 🚀 OPTIMIZATION: Check permanent cache first for looping videos
-          var fileInfo = await _cacheManager.getFileFromCache(videoUrl);
-
-          if (fileInfo == null) {
-            // Not in permanent cache, check temp cache (from preloading)
-            fileInfo = await _tempCacheManager.getFileFromCache(videoUrl);
-            if (fileInfo != null) {
-              print('Video $index loaded from temp cache (preloaded)');
-            }
-          } else {
-            print('Video $index loaded from permanent cache (looping)');
-          }
-
-          if (fileInfo != null) {
-            // Use cached file
-            controller = VideoPlayerController.file(
-              fileInfo.file,
-              videoPlayerOptions: VideoPlayerOptions(
-                mixWithOthers: true,
-                allowBackgroundPlayback: false,
-              ),
-            );
-          } else {
-            // Not in any cache, use network and cache for looping
-            print('Video $index loading from network (will cache for looping)');
-            controller = VideoPlayerController.networkUrl(
-              Uri.parse(videoUrl),
-              videoPlayerOptions: VideoPlayerOptions(
-                mixWithOthers: true,
-                allowBackgroundPlayback: false,
-              ),
-            );
-
-            // 🚀 OPTIMIZATION: Cache to permanent cache for smooth looping
-            _cacheManager
-                .downloadFile(videoUrl)
-                .then((_) {
-                  print('Video $index cached to permanent cache for looping');
-                })
-                .catchError((e) {
-                  print('Cache error for video $index: $e');
-                });
-          }
-        } catch (e) {
-          print('Cache check error for video $index: $e, using network');
-          controller = VideoPlayerController.networkUrl(
-            Uri.parse(videoUrl),
-            videoPlayerOptions: VideoPlayerOptions(
-              mixWithOthers: true,
-              allowBackgroundPlayback: false,
-            ),
-          );
-        }
+      } catch (e) {
+        controller = VideoPlayerController.networkUrl(
+          Uri.parse(videoUrl),
+          videoPlayerOptions: VideoPlayerOptions(
+            mixWithOthers: true,
+            allowBackgroundPlayback: false,
+          ),
+        );
       }
 
       _videoControllers[index] = controller;
 
-      // Add listener to monitor playback state and loading
+      // Add listener for buffering state
       controller.addListener(() {
-        // CRITICAL: Check if screen is disposed before doing anything
-        if (_isDisposed || !mounted) {
-          print('⚠️ Screen disposed, ignoring video listener for index $index');
-          return;
-        }
-
-        // Check if video has enough buffer to play smoothly
-        if (controller.value.isInitialized) {
-          final buffered = controller.value.buffered;
-          final duration = controller.value.duration;
-
-          if (buffered.isNotEmpty && duration.inMilliseconds > 0) {
-            final lastBufferedRange = buffered.last;
-            final bufferedEnd = lastBufferedRange.end;
-
-            // INSTANT PLAY: Video is ready when buffered to just 10%
-            // This gives near-instant playback from Wasabi
-            if (bufferedEnd.inMilliseconds >= duration.inMilliseconds * 0.1) {
-              if (_videoFullyLoaded[index] != true && mounted && !_isDisposed) {
-                setState(() {
-                  _videoFullyLoaded[index] = true;
-                });
-                print(
-                  'Video $index ready to play (${(bufferedEnd.inMilliseconds / duration.inMilliseconds * 100).toStringAsFixed(0)}% buffered)',
-                );
-
-                // Auto-play from start if this is the current video
-                if (index == _currentIndex && mounted && !_isDisposed) {
-                  try {
-                    controller.setVolume(1.0);
-                    controller.seekTo(Duration.zero);
-                    controller.play();
-                    print('🔊 Auto-playing video $index with volume 1.0');
-                  } catch (e) {
-                    print('Error auto-playing video $index: $e');
-                  }
-                }
-              }
-            }
-          }
-        }
-
-        // Auto-resume logic (only for current video and if ready)
-        if (index != _currentIndex || _videoFullyLoaded[index] != true) return;
-
-        // Don't auto-resume if screen is not visible or disposed
-        if (!_isScreenVisible || _isDisposed) return;
-
-        final now = DateTime.now();
-        final lastAttempt = _lastPlayAttempt[index];
-
-        // Only try to resume if:
-        // 1. Video is initialized
-        // 2. Not currently playing
-        // 3. Not buffering
-        // 4. Not at the end
-        // 5. At least 2 seconds since last play attempt (debounce)
-        if (controller.value.isInitialized &&
-            !controller.value.isPlaying &&
-            !controller.value.isBuffering &&
-            controller.value.position < controller.value.duration &&
-            (lastAttempt == null ||
-                now.difference(lastAttempt).inSeconds >= 2)) {
-          _lastPlayAttempt[index] = DateTime.now();
-          controller.setVolume(1.0);
-          print('🔊 Auto-resuming video $index with volume 1.0');
-          controller.play().catchError((e) {
-            print('Auto-resume failed: $e');
-          });
-        }
+        if (_isDisposed || !mounted) return;
+        _onVideoStateChanged(controller, index);
       });
 
       await controller.initialize();
 
-      // CRITICAL: Check if screen is disposed after initialization
       if (_isDisposed || !mounted) {
-        print('⚠️ Screen disposed after initialization, stopping video $index');
-        controller.pause();
-        controller.setVolume(0.0);
+        controller.dispose();
         return;
       }
 
       controller.setLooping(true);
-      controller.setPlaybackSpeed(1.0);
+      controller.setVolume(index == _currentIndex ? 1.0 : 0.0);
 
-      // Set volume to ensure audio works
-      controller.setVolume(1.0);
-      print('🔊 Audio enabled for video $index (volume: 1.0)');
-
-      if (mounted && !_isDisposed) {
+      if (mounted) {
         setState(() {
           _videoInitialized[index] = true;
         });
+      }
 
-        // Wait for video to be 100% loaded before showing/playing
-        await _waitForFullLoad(controller, index);
+      // Auto-play if this is the current video
+      if (index == _currentIndex && _isScreenVisible && !_isScrolling) {
+        _playVideo(index);
       }
     } catch (e) {
-      print('Error initializing video $index: $e');
-      if (mounted && !_isDisposed) {
+      debugPrint('Error initializing video $index: $e');
+      if (mounted) {
         setState(() {
           _videoInitialized[index] = false;
-          _videoFullyLoaded[index] = false;
+          _videoReady[index] = false;
         });
       }
     }
   }
 
-  // Wait for video to have enough buffer to play smoothly
-  Future<void> _waitForFullLoad(
-    VideoPlayerController controller,
-    int index,
-  ) async {
-    // CRITICAL: Check if screen is disposed before waiting
-    if (_isDisposed || !mounted) {
-      print('⚠️ Screen disposed, stopping wait for video $index');
-      controller.pause();
-      controller.setVolume(0.0);
-      return;
-    }
-
+  void _onVideoStateChanged(VideoPlayerController controller, int index) {
     if (!controller.value.isInitialized) return;
 
+    final buffered = controller.value.buffered;
     final duration = controller.value.duration;
-    if (duration.inMilliseconds == 0) return;
 
-    print('Waiting for video $index to buffer...');
+    if (buffered.isNotEmpty && duration.inMilliseconds > 0) {
+      final bufferedEnd = buffered.last.end;
+      // Ready when 15% buffered
+      if (bufferedEnd.inMilliseconds >= duration.inMilliseconds * 0.15) {
+        if (_videoReady[index] != true && mounted) {
+          setState(() {
+            _videoReady[index] = true;
+          });
 
-    // ULTRA FAST: Only wait 3 seconds max, start playing with minimal buffer
-    final maxWaitTime = DateTime.now().add(const Duration(seconds: 3));
-
-    while (DateTime.now().isBefore(maxWaitTime)) {
-      // CRITICAL: Check if screen is disposed during wait loop
-      if (_isDisposed || !mounted) {
-        print('⚠️ Screen disposed during buffer wait for video $index');
-        controller.pause();
-        controller.setVolume(0.0);
-        return;
-      }
-
-      final buffered = controller.value.buffered;
-
-      if (buffered.isNotEmpty) {
-        final lastBufferedRange = buffered.last;
-        final bufferedEnd = lastBufferedRange.end;
-
-        // INSTANT PLAY: Start playing when just 10% is buffered (ultra fast)
-        // Video will continue buffering in background while playing
-        // This gives near-instant playback for Wasabi videos
-        if (bufferedEnd.inMilliseconds >= duration.inMilliseconds * 0.1) {
-          if (mounted && !_isDisposed) {
-            setState(() {
-              _videoFullyLoaded[index] = true;
-            });
+          // Auto-play if current and not scrolling
+          if (index == _currentIndex &&
+              _isScreenVisible &&
+              !_isScrolling &&
+              !_isDisposed) {
+            _playVideo(index);
           }
-          print(
-            'Video $index ready: ${(bufferedEnd.inMilliseconds / duration.inMilliseconds * 100).toStringAsFixed(0)}% buffered',
-          );
-
-          // Seek to start and play if this is the current video
-          if (index == _currentIndex && mounted && !_isDisposed) {
-            try {
-              controller.setVolume(1.0);
-              await controller.seekTo(Duration.zero);
-              await controller.play();
-              print('🔊 Playing video $index with volume 1.0');
-            } catch (e) {
-              print('Error playing video $index: $e');
-            }
-          }
-          return;
         }
       }
-
-      // Check every 50ms for faster response
-      await Future.delayed(const Duration(milliseconds: 50));
-    }
-
-    // Timeout after 3 seconds - mark as ready and play anyway
-    print('Video $index buffer timeout (3s), playing anyway');
-    if (mounted && !_isDisposed) {
-      setState(() {
-        _videoFullyLoaded[index] = true;
-      });
-
-      // Play even if not fully buffered
-      if (index == _currentIndex && !_isDisposed) {
-        try {
-          controller.setVolume(1.0);
-          await controller.seekTo(Duration.zero);
-          await controller.play();
-          print('🔊 Playing video $index (timeout) with volume 1.0');
-        } catch (e) {
-          print('Error playing video $index (timeout): $e');
-        }
-      }
-    } else if (_isDisposed) {
-      // Screen disposed, stop the video
-      print('⚠️ Screen disposed during timeout, stopping video $index');
-      controller.pause();
-      controller.setVolume(0.0);
     }
   }
 
-  void _onPageChanged(int index) {
-    setState(() {
-      _currentIndex = index;
+  void _playVideo(int index) {
+    final controller = _videoControllers[index];
+    if (controller == null || !controller.value.isInitialized) return;
+
+    try {
+      controller.setVolume(1.0);
+      controller.seekTo(Duration.zero);
+      controller.play();
+    } catch (e) {
+      debugPrint('Error playing video $index: $e');
+    }
+  }
+
+  void _pauseVideo(int index) {
+    final controller = _videoControllers[index];
+    if (controller == null) return;
+
+    try {
+      controller.pause();
+      controller.setVolume(0.0);
+    } catch (e) {
+      debugPrint('Error pausing video $index: $e');
+    }
+  }
+
+  // Clean up controllers far from current position
+  void _cleanupDistantControllers(int currentIndex) {
+    final keysToRemove = <int>[];
+
+    _videoControllers.forEach((index, controller) {
+      // Keep current, previous, and next 2
+      final shouldKeep = index >= currentIndex - 1 && index <= currentIndex + 2;
+
+      if (!shouldKeep && controller != null) {
+        try {
+          controller.dispose();
+        } catch (e) {
+          debugPrint('Error disposing controller $index: $e');
+        }
+        keysToRemove.add(index);
+      }
     });
 
-    // 🎵 CRITICAL: Stop any currently playing music IMMEDIATELY before loading new music
-    // This prevents music overlap when scrolling
-    if (_currentMusicId != null) {
-      print('🎵 IMMEDIATE STOP: Stopping current music before page change');
-      // Stop music in background (don't await, just fire and forget)
-      _musicService
-          .stopBackgroundMusic()
-          .then((_) {
-            print('✅ Music stopped');
-          })
-          .catchError((e) {
-            print('Error stopping music: $e');
-          });
-      // CRITICAL: Reset music ID immediately so new music can be loaded
-      _currentMusicId = null;
+    for (final key in keysToRemove) {
+      _videoControllers.remove(key);
+      _videoInitialized.remove(key);
+      _videoReady.remove(key);
+    }
+  }
+
+  // ============ MUSIC HANDLING - INSTAGRAM STYLE ============
+
+  void _loadMusicForReel(int index) {
+    // Cancel any pending music load
+    _musicLoadTimer?.cancel();
+
+    // Debounce music loading - wait 200ms after scroll settles
+    _musicLoadTimer = Timer(const Duration(milliseconds: 200), () {
+      if (!mounted || _isDisposed) return;
+      _playBackgroundMusicForReel(index);
+    });
+  }
+
+  Future<void> _playBackgroundMusicForReel(int index) async {
+    if (index < 0 || index >= _posts.length) return;
+
+    try {
+      final post = _posts[index];
+
+      // Get background music ID - check multiple possible locations
+      String? backgroundMusicId;
+
+      if (post['backgroundMusic'] != null) {
+        backgroundMusicId =
+            post['backgroundMusic']['_id']?.toString() ??
+            post['backgroundMusic']['id']?.toString();
+      }
+
+      // Fallback to backgroundMusicId field
+      if (backgroundMusicId == null || backgroundMusicId.isEmpty) {
+        backgroundMusicId = post['backgroundMusicId']?.toString();
+      }
+
+      // No music for this reel
+      if (backgroundMusicId == null || backgroundMusicId.isEmpty) {
+        debugPrint('🎵 No background music for reel $index');
+        if (_currentMusicId != null) {
+          await _musicService.stopBackgroundMusic();
+          _currentMusicId = null;
+        }
+        return;
+      }
+
+      debugPrint(
+        '🎵 Found background music ID: $backgroundMusicId for reel $index',
+      );
+
+      // Same music already playing
+      if (_currentMusicId == backgroundMusicId) {
+        debugPrint('🎵 Same music already playing, skipping');
+        return;
+      }
+
+      // Stop current music first
+      if (_currentMusicId != null) {
+        await _musicService.stopBackgroundMusic();
+      }
+
+      // Fetch and play new music
+      debugPrint('🎵 Fetching music details for ID: $backgroundMusicId');
+      final response = await ApiService.getMusic(backgroundMusicId);
+
+      if (response['success'] && mounted && !_isDisposed) {
+        final musicData = response['data'];
+        final rawAudioUrl = musicData['audioUrl'];
+
+        debugPrint('🎵 Music data received, audioUrl: $rawAudioUrl');
+
+        if (rawAudioUrl != null && rawAudioUrl.toString().isNotEmpty) {
+          final audioUrl = ApiService.getAudioUrl(rawAudioUrl);
+          debugPrint('🎵 Playing music from: $audioUrl');
+          await _musicService.playBackgroundMusic(audioUrl, backgroundMusicId);
+          _currentMusicId = backgroundMusicId;
+          debugPrint('🎵 Music started playing successfully');
+        } else {
+          debugPrint('🎵 Audio URL is empty or null');
+        }
+      } else {
+        debugPrint('🎵 Failed to fetch music: ${response['message']}');
+      }
+    } catch (e) {
+      debugPrint('🎵 Error loading background music: $e');
+    }
+  }
+
+  void _stopMusicImmediately() {
+    _musicLoadTimer?.cancel();
+    _musicService.stopBackgroundMusic();
+    _currentMusicId = null;
+  }
+
+  // ============ PAGE CHANGE HANDLING ============
+
+  void _onPageChanged(int index) {
+    final previousIndex = _currentIndex;
+
+    setState(() {
+      _currentIndex = index;
+      _isScrolling = false;
+    });
+
+    // Stop music immediately when page changes
+    _stopMusicImmediately();
+
+    // Pause previous video
+    _pauseVideo(previousIndex);
+
+    // Play current video if ready
+    if (_videoReady[index] == true) {
+      _playVideo(index);
+    } else if (_videoInitialized[index] != true) {
+      _initializeVideoController(index);
     }
 
-    // Lazy loading: Load more posts when approaching the end
+    // Preload adjacent videos
+    if (index + 1 < _posts.length && _videoControllers[index + 1] == null) {
+      _initializeVideoController(index + 1);
+    }
+    if (index > 0 && _videoControllers[index - 1] == null) {
+      _initializeVideoController(index - 1);
+    }
+
+    // Load more posts when approaching end
     if (index >= _posts.length - 2 && _hasMorePosts && !_isLoadingMore) {
-      print('📥 Approaching end, loading more posts...');
       _loadMorePosts();
     }
 
-    // Check if we should show an ad (only if not ad-free)
+    // Show ad if needed
     if (!_isAdFree) {
       _reelsSinceLastAd++;
       if (_reelsSinceLastAd >= _adFrequency) {
@@ -1128,252 +760,51 @@ class ReelScreenState extends State<ReelScreen>
       }
     }
 
-    // Pause all other videos and reset to start
-    _videoControllers.forEach((key, controller) {
-      if (key != index && controller != null) {
-        controller.pause();
-        controller.seekTo(Duration.zero);
-      }
-    });
-
-    // Play current video only if fully loaded
-    if (_videoInitialized[index] == true && _videoFullyLoaded[index] == true) {
-      final controller = _videoControllers[index];
-      if (controller != null && controller.value.isInitialized) {
-        // Ensure volume is set before playing
-        controller.setVolume(1.0);
-        print('🔊 Setting volume to 1.0 for video $index');
-
-        // Always start from beginning
-        controller.seekTo(Duration.zero).then((_) {
-          if (mounted && _currentIndex == index) {
-            _lastPlayAttempt[index] = DateTime.now();
-            controller.play().catchError((error) {
-              print('Error playing video: $error');
-            });
-          }
-        });
-      }
-    } else if (_videoInitialized[index] != true) {
-      // Initialize if not already initialized
-      _initializeVideoController(index);
-    }
-    // If initialized but not fully loaded, wait for the listener to auto-play
-
-    // Smart preloading: Load only next video (reduced to save memory)
-    if (index + 1 < _posts.length) {
-      if (_videoInitialized[index + 1] != true) {
-        _initializeVideoController(index + 1);
-      }
-
-      // Load stats for next post if not loaded
-      _loadStatsForPost(index + 1);
-    }
-
-    // Load stats for previous post if exists
-    if (index > 0) {
-      _loadStatsForPost(index - 1);
-    }
-
-    // Aggressive cleanup - run on every page change to prevent OOM
-    _cleanupOldCache(index);
+    // Clean up distant controllers
+    _cleanupDistantControllers(index);
 
     // Track view
-    if (_posts.isNotEmpty && index < _posts.length) {
-      _trackView(_posts[index]['_id']);
-    }
+    _trackView(_posts[index]['_id']);
 
-    // 🎵 Background music playback - Load new music for current reel
-    if (_posts.isNotEmpty && index < _posts.length) {
-      _playBackgroundMusicForReel(index);
-    }
+    // Load stats for visible posts
+    _loadStatsForVisiblePosts(index);
+
+    // Load music after scroll settles
+    _loadMusicForReel(index);
   }
 
-  // Load and play background music for current reel
-  Future<void> _playBackgroundMusicForReel(int index) async {
-    try {
-      final post = _posts[index];
-      final backgroundMusicId =
-          post['backgroundMusic']?['_id'] ??
-          post['backgroundMusic']?['id'] ??
-          post['backgroundMusicId'];
-
-      // If no music, don't play anything (music already stopped in _onPageChanged)
-      if (backgroundMusicId == null || backgroundMusicId.isEmpty) {
-        print('🎵 No background music for this reel');
-        return;
-      }
-
-      print('🎵 Loading background music for reel: $backgroundMusicId');
-
-      // Fetch music details from API
-      final response = await ApiService.getMusic(backgroundMusicId);
-
-      if (response['success']) {
-        final musicData = response['data'];
-        final rawAudioUrl = musicData['audioUrl'];
-
-        if (rawAudioUrl == null || rawAudioUrl.isEmpty) {
-          print('❌ Audio URL is empty or null');
-          return;
-        }
-
-        // Convert relative URL to full URL using ApiService helper
-        final audioUrl = ApiService.getAudioUrl(rawAudioUrl);
-        print('🎵 Playing background music: $audioUrl');
-
-        // Play background music
-        await _musicService.playBackgroundMusic(audioUrl, backgroundMusicId);
-        _currentMusicId = backgroundMusicId;
-
-        print('✅ Background music loaded and playing for reel');
-      } else {
-        print('❌ Failed to fetch music: ${response['message']}');
-      }
-    } catch (e) {
-      print('❌ Error loading background music: $e');
-    }
-  }
-
-  // Load stats for a single post (lazy loading)
-  Future<void> _loadStatsForPost(int index) async {
-    if (index < 0 || index >= _posts.length) return;
-
-    final post = _posts[index];
-
-    // Skip if stats already loaded
-    if (post['stats'] != null) return;
-
-    try {
-      final statsResponse = await ApiService.getPostStats(post['_id']);
-      if (statsResponse['success'] && mounted) {
-        setState(() {
-          _posts[index]['stats'] = statsResponse['data'];
-        });
-      }
-    } catch (e) {
-      print('Error loading stats for post $index: $e');
-    }
-  }
-
-  // Preload and cache next video in background
-  Future<void> _preloadNextVideo(int index) async {
-    if (index >= _posts.length || _preloadingVideos.contains(index)) {
-      return; // Already preloading or out of bounds
-    }
-
-    final mediaUrl = _posts[index]['mediaUrl'];
-    if (mediaUrl == null || mediaUrl.isEmpty) {
-      return;
-    }
-
-    _preloadingVideos.add(index);
-
-    try {
-      String videoUrl = mediaUrl;
-      if (mediaUrl.startsWith('/uploads')) {
-        videoUrl = '${ApiConfig.baseUrl}$mediaUrl';
-      }
-
-      print('Preloading video $index to temp cache: $videoUrl');
-
-      // Download to temporary cache (non-blocking)
-      _tempCacheManager
-          .downloadFile(videoUrl)
-          .then((fileInfo) {
-            _cacheTimestamps[index] = DateTime.now();
-            print('Video $index cached successfully (will expire in 10 min)');
-          })
-          .catchError((e) {
-            print('Error preloading video $index: $e');
-          })
-          .whenComplete(() {
-            _preloadingVideos.remove(index);
-          });
-    } catch (e) {
-      print('Error starting preload for video $index: $e');
-      _preloadingVideos.remove(index);
-    }
-  }
-
-  // Clean up cached videos that are more than 2 positions behind current (aggressive cleanup)
-  // 🚀 OPTIMIZATION: Clean up cached videos intelligently (keep current for looping)
-  void _cleanupOldCache(int currentIndex) {
-    final keysToRemove = <int>[];
-
-    // Dispose video controllers that are far from current position
-    // But KEEP current video for smooth looping
-    _videoControllers.forEach((index, controller) {
-      // Keep current video (for looping), previous, and next 2 videos
-      final shouldKeep = index >= currentIndex - 1 && index <= currentIndex + 2;
-
-      if (!shouldKeep && controller != null) {
-        print('🗑️ Disposing video controller $index (memory cleanup)');
-        controller.dispose();
-        _videoControllers[index] = null;
-        _videoInitialized[index] = false;
-        _videoFullyLoaded[index] = false;
-      }
-    });
-
-    _cacheTimestamps.forEach((index, timestamp) {
-      // Remove if more than 3 positions behind (more lenient for looping)
-      final isFarBehind = index < currentIndex - 3;
-      // Remove if older than 10 minutes (longer expiry for looping)
-      final isExpired = DateTime.now().difference(timestamp).inMinutes > 10;
-
-      if (isFarBehind || isExpired) {
-        keysToRemove.add(index);
-      }
-    });
-
-    for (final index in keysToRemove) {
-      _cacheTimestamps.remove(index);
-      print('🗑️ Cleaned up cache for video $index');
-    }
-
-    // 🚀 OPTIMIZATION: Don't clear temp cache too frequently (only every 10 videos)
-    // This prevents interrupting looping videos
-    if (currentIndex % 10 == 0) {
-      _tempCacheManager
-          .emptyCache()
-          .then((_) {
-            print('🗑️ Temp cache cleaned up (less frequently for looping)');
-          })
-          .catchError((e) {
-            print('Error cleaning temp cache: $e');
-          });
-    }
+  void _onScrollStart() {
+    _isScrolling = true;
+    _stopMusicImmediately();
   }
 
   Future<void> _trackView(String postId) async {
     try {
-      // Track view - increment view count
       await ApiService.incrementView(postId);
     } catch (e) {
-      print('Error tracking view: $e');
+      debugPrint('Error tracking view: $e');
     }
   }
+
+  // ============ USER INTERACTIONS ============
 
   Future<void> _toggleLike(String postId, int index) async {
     if (index < 0 || index >= _posts.length) return;
 
-    // 🚀 OPTIMIZATION: Debounce - prevent rapid clicking
+    // Debounce
     final lastClick = _lastLikeClick[postId];
     if (lastClick != null &&
         DateTime.now().difference(lastClick).inMilliseconds < _likeDebounceMs) {
-      print('⏱️ Like click ignored - debounced (${_likeDebounceMs}ms)');
       return;
     }
     _lastLikeClick[postId] = DateTime.now();
 
     try {
-      // 🚀 OPTIMIZATION: Optimistic UI update - show like immediately
       final currentStats = _posts[index]['stats'] ?? {};
       final wasLiked = currentStats['isLiked'] ?? false;
       final currentLikesCount = currentStats['likesCount'] ?? 0;
 
-      // Update UI immediately (optimistic update)
+      // Optimistic update
       setState(() {
         if (_posts[index]['stats'] == null) {
           _posts[index]['stats'] = {};
@@ -1384,49 +815,19 @@ class ReelScreenState extends State<ReelScreen>
             : currentLikesCount + 1;
       });
 
-      print(
-        '❤️ Like toggled optimistically: ${!wasLiked ? "liked" : "unliked"}',
-      );
-
-      // Send request to server in background (non-blocking, fire and forget)
-      ApiService.toggleLike(postId)
-          .then((response) {
-            if (response['success'] && mounted) {
-              // Server confirmed - reload stats to get accurate counts
-              _reloadPostStats(postId, index).then((_) {
-                print('✅ Like confirmed by server');
-              });
-            } else {
-              // Server failed - revert UI
-              if (mounted) {
-                setState(() {
-                  _posts[index]['stats']['isLiked'] = wasLiked;
-                  _posts[index]['stats']['likesCount'] = currentLikesCount;
-                });
-                print('❌ Like reverted - server error');
-              }
-            }
-          })
-          .catchError((e) {
-            print('❌ Like error: $e');
-            // Revert on error
-            if (index < _posts.length && mounted) {
-              setState(() {
-                _posts[index]['stats']['isLiked'] = wasLiked;
-                _posts[index]['stats']['likesCount'] = currentLikesCount;
-              });
-            }
-          });
-    } catch (e) {
-      print('Error toggling like: $e');
-      // Revert on error
-      if (index < _posts.length && mounted) {
-        final currentStats = _posts[index]['stats'] ?? {};
-        final wasLiked = currentStats['isLiked'] ?? false;
+      // Send to server
+      final response = await ApiService.toggleLike(postId);
+      if (response['success'] && mounted) {
+        _reloadPostStats(postId, index);
+      } else if (mounted) {
+        // Revert on failure
         setState(() {
-          _posts[index]['stats']['isLiked'] = !wasLiked;
+          _posts[index]['stats']['isLiked'] = wasLiked;
+          _posts[index]['stats']['likesCount'] = currentLikesCount;
         });
       }
+    } catch (e) {
+      debugPrint('Error toggling like: $e');
     }
   }
 
@@ -1435,19 +836,11 @@ class ReelScreenState extends State<ReelScreen>
       final statsResponse = await ApiService.getPostStats(postId);
       if (statsResponse['success'] && mounted) {
         setState(() {
-          if (_posts[index]['stats'] == null) {
-            _posts[index]['stats'] = {};
-          }
           _posts[index]['stats'] = statsResponse['data'];
-          // Also update the post-level counts
-          _posts[index]['likesCount'] = statsResponse['data']['likesCount'];
-          _posts[index]['commentsCount'] =
-              statsResponse['data']['commentsCount'];
-          _posts[index]['sharesCount'] = statsResponse['data']['sharesCount'];
         });
       }
     } catch (e) {
-      print('Error reloading stats: $e');
+      debugPrint('Error reloading stats: $e');
     }
   }
 
@@ -1455,7 +848,6 @@ class ReelScreenState extends State<ReelScreen>
     try {
       final response = await ApiService.toggleBookmark(postId);
       if (response['success'] && mounted) {
-        // Reload stats to get accurate counts
         await _reloadPostStats(postId, index);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1469,7 +861,7 @@ class ReelScreenState extends State<ReelScreen>
         );
       }
     } catch (e) {
-      print('Error toggling bookmark: $e');
+      debugPrint('Error toggling bookmark: $e');
     }
   }
 
@@ -1479,10 +871,7 @@ class ReelScreenState extends State<ReelScreen>
       final username = post['user']?['username'] ?? 'user';
       final caption = post['caption'] ?? '';
 
-      // Create deep link to specific reel
       final deepLink = 'https://showoff.life/reel/$postId';
-
-      // Create share text with deep link and Play Store link
       final shareText =
           '''
 Check out this amazing reel by @$username on ShowOff.life! 🎬
@@ -1495,19 +884,15 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
 #ShowOffLife #Reels #Viral
 ''';
 
-      // Share using share_plus
       await Share.share(
         shareText,
         subject: 'Check out this reel on ShowOff.life',
       );
 
-      // Track share on backend
       final response = await ApiService.sharePost(postId);
       if (response['success'] && mounted) {
-        // Reload stats to get accurate counts
         await _reloadPostStats(postId, index);
 
-        // 💰 Show coin reward notification
         final coinsAwarded = response['coinsAwarded'] ?? 5;
         if (coinsAwarded > 0) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1532,7 +917,7 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
         }
       }
     } catch (e) {
-      print('Error sharing post: $e');
+      debugPrint('Error sharing post: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -1545,9 +930,7 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
   }
 
   Future<void> _checkFollowStatus(String userId) async {
-    if (_currentUserId == null || userId == _currentUserId) {
-      return;
-    }
+    if (_currentUserId == null || userId == _currentUserId) return;
 
     try {
       final response = await ApiService.checkFollowing(userId);
@@ -1557,14 +940,12 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
         });
       }
     } catch (e) {
-      print('Error checking follow status: $e');
+      debugPrint('Error checking follow status: $e');
     }
   }
 
   Future<void> _toggleFollow(String userId) async {
-    if (_currentUserId == null || userId == _currentUserId) {
-      return;
-    }
+    if (_currentUserId == null || userId == _currentUserId) return;
 
     try {
       final isCurrentlyFollowing = _followStatus[userId] ?? false;
@@ -1585,140 +966,53 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
         );
       }
     } catch (e) {
-      print('Error toggling follow: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Follow feature not available'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      debugPrint('Error toggling follow: $e');
     }
   }
 
   bool _shouldShowFollowButton(Map<String, dynamic> user) {
     final userId = user['_id'] ?? user['id'];
-
-    // Don't show if it's the current user's post
-    if (_currentUserId != null && userId == _currentUserId) {
-      return false;
-    }
-
-    // Don't show if already following
-    if (_followStatus[userId] == true) {
-      return false;
-    }
-
+    if (_currentUserId != null && userId == _currentUserId) return false;
+    if (_followStatus[userId] == true) return false;
     return true;
   }
 
+  // ============ DISPOSE ============
+
   @override
   void dispose() {
-    print('🗑️ Disposing ReelScreen - cleaning up all resources');
+    _isDisposed = true;
+    _musicLoadTimer?.cancel();
 
-    // CRITICAL: Stop background music immediately
-    try {
-      _musicService.stopBackgroundMusic();
-      _currentMusicId = null;
-      print('🎵 Background music stopped on dispose');
-    } catch (e) {
-      print('Error stopping background music: $e');
-    }
-
-    // CRITICAL: Stop all videos immediately
-    _isScreenVisible = false;
-    _videoControllers.forEach((key, controller) {
-      if (controller != null) {
-        try {
-          controller.pause();
-          controller.setVolume(0.0);
-          print('🔇 Stopped video $key before disposal');
-        } catch (e) {
-          print('Error stopping video $key: $e');
-        }
-      }
-    });
+    // Stop all media
+    _stopAllMedia();
 
     WidgetsBinding.instance.removeObserver(this);
     _pageController.dispose();
 
     // Dispose all video controllers
     _videoControllers.forEach((key, controller) {
-      if (controller != null) {
-        try {
-          print('🗑️ Disposing video controller $key');
-          controller.dispose();
-        } catch (e) {
-          print('Error disposing video controller $key: $e');
-        }
+      try {
+        controller?.dispose();
+      } catch (e) {
+        debugPrint('Error disposing video controller $key: $e');
       }
     });
     _videoControllers.clear();
     _videoInitialized.clear();
-    _videoFullyLoaded.clear();
-    _lastPlayAttempt.clear();
-    _preloadingVideos.clear();
-    _cacheTimestamps.clear();
+    _videoReady.clear();
+
     _interstitialAd?.dispose();
-
-    // Clean up both caches on dispose
-    _tempCacheManager.emptyCache().catchError((e) {
-      print('Error cleaning temp cache on dispose: $e');
-    });
-
-    _cacheManager.emptyCache().catchError((e) {
-      print('Error cleaning permanent cache on dispose: $e');
-    });
 
     super.dispose();
   }
 
+  // ============ BUILD ============
+
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    super.build(context);
 
-    return VisibilityDetector(
-      key: const Key('reel-screen-visibility'),
-      onVisibilityChanged: (info) {
-        print(
-          '👁️ Reel visibility changed: ${(info.visibleFraction * 100).toInt()}%',
-        );
-
-        // Update visibility state
-        final wasVisible = _isScreenVisible;
-
-        // AGGRESSIVE: Pause immediately if ANY visibility is lost (even 99%)
-        if (info.visibleFraction < 0.99) {
-          _isScreenVisible = false;
-          print(
-            '🔇 Reel screen not fully visible (${(info.visibleFraction * 100).toInt()}%) - PAUSING ALL VIDEOS',
-          );
-
-          // Pause ALL videos immediately
-          _videoControllers.forEach((key, controller) {
-            if (controller != null) {
-              try {
-                controller.pause();
-                controller.setVolume(0.0);
-                print('🔇 Paused video $key due to visibility loss');
-              } catch (e) {
-                print('Error pausing video $key: $e');
-              }
-            }
-          });
-          _lastPlayAttempt.clear();
-        }
-        // Resume only when fully visible (100%)
-        else if (info.visibleFraction == 1.0 && !wasVisible) {
-          _isScreenVisible = true;
-          print('🔊 Reel screen fully visible (100%) - resuming video');
-          _resumeCurrentVideo();
-        }
-      },
-      child: _buildScreenContent(),
-    );
-  }
-
-  Widget _buildScreenContent() {
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: Colors.black,
@@ -1780,393 +1074,82 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: PageView.builder(
-        controller: _pageController,
-        scrollDirection: Axis.vertical,
-        onPageChanged: _onPageChanged,
-        itemCount: _posts.length,
-        itemBuilder: (context, index) {
-          final post = _posts[index];
-          final user = post['user'] != null
-              ? Map<String, dynamic>.from(post['user'])
-              : <String, dynamic>{};
-          final stats = post['stats'] != null
-              ? Map<String, dynamic>.from(post['stats'])
-              : <String, dynamic>{};
-
-          return Stack(
-            children: [
-              // Video Player
-              _buildVideoPlayer(index),
-
-              // Top Bar
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Empty space to push buttons to the right
-                        const SizedBox.shrink(),
-                        // Time display removed
-                        Container(
-                          decoration: BoxDecoration(
-                            image: const DecorationImage(
-                              image: AssetImage('assets/reel/up.png'),
-                              fit: BoxFit.fill,
-                            ),
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: Row(
-                            children: [
-                              IconButton(
-                                icon: Image.asset(
-                                  'assets/upreel/search.png',
-                                  width: 24,
-                                  height: 24,
-                                ),
-                                onPressed: () {
-                                  // Pause video before navigating to prevent resource conflicts
-                                  _pauseCurrentVideo();
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => SearchScreen(),
-                                    ),
-                                  ).then((_) {
-                                    // Resume video when returning
-                                    if (mounted && _isScreenVisible) {
-                                      _resumeCurrentVideo();
-                                    }
-                                  });
-                                },
-                              ),
-                              IconButton(
-                                icon: Image.asset(
-                                  'assets/upreel/coment.png',
-                                  width: 24,
-                                  height: 24,
-                                ),
-                                onPressed: () {
-                                  // Pause video before navigating to prevent resource conflicts
-                                  _pauseCurrentVideo();
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => MessagesScreen(),
-                                    ),
-                                  ).then((_) {
-                                    // Resume video when returning
-                                    if (mounted && _isScreenVisible) {
-                                      _resumeCurrentVideo();
-                                    }
-                                  });
-                                },
-                              ),
-                              IconButton(
-                                icon: Image.asset(
-                                  'assets/upreel/notbell.png',
-                                  width: 24,
-                                  height: 24,
-                                ),
-                                onPressed: () {
-                                  // Pause video before navigating to prevent resource conflicts
-                                  _pauseCurrentVideo();
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          NotificationScreen(),
-                                    ),
-                                  ).then((_) {
-                                    // Resume video when returning
-                                    if (mounted && _isScreenVisible) {
-                                      _resumeCurrentVideo();
-                                    }
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // Right Side Actions
-              Positioned(
-                right: 8,
-                bottom:
-                    MediaQuery.of(context).size.height *
-                    0.15, // Responsive: 15% from bottom
-                child: Container(
-                  decoration: BoxDecoration(
-                    image: const DecorationImage(
-                      image: AssetImage('assets/reel/side.png'),
-                      fit: BoxFit.fill,
-                    ),
-                    borderRadius: BorderRadius.circular(35),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 20,
-                    horizontal: 16,
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildMusicButton(
-                          post['music']?['name'] ??
-                              post['music']?['title'] ??
-                              'Unknown Music',
-                          () {
-                            // Show music details in a bottom sheet
-                            if (post['music'] != null) {
-                              showModalBottomSheet(
-                                context: context,
-                                backgroundColor: Colors.transparent,
-                                builder: (context) => Container(
-                                  decoration: const BoxDecoration(
-                                    color: Colors.black87,
-                                    borderRadius: BorderRadius.only(
-                                      topLeft: Radius.circular(20),
-                                      topRight: Radius.circular(20),
-                                    ),
-                                  ),
-                                  padding: const EdgeInsets.all(20),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.music_note,
-                                        color: Colors.white,
-                                        size: 40,
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        post['music']['name'] ??
-                                            'Unknown Music',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      if (post['music']['artist'] != null) ...[
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          'by ${post['music']['artist']}',
-                                          style: const TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 14,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 24),
-                        _buildLikeButton(
-                          stats['isLiked'] ?? false,
-                          stats['likesCount']?.toString() ?? '0',
-                          () => _toggleLike(post['_id'], index),
-                        ),
-                        const SizedBox(height: 24),
-                        _buildActionButton(
-                          'assets/sidereel/comment.png',
-                          stats['commentsCount']?.toString() ?? '0',
-                          () async {
-                            // Pause video before showing modal to prevent resource conflicts
-                            _pauseCurrentVideo();
-                            await showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (context) =>
-                                  CommentsScreen(postId: post['_id']),
-                            );
-                            // Reload stats after comments modal closes
-                            await _reloadPostStats(post['_id'], index);
-                            // Resume video after modal closes
-                            if (mounted && _isScreenVisible) {
-                              _resumeCurrentVideo();
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 24),
-                        _buildBookmarkButton(
-                          stats['isBookmarked'] ?? false,
-                          stats['bookmarksCount']?.toString() ?? '0',
-                          () => _toggleBookmark(post['_id'], index),
-                        ),
-                        const SizedBox(height: 24),
-                        _buildActionButton(
-                          'assets/sidereel/share.png',
-                          stats['sharesCount']?.toString() ?? '0',
-                          () => _sharePost(post['_id'], index),
-                        ),
-                        const SizedBox(height: 24),
-                        _buildActionButton(
-                          'assets/sidereel/gift.png',
-                          '',
-                          () async {
-                            // Pause video before showing modal to prevent resource conflicts
-                            _pauseCurrentVideo();
-                            await showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (context) => GiftScreen(
-                                recipientId: post['user']?['_id'] ?? '',
-                                recipientName:
-                                    post['user']?['username'] ?? 'user',
-                              ),
-                            );
-                            // Reload stats after gift modal closes
-                            await _reloadPostStats(post['_id'], index);
-                            // Resume video after modal closes
-                            if (mounted && _isScreenVisible) {
-                              _resumeCurrentVideo();
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // Bottom User Info
-              Positioned(
-                left: 16,
-                right: 80,
-                bottom: 100,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        // Pause video before navigating to prevent resource conflicts
-                        _pauseCurrentVideo();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                UserProfileScreen(userInfo: user),
-                          ),
-                        ).then((_) {
-                          // Resume video when returning
-                          if (mounted && _isScreenVisible) {
-                            _resumeCurrentVideo();
-                          }
-                        });
-                      },
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
-                            ),
-                            child: ClipOval(
-                              child: user['profilePicture'] != null
-                                  ? Image.network(
-                                      ApiService.getImageUrl(
-                                        user['profilePicture'],
-                                      ),
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                            return const Icon(
-                                              Icons.person,
-                                              color: Colors.white,
-                                            );
-                                          },
-                                    )
-                                  : const Icon(
-                                      Icons.person,
-                                      color: Colors.white,
-                                    ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            user['username'] ?? 'user',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          if (_shouldShowFollowButton(user))
-                            GestureDetector(
-                              onTap: () =>
-                                  _toggleFollow(user['_id'] ?? user['id']),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF701CF5),
-                                      Color(0xFF3E98E4),
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: const Text(
-                                  'Follow',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      post['caption'] ?? '',
-                      style: const TextStyle(color: Colors.white, fontSize: 14),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
+      body: NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          if (notification is ScrollStartNotification) {
+            _onScrollStart();
+          }
+          return false;
         },
+        child: PageView.builder(
+          controller: _pageController,
+          scrollDirection: Axis.vertical,
+          physics: const ClampingScrollPhysics(),
+          onPageChanged: _onPageChanged,
+          itemCount: _posts.length,
+          itemBuilder: (context, index) => _buildReelItem(index),
+        ),
       ),
     );
   }
 
+  Widget _buildReelItem(int index) {
+    final post = _posts[index];
+    final user = post['user'] != null
+        ? Map<String, dynamic>.from(post['user'])
+        : <String, dynamic>{};
+    final stats = post['stats'] != null
+        ? Map<String, dynamic>.from(post['stats'])
+        : <String, dynamic>{};
+
+    return Stack(
+      children: [
+        // Video Player
+        _buildVideoPlayer(index),
+
+        // Tap to pause/play
+        GestureDetector(
+          onTap: () {
+            final controller = _videoControllers[index];
+            if (controller != null && controller.value.isInitialized) {
+              if (controller.value.isPlaying) {
+                controller.pause();
+              } else {
+                controller.play();
+              }
+            }
+          },
+          child: Container(color: Colors.transparent),
+        ),
+
+        // Top Bar
+        _buildTopBar(),
+
+        // Right Side Actions
+        _buildRightActions(post, stats, index),
+
+        // Bottom User Info
+        _buildBottomInfo(post, user, index),
+
+        // Loading more indicator
+        if (_isLoadingMore && index == _posts.length - 1)
+          const Positioned(
+            bottom: 100,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _buildVideoPlayer(int index) {
-    final isFullyLoaded = _videoFullyLoaded[index] == true;
+    final isReady = _videoReady[index] == true;
     final controller = _videoControllers[index];
 
-    // Only show video when it's 100% loaded, otherwise show loading screen
-    if (isFullyLoaded && controller != null && controller.value.isInitialized) {
+    if (isReady && controller != null && controller.value.isInitialized) {
       return SizedBox.expand(
         child: FittedBox(
           fit: BoxFit.cover,
@@ -2179,7 +1162,7 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
       );
     }
 
-    // Loading screen (no buffering overlay, just clean loading)
+    // Loading state
     return Container(
       color: Colors.black,
       child: const Center(
@@ -2197,6 +1180,388 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
       ),
     );
   }
+
+  Widget _buildTopBar() {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  image: const DecorationImage(
+                    image: AssetImage('assets/reel/up.png'),
+                    fit: BoxFit.fill,
+                  ),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: Image.asset(
+                        'assets/upreel/search.png',
+                        width: 24,
+                        height: 24,
+                      ),
+                      onPressed: () {
+                        _pauseCurrentVideo();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SearchScreen(),
+                          ),
+                        ).then((_) {
+                          if (mounted && _isScreenVisible)
+                            _resumeCurrentVideo();
+                        });
+                      },
+                    ),
+                    IconButton(
+                      icon: Image.asset(
+                        'assets/upreel/coment.png',
+                        width: 24,
+                        height: 24,
+                      ),
+                      onPressed: () {
+                        _pauseCurrentVideo();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => MessagesScreen(),
+                          ),
+                        ).then((_) {
+                          if (mounted && _isScreenVisible)
+                            _resumeCurrentVideo();
+                        });
+                      },
+                    ),
+                    IconButton(
+                      icon: Image.asset(
+                        'assets/upreel/notbell.png',
+                        width: 24,
+                        height: 24,
+                      ),
+                      onPressed: () {
+                        _pauseCurrentVideo();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => NotificationScreen(),
+                          ),
+                        ).then((_) {
+                          if (mounted && _isScreenVisible)
+                            _resumeCurrentVideo();
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRightActions(
+    Map<String, dynamic> post,
+    Map<String, dynamic> stats,
+    int index,
+  ) {
+    return Positioned(
+      right: 8,
+      bottom: MediaQuery.of(context).size.height * 0.15,
+      child: Container(
+        decoration: BoxDecoration(
+          image: const DecorationImage(
+            image: AssetImage('assets/reel/side.png'),
+            fit: BoxFit.fill,
+          ),
+          borderRadius: BorderRadius.circular(35),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Music button - show BGM name or "Unknown"
+            _buildMusicButton(
+              _getMusicName(post),
+              () => _showMusicDetails(post),
+            ),
+            const SizedBox(height: 24),
+
+            // Like button
+            _buildLikeButton(
+              stats['isLiked'] ?? false,
+              stats['likesCount']?.toString() ?? '0',
+              () => _toggleLike(post['_id'], index),
+            ),
+            const SizedBox(height: 24),
+
+            // Comment button
+            _buildActionButton(
+              'assets/sidereel/comment.png',
+              stats['commentsCount']?.toString() ?? '0',
+              () async {
+                _pauseCurrentVideo();
+                await showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => CommentsScreen(postId: post['_id']),
+                );
+                await _reloadPostStats(post['_id'], index);
+                if (mounted && _isScreenVisible) _resumeCurrentVideo();
+              },
+            ),
+            const SizedBox(height: 24),
+
+            // Bookmark button
+            _buildBookmarkButton(
+              stats['isBookmarked'] ?? false,
+              stats['bookmarksCount']?.toString() ?? '0',
+              () => _toggleBookmark(post['_id'], index),
+            ),
+            const SizedBox(height: 24),
+
+            // Share button
+            _buildActionButton(
+              'assets/sidereel/share.png',
+              stats['sharesCount']?.toString() ?? '0',
+              () => _sharePost(post['_id'], index),
+            ),
+            const SizedBox(height: 24),
+
+            // Gift button
+            _buildActionButton('assets/sidereel/gift.png', '', () async {
+              _pauseCurrentVideo();
+              await showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => GiftScreen(
+                  recipientId: post['user']?['_id'] ?? '',
+                  recipientName: post['user']?['username'] ?? 'user',
+                ),
+              );
+              await _reloadPostStats(post['_id'], index);
+              if (mounted && _isScreenVisible) _resumeCurrentVideo();
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Get music name from post - checks backgroundMusic first, then music field
+  String _getMusicName(Map<String, dynamic> post) {
+    // Check backgroundMusic first (this is the actual BGM used in the reel)
+    final bgMusic = post['backgroundMusic'];
+    if (bgMusic != null) {
+      final name = bgMusic['name'] ?? bgMusic['title'];
+      if (name != null && name.toString().isNotEmpty) {
+        return name.toString();
+      }
+    }
+
+    // Check legacy music field
+    final music = post['music'];
+    if (music != null) {
+      final name = music['name'] ?? music['title'];
+      if (name != null && name.toString().isNotEmpty) {
+        return name.toString();
+      }
+    }
+
+    // No music found
+    return 'Unknown';
+  }
+
+  void _showMusicDetails(Map<String, dynamic> post) {
+    // Check backgroundMusic first, then fall back to music field
+    final musicData = post['backgroundMusic'] ?? post['music'];
+
+    if (musicData == null) {
+      // Show "Unknown" music dialog
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (context) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.black87,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.music_off, color: Colors.white54, size: 40),
+              SizedBox(height: 16),
+              Text(
+                'Unknown',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 8),
+              Text(
+                'No background music info available',
+                style: TextStyle(color: Colors.grey, fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.music_note, color: Colors.white, size: 40),
+            const SizedBox(height: 16),
+            Text(
+              musicData['name'] ?? musicData['title'] ?? 'Unknown',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (musicData['artist'] != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'by ${musicData['artist']}',
+                style: const TextStyle(color: Colors.grey, fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomInfo(
+    Map<String, dynamic> post,
+    Map<String, dynamic> user,
+    int index,
+  ) {
+    return Positioned(
+      left: 16,
+      right: 80,
+      bottom: 100,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: () {
+              _pauseCurrentVideo();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => UserProfileScreen(userInfo: user),
+                ),
+              ).then((_) {
+                if (mounted && _isScreenVisible) _resumeCurrentVideo();
+              });
+            },
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: ClipOval(
+                    child: user['profilePicture'] != null
+                        ? Image.network(
+                            ApiService.getImageUrl(user['profilePicture']),
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(Icons.person, color: Colors.white),
+                          )
+                        : const Icon(Icons.person, color: Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  user['username'] ?? 'user',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                if (_shouldShowFollowButton(user))
+                  GestureDetector(
+                    onTap: () => _toggleFollow(user['_id'] ?? user['id']),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF701CF5), Color(0xFF3E98E4)],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'Follow',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            post['caption'] ?? '',
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============ UI HELPER WIDGETS ============
 
   Widget _buildActionButton(
     String imagePath,
@@ -2231,7 +1596,7 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.music_note, color: Colors.white, size: 28),
+          const Icon(Icons.music_note, color: Colors.white, size: 28),
           const SizedBox(height: 4),
           SizedBox(
             width: 50,

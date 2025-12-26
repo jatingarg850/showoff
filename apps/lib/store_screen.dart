@@ -33,17 +33,32 @@ class _StoreScreenState extends State<StoreScreen> {
 
   Future<void> _initCurrency() async {
     try {
-      final symbol = await CurrencyService.getCurrencySymbol();
-      final rates = await CurrencyService.getExchangeRates();
+      // Get user's currency (defaults to INR if not set)
       final currency = await CurrencyService.getUserCurrency();
+      debugPrint('💱 User currency: $currency');
+
+      // Get currency symbol
+      final symbol = CurrencyService.currencySymbols[currency] ?? '₹';
+      debugPrint('💱 Currency symbol: $symbol');
+
+      // Get exchange rates
+      final rates = await CurrencyService.getExchangeRates();
+      final rate = rates[currency] ?? 1.0;
+      debugPrint('💱 Exchange rate for $currency: $rate');
 
       setState(() {
         _currencySymbol = symbol;
         _currencyCode = currency;
-        _exchangeRate = rates[currency] ?? 1.0;
+        _exchangeRate = rate;
       });
     } catch (e) {
-      print('Error initializing currency: $e');
+      debugPrint('Error initializing currency: $e');
+      // Fallback to INR
+      setState(() {
+        _currencySymbol = '₹';
+        _currencyCode = 'INR';
+        _exchangeRate = 1.0;
+      });
     }
   }
 
