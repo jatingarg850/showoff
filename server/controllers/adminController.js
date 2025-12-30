@@ -919,7 +919,14 @@ exports.getSystemSettings = async (req, res) => {
         adWatchReward: 10,
         referralReward: 50,
         dailyAdLimit: 10,
-        minWithdrawal: 100
+        minWithdrawal: 1000
+      },
+      ads: {
+        enabled: true,
+        adFrequency: 6, // Show ad after every 6 reels
+        interstitialEnabled: true,
+        rewardedEnabled: true,
+        bannerEnabled: true
       },
       content: {
         maxFileSize: 100, // MB
@@ -954,6 +961,16 @@ exports.getSystemSettings = async (req, res) => {
 exports.updateSystemSettings = async (req, res) => {
   try {
     const { settings } = req.body;
+    
+    // Validate ad frequency if provided
+    if (settings.ads && settings.ads.adFrequency) {
+      if (settings.ads.adFrequency < 1 || settings.ads.adFrequency > 50) {
+        return res.status(400).json({
+          success: false,
+          message: 'Ad frequency must be between 1 and 50'
+        });
+      }
+    }
     
     // In a real app, you'd save to a Settings model
     // For now, just return success

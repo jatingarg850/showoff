@@ -75,5 +75,6 @@ flutter {
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     implementation("androidx.multidex:multidex:2.0.1")
-    implementation("androidx.core:core-ktx:1.12.0")  // For edge-to-edge support
+    implementation("androidx.core:core:1.13.1")  // Latest version with edge-to-edge support
+    implementation("androidx.core:core-ktx:1.13.1")  // Latest version with edge-to-edge support
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'daily_selfie_screen.dart';
-import 'music_selection_screen.dart';
+import 'content_creation_flow_screen.dart';
 import 'services/api_service.dart';
 
 class PathSelectionScreen extends StatefulWidget {
@@ -561,7 +561,7 @@ class _PathSelectionScreenState extends State<PathSelectionScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 80),
+                const SizedBox(height: 30),
 
                 // Continue Button
                 Center(
@@ -583,14 +583,29 @@ class _PathSelectionScreenState extends State<PathSelectionScreen> {
                     child: ElevatedButton(
                       onPressed: selectedPath != null
                           ? () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => MusicSelectionScreen(
-                                    selectedPath: selectedPath!,
+                              // Use new unified flow for Show and SYT
+                              if (selectedPath == 'reels' ||
+                                  selectedPath == 'SYT') {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        ContentCreationFlowScreen(
+                                          selectedPath: selectedPath!,
+                                          sytCategory: null,
+                                        ),
                                   ),
-                                ),
-                              );
+                                );
+                              } else if (selectedPath == 'selfie_challenge') {
+                                // Daily selfie uses old flow
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const DailySelfieScreen(),
+                                  ),
+                                );
+                              }
                             }
                           : null,
                       style: ElevatedButton.styleFrom(
@@ -612,7 +627,9 @@ class _PathSelectionScreenState extends State<PathSelectionScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 120), // Extra space for bottom navbar
+                const SizedBox(
+                  height: 100,
+                ), // Increased bottom padding to prevent navbar overlap
               ],
             ),
           ),

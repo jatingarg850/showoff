@@ -11,11 +11,15 @@ import 'services/file_persistence_service.dart';
 class CameraScreen extends StatefulWidget {
   final String selectedPath; // 'reels' or 'SYT'
   final String? backgroundMusicId;
+  final Function(String mediaPath, bool isVideo)? onRecordingComplete;
+  final VoidCallback? onSkip;
 
   const CameraScreen({
     super.key,
     required this.selectedPath,
     this.backgroundMusicId,
+    this.onRecordingComplete,
+    this.onSkip,
   });
 
   @override
@@ -127,8 +131,10 @@ class _CameraScreenState extends State<CameraScreen> {
       // Haptic feedback
       HapticFeedback.mediumImpact();
 
-      // Navigate to upload screen with the captured image
-      if (mounted) {
+      // Use callback if provided (new flow), otherwise navigate (old flow)
+      if (widget.onRecordingComplete != null) {
+        widget.onRecordingComplete!(image.path, false);
+      } else if (mounted) {
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -217,8 +223,10 @@ class _CameraScreenState extends State<CameraScreen> {
               await FilePersistenceService.persistVideoFile(videoPath);
           print('✅ Video persisted to: $persistedVideoPath');
 
-          // Navigate to upload screen with the persisted video path
-          if (mounted) {
+          // Use callback if provided (new flow), otherwise navigate (old flow)
+          if (widget.onRecordingComplete != null) {
+            widget.onRecordingComplete!(persistedVideoPath, true);
+          } else if (mounted) {
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -491,18 +499,22 @@ class _CameraScreenState extends State<CameraScreen> {
                         source: ImageSource.gallery,
                       );
 
-                      if (image != null && mounted) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => UploadContentScreen(
-                              selectedPath: widget.selectedPath,
-                              mediaPath: image.path,
-                              isVideo: false,
-                              backgroundMusicId: widget.backgroundMusicId,
+                      if (image != null) {
+                        if (widget.onRecordingComplete != null) {
+                          widget.onRecordingComplete!(image.path, false);
+                        } else if (mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => UploadContentScreen(
+                                selectedPath: widget.selectedPath,
+                                mediaPath: image.path,
+                                isVideo: false,
+                                backgroundMusicId: widget.backgroundMusicId,
+                              ),
                             ),
-                          ),
-                        );
+                          );
+                        }
                       }
                     } else {
                       // Pick video for reels/SYT mode
@@ -510,18 +522,22 @@ class _CameraScreenState extends State<CameraScreen> {
                         source: ImageSource.gallery,
                       );
 
-                      if (video != null && mounted) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => UploadContentScreen(
-                              selectedPath: widget.selectedPath,
-                              mediaPath: video.path,
-                              isVideo: true,
-                              backgroundMusicId: widget.backgroundMusicId,
+                      if (video != null) {
+                        if (widget.onRecordingComplete != null) {
+                          widget.onRecordingComplete!(video.path, true);
+                        } else if (mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => UploadContentScreen(
+                                selectedPath: widget.selectedPath,
+                                mediaPath: video.path,
+                                isVideo: true,
+                                backgroundMusicId: widget.backgroundMusicId,
+                              ),
                             ),
-                          ),
-                        );
+                          );
+                        }
                       }
                     }
                   },

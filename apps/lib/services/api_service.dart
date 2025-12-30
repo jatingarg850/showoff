@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart' as http_parser;
 import 'package:video_thumbnail/video_thumbnail.dart';
@@ -1069,6 +1070,43 @@ class ApiService {
       headers: await _getHeaders(),
     );
     return jsonDecode(response.body);
+  }
+
+  static Future<Map<String, dynamic>> getAdSettings() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/admin/settings'),
+        headers: await _getHeaders(),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data;
+      }
+      // Return default settings if API fails
+      return {
+        'success': true,
+        'data': {
+          'ads': {
+            'enabled': true,
+            'adFrequency': 6,
+            'interstitialEnabled': true,
+          },
+        },
+      };
+    } catch (e) {
+      debugPrint('Error fetching ad settings: $e');
+      // Return default settings on error
+      return {
+        'success': true,
+        'data': {
+          'ads': {
+            'enabled': true,
+            'adFrequency': 6,
+            'interstitialEnabled': true,
+          },
+        },
+      };
+    }
   }
 
   static Future<Map<String, dynamic>> getWithdrawalHistory() async {

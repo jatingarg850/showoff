@@ -349,7 +349,7 @@ class AboutAppScreen
                     height: 8,
                   ),
                   const Text(
-                    'ShowOff Team by CoddyIO',
+                    'ShowOff Team ',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -360,7 +360,7 @@ class AboutAppScreen
                     height: 4,
                   ),
                   Text(
-                    'Powered by Innovatech',
+                    '',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.white.withValues(

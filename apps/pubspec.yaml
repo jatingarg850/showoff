@@ -86,6 +86,9 @@ dependencies:
   
   # Audio playback for background music
   just_audio: ^0.9.36
+  
+  # File system access
+  path_provider: ^2.1.1
 
 dev_dependencies:
   flutter_test:

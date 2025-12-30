@@ -18,7 +18,7 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
 
   bool _isLoading = false;
   int _coinBalance = 0;
-  int _minWithdrawal = 100;
+  int _minWithdrawal = 1000; // Minimum 1000 coins for withdrawal
   String? _selectedMethod;
   List<File> _idDocuments = [];
 
@@ -42,11 +42,15 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
       final settingsResponse = await ApiService.getWithdrawalSettings();
       if (settingsResponse['success']) {
         setState(() {
-          _minWithdrawal = settingsResponse['data']['minWithdrawal'] ?? 100;
+          // Ensure minimum is at least 1000 coins
+          _minWithdrawal = settingsResponse['data']['minWithdrawal'] ?? 1000;
+          if (_minWithdrawal < 1000) {
+            _minWithdrawal = 1000;
+          }
         });
       }
     } catch (e) {
-      print('Error loading data: $e');
+      debugPrint('Error loading data: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -235,32 +239,40 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
   Future<void> _submitWithdrawal() async {
     final amount = int.tryParse(_amountController.text) ?? 0;
 
+    // Check if amount is below minimum
     if (amount < _minWithdrawal) {
-      _showErrorDialog('Minimum withdrawal amount is $_minWithdrawal coins');
+      _showErrorDialog(
+        'Minimum withdrawal amount is $_minWithdrawal coins.\n\nYou need at least $_minWithdrawal coins to withdraw.',
+      );
       return;
     }
 
+    // Check if amount exceeds balance
     if (amount > _coinBalance) {
-      _showErrorDialog('Insufficient balance');
+      _showErrorDialog('Insufficient balance. You have $_coinBalance coins.');
       return;
     }
 
+    // Check if method is selected
     if (_selectedMethod == null) {
       _showErrorDialog('Please select a withdrawal method');
       return;
     }
 
+    // Check Sofft address
     if (_selectedMethod == 'sofft_address' &&
         _sofftAddressController.text.isEmpty) {
       _showErrorDialog('Please enter your Sofft address');
       return;
     }
 
+    // Check UPI ID
     if (_selectedMethod == 'upi' && _upiIdController.text.isEmpty) {
       _showErrorDialog('Please enter your UPI ID');
       return;
     }
 
+    // Check ID documents
     if (_idDocuments.isEmpty) {
       _showErrorDialog('Please upload your ID documents');
       return;
@@ -297,8 +309,8 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
       backgroundColor: Colors.transparent,
       isDismissible: false,
       enableDrag: false,
-      builder: (context) => WillPopScope(
-        onWillPop: () async => false,
+      builder: (context) => PopScope(
+        canPop: false,
         child: Container(
           decoration: const BoxDecoration(
             color: Colors.white,
@@ -568,21 +580,72 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
                   ),
                   const SizedBox(height: 30),
 
+                  // Warning if balance is below minimum
+                  if (_coinBalance < _minWithdrawal)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        border: Border.all(color: Colors.red.shade300),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.warning_rounded,
+                            color: Colors.red.shade600,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Insufficient Balance',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red.shade600,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'You need $_minWithdrawal coins to withdraw. You currently have $_coinBalance coins.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.red.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (_coinBalance < _minWithdrawal) const SizedBox(height: 20),
+
                   // Continue Button
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _showMethodBottomSheet,
+                      onPressed: _coinBalance >= _minWithdrawal
+                          ? _showMethodBottomSheet
+                          : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF8B5CF6),
+                        backgroundColor: _coinBalance >= _minWithdrawal
+                            ? const Color(0xFF8B5CF6)
+                            : Colors.grey[400],
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'Continue',
-                        style: TextStyle(
+                      child: Text(
+                        _coinBalance >= _minWithdrawal
+                            ? 'Continue'
+                            : 'Need $_minWithdrawal coins to withdraw',
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -602,9 +665,9 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    '• Min $_minWithdrawal coins per withdrawal',
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                  const Text(
+                    '• Min 1000 coins per withdrawal',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
                   ),
                   const SizedBox(height: 4),
                   Text(

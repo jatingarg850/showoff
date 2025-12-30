@@ -5,11 +5,17 @@ import 'services/api_service.dart';
 class MusicSelectionScreen extends StatefulWidget {
   final String selectedPath; // 'reels' or 'SYT'
   final String? category; // Category for SYT
+  final Function(String? musicId, Map<String, dynamic>? music)? onMusicSelected;
+  final VoidCallback? onSkip;
+  final VoidCallback? onBack;
 
   const MusicSelectionScreen({
     super.key,
     required this.selectedPath,
     this.category,
+    this.onMusicSelected,
+    this.onSkip,
+    this.onBack,
   });
 
   @override
@@ -31,12 +37,15 @@ class _MusicSelectionScreenState extends State<MusicSelectionScreen> {
 
   Future<void> _loadMusic() async {
     try {
+      if (!mounted) return;
       setState(() => _isLoading = true);
 
       final response = await ApiService.getApprovedMusic(
         genre: _selectedGenre.isEmpty ? null : _selectedGenre,
         mood: _selectedMood.isEmpty ? null : _selectedMood,
       );
+
+      if (!mounted) return; // Check again after async operation
 
       if (response['success']) {
         setState(() {
@@ -45,6 +54,20 @@ class _MusicSelectionScreenState extends State<MusicSelectionScreen> {
         });
       } else {
         setState(() => _isLoading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error loading music'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading music: $e');
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Error loading music'),
@@ -52,25 +75,20 @@ class _MusicSelectionScreenState extends State<MusicSelectionScreen> {
           ),
         );
       }
-    } catch (e) {
-      print('Error loading music: $e');
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error loading music'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 
   void _proceedWithoutMusic() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CameraScreen(selectedPath: widget.selectedPath),
-      ),
-    );
+    if (widget.onSkip != null) {
+      widget.onSkip!();
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CameraScreen(selectedPath: widget.selectedPath),
+        ),
+      );
+    }
   }
 
   void _proceedWithMusic() {
@@ -84,15 +102,25 @@ class _MusicSelectionScreenState extends State<MusicSelectionScreen> {
       return;
     }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CameraScreen(
-          selectedPath: widget.selectedPath,
-          backgroundMusicId: _selectedMusicId,
-        ),
-      ),
+    // Find selected music data
+    final selectedMusic = _musicList.firstWhere(
+      (music) => music['_id'] == _selectedMusicId,
+      orElse: () => {},
     );
+
+    if (widget.onMusicSelected != null) {
+      widget.onMusicSelected!(_selectedMusicId, selectedMusic);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CameraScreen(
+            selectedPath: widget.selectedPath,
+            backgroundMusicId: _selectedMusicId,
+          ),
+        ),
+      );
+    }
   }
 
   @override

@@ -9,6 +9,7 @@ import 'services/thumbnail_service.dart';
 import 'services/file_persistence_service.dart';
 import 'services/background_music_service.dart';
 import 'services/video_audio_merge_service.dart';
+import 'services/video_compression_service.dart';
 
 class PreviewScreen extends StatefulWidget {
   final String selectedPath;
@@ -19,6 +20,8 @@ class PreviewScreen extends StatefulWidget {
   final String? thumbnailPath;
   final List<String> hashtags;
   final String? backgroundMusicId;
+  final VoidCallback? onUploadComplete;
+  final VoidCallback? onBack;
 
   const PreviewScreen({
     super.key,
@@ -30,6 +33,8 @@ class PreviewScreen extends StatefulWidget {
     this.thumbnailPath,
     this.hashtags = const [],
     this.backgroundMusicId,
+    this.onUploadComplete,
+    this.onBack,
   });
 
   @override
@@ -727,6 +732,22 @@ class _PreviewScreenState extends State<PreviewScreen> {
                             print('  - Continuing with original video');
                             // Continue with original video if preparation fails
                           }
+                        }
+
+                        // Compress video to 720p and 24fps before uploading
+                        print('🎬 Compressing video to 720p and 24fps...');
+                        try {
+                          final compressedPath =
+                              await VideoCompressionService.compressVideo(
+                                fileToUpload.path,
+                              );
+                          fileToUpload = File(compressedPath);
+                          print('✅ Video compressed successfully');
+                          print('  - Compressed path: $compressedPath');
+                        } catch (e) {
+                          print('⚠️ Video compression failed: $e');
+                          print('  - Uploading original video');
+                          // Continue with original video if compression fails
                         }
 
                         mediaUrl = await wasabiService.uploadVideo(

@@ -10,6 +10,8 @@ class ThumbnailSelectorScreen extends StatefulWidget {
   final String caption;
   final List<String> hashtags;
   final String? backgroundMusicId;
+  final Function(String thumbnailPath)? onThumbnailSelected;
+  final VoidCallback? onBack;
 
   const ThumbnailSelectorScreen({
     super.key,
@@ -18,6 +20,8 @@ class ThumbnailSelectorScreen extends StatefulWidget {
     required this.caption,
     required this.hashtags,
     this.backgroundMusicId,
+    this.onThumbnailSelected,
+    this.onBack,
   });
 
   @override
@@ -171,20 +175,25 @@ class _ThumbnailSelectorScreenState extends State<ThumbnailSelectorScreen> {
       return;
     }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PreviewScreen(
-          selectedPath: widget.selectedPath,
-          mediaPath: widget.videoPath,
-          caption: widget.caption,
-          hashtags: widget.hashtags,
-          isVideo: true,
-          thumbnailPath: selectedThumbnailPath,
-          backgroundMusicId: widget.backgroundMusicId,
+    // Use callback if provided (new flow), otherwise navigate (old flow)
+    if (widget.onThumbnailSelected != null) {
+      widget.onThumbnailSelected!(selectedThumbnailPath);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PreviewScreen(
+            selectedPath: widget.selectedPath,
+            mediaPath: widget.videoPath,
+            caption: widget.caption,
+            hashtags: widget.hashtags,
+            isVideo: true,
+            thumbnailPath: selectedThumbnailPath,
+            backgroundMusicId: widget.backgroundMusicId,
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
 
   Future<void> _useAutoThumbnail() async {

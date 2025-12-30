@@ -349,6 +349,45 @@
                         </form>
                     </div>
 
+                    <!-- Ad Settings -->
+                    <div class="settings-card">
+                        <h3><i class="fas fa-ad"></i> Ad Settings</h3>
+                        <form id="adSettings">
+                            <div class="form-group">
+                                <div class="checkbox-group">
+                                    <input type="checkbox" id="adsEnabled" checked>
+                                    <label for="adsEnabled">Enable Ads</label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="adFrequency">Ad Frequency (show ad after every X reels)</label>
+                                <input type="number" id="adFrequency" value="6" min="1" max="50">
+                                <small style="color: #64748b; display: block; margin-top: 0.25rem;">Range: 1-50 reels</small>
+                            </div>
+                            <div class="form-group">
+                                <div class="checkbox-group">
+                                    <input type="checkbox" id="interstitialEnabled" checked>
+                                    <label for="interstitialEnabled">Enable Interstitial Ads</label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="checkbox-group">
+                                    <input type="checkbox" id="rewardedEnabled" checked>
+                                    <label for="rewardedEnabled">Enable Rewarded Ads</label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="checkbox-group">
+                                    <input type="checkbox" id="bannerEnabled" checked>
+                                    <label for="bannerEnabled">Enable Banner Ads</label>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Ad Settings
+                            </button>
+                        </form>
+                    </div>
+
                     <!-- Content Settings -->
                     <div class="settings-card">
                         <h3><i class="fas fa-file-upload"></i> Content Settings</h3>
@@ -495,6 +534,25 @@
                 referralReward: parseInt(document.getElementById('referralReward').value),
                 dailyAdLimit: parseInt(document.getElementById('dailyAdLimit').value),
                 minWithdrawal: parseInt(document.getElementById('minWithdrawal').value)
+            });
+        });
+
+        document.getElementById('adSettings').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const adFrequency = parseInt(document.getElementById('adFrequency').value);
+            
+            // Validate ad frequency
+            if (adFrequency < 1 || adFrequency > 50) {
+                alert('Ad frequency must be between 1 and 50');
+                return;
+            }
+            
+            saveSettings('ads', {
+                enabled: document.getElementById('adsEnabled').checked,
+                adFrequency: adFrequency,
+                interstitialEnabled: document.getElementById('interstitialEnabled').checked,
+                rewardedEnabled: document.getElementById('rewardedEnabled').checked,
+                bannerEnabled: document.getElementById('bannerEnabled').checked
             });
         });
 

@@ -39,6 +39,7 @@ class ReelScreenState extends State<ReelScreen>
   List<Map<String, dynamic>> _posts = [];
   bool _isLoading = true;
   int _currentIndex = 0;
+  String? _currentPostId; // Track current post by ID, not index
   String? _currentUserId;
   final Map<String, bool> _followStatus = {};
   bool _isAdFree = false;
@@ -77,7 +78,11 @@ class ReelScreenState extends State<ReelScreen>
   // Ads
   InterstitialAd? _interstitialAd;
   int _reelsSinceLastAd = 0;
-  final int _adFrequency = 4;
+  int _adFrequency =
+      6; // Default: show ad after every 6 reels (configurable from admin)
+  bool _adsEnabled = true; // Can be disabled from admin panel
+  bool _isFirstPageChange =
+      true; // Track first page change to avoid counting initial load
 
   // Background music - Instagram style
   final BackgroundMusicService _musicService = BackgroundMusicService();
@@ -209,8 +214,53 @@ class ReelScreenState extends State<ReelScreen>
       debugPrint('Error checking subscription: $e');
     }
 
+    // Load ad settings from admin panel
+    try {
+      await _loadAdSettings();
+    } catch (e) {
+      debugPrint('Error loading ad settings: $e');
+    }
+
     if (!_isAdFree) {
       _loadInterstitialAd();
+    }
+  }
+
+  /// Load ad settings from admin panel
+  Future<void> _loadAdSettings() async {
+    try {
+      final response = await ApiService.getAdSettings();
+      debugPrint('📡 Ad settings response: $response');
+
+      if (response['success'] == true && response['data'] != null) {
+        final data = response['data'];
+        if (data['ads'] != null) {
+          final ads = data['ads'];
+          setState(() {
+            _adsEnabled = ads['enabled'] ?? true;
+            _adFrequency = ads['adFrequency'] ?? 6;
+
+            // Validate ad frequency
+            if (_adFrequency < 1) _adFrequency = 1;
+            if (_adFrequency > 50) _adFrequency = 50;
+
+            debugPrint(
+              '✅ Ad settings loaded: enabled=$_adsEnabled, frequency=$_adFrequency',
+            );
+          });
+        } else {
+          debugPrint('⚠️ No ads object in response data');
+        }
+      } else {
+        debugPrint('⚠️ Ad settings response not successful or no data');
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading ad settings: $e');
+      // Use defaults on error
+      setState(() {
+        _adsEnabled = true;
+        _adFrequency = 6;
+      });
     }
   }
 
@@ -231,13 +281,19 @@ class ReelScreenState extends State<ReelScreen>
 
     try {
       final response = await ApiService.getFeed(page: 1, limit: _postsPerPage);
+      debugPrint('📺 Feed response: $response');
 
       if (!response['success'] || !mounted) {
+        debugPrint(
+          '❌ Feed API failed: ${response['message'] ?? 'Unknown error'}',
+        );
         setState(() => _isLoading = false);
         return;
       }
 
       final posts = List<Map<String, dynamic>>.from(response['data']);
+      debugPrint('📺 Loaded ${posts.length} posts');
+
       await _batchFetchPresignedUrls(posts);
 
       _cachedPosts = posts;
@@ -253,6 +309,11 @@ class ReelScreenState extends State<ReelScreen>
         final initialIndex = _getInitialIndex();
         _initializeForIndex(initialIndex);
 
+        // Set current post ID
+        if (initialIndex < _posts.length) {
+          _currentPostId = _posts[initialIndex]['_id'];
+        }
+
         // Jump to initial post if specified
         if (widget.initialPostId != null && initialIndex > 0) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -267,7 +328,7 @@ class ReelScreenState extends State<ReelScreen>
         });
       }
     } catch (e) {
-      debugPrint('Error loading feed: $e');
+      debugPrint('❌ Error loading feed: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -277,9 +338,23 @@ class ReelScreenState extends State<ReelScreen>
       final index = _posts.indexWhere(
         (post) => post['_id'] == widget.initialPostId,
       );
-      if (index != -1) return index;
+      if (index != -1) {
+        print(
+          '✅ Found initial post at index: $index (ID: ${widget.initialPostId})',
+        );
+        return index;
+      }
+      print(
+        '⚠️ Initial post not found in feed (ID: ${widget.initialPostId}), starting from 0',
+      );
     }
     return 0;
+  }
+
+  /// Get the current index of a post by its ID
+  /// Returns -1 if post not found
+  int _getIndexByPostId(String postId) {
+    return _posts.indexWhere((post) => post['_id'] == postId);
   }
 
   void _initializeForIndex(int index) {
@@ -419,18 +494,33 @@ class ReelScreenState extends State<ReelScreen>
 
   Future<void> _loadInterstitialAd() async {
     try {
+      debugPrint('⏳ Loading interstitial ad...');
       _interstitialAd = await AdService.loadInterstitialAd();
+      if (_interstitialAd != null) {
+        debugPrint('✅ Interstitial ad loaded successfully');
+      } else {
+        debugPrint('⚠️ Interstitial ad returned null');
+      }
     } catch (e) {
-      debugPrint('Error loading interstitial ad: $e');
+      debugPrint('❌ Error loading interstitial ad: $e');
     }
   }
 
   void _showAdIfReady() {
+    debugPrint(
+      '🎬 Ad check: _reelsSinceLastAd=$_reelsSinceLastAd, _adFrequency=$_adFrequency',
+    );
+    debugPrint(
+      '   _adsEnabled=$_adsEnabled, _isAdFree=$_isAdFree, _interstitialAd=$_interstitialAd',
+    );
+
     if (_interstitialAd != null) {
+      debugPrint('✅ Showing interstitial ad');
       _pauseCurrentVideo();
       AdService.showInterstitialAd(
         _interstitialAd,
         onAdDismissed: () {
+          debugPrint('✅ Ad dismissed, resetting counter');
           _reelsSinceLastAd = 0;
           _interstitialAd = null;
           _loadInterstitialAd();
@@ -438,11 +528,34 @@ class ReelScreenState extends State<ReelScreen>
         },
       );
     } else {
+      debugPrint('⏳ Ad not ready yet, loading...');
       _loadInterstitialAd();
     }
   }
 
   // ============ VIDEO CONTROLLER MANAGEMENT ============
+
+  /// Convert video URL to HLS format if needed
+  /// Get video URL for playback
+  /// Supports both HLS (.m3u8) and MP4 formats
+  /// Server will return HLS URLs when available, otherwise MP4
+  String _getVideoUrl(String videoUrl) {
+    // If already HLS, return as-is
+    if (videoUrl.endsWith('.m3u8')) {
+      debugPrint('🎬 Using HLS URL: $videoUrl');
+      return videoUrl;
+    }
+
+    // For MP4 files, return as-is
+    if (videoUrl.endsWith('.mp4') || videoUrl.contains('wasabisys.com')) {
+      debugPrint('🎬 Using MP4 URL: $videoUrl');
+      return videoUrl;
+    }
+
+    // Default: return original URL
+    debugPrint('🎬 Using video URL: $videoUrl');
+    return videoUrl;
+  }
 
   Future<void> _initializeVideoController(int index) async {
     if (_isDisposed || !mounted) return;
@@ -473,6 +586,10 @@ class ReelScreenState extends State<ReelScreen>
           debugPrint('Pre-signed URL failed: $e');
         }
       }
+
+      // Get video URL for playback (supports both HLS and MP4)
+      videoUrl = _getVideoUrl(videoUrl);
+      debugPrint('🎬 Video URL for video $index: $videoUrl');
 
       // Try to use cached file first
       VideoPlayerController controller;
@@ -723,6 +840,7 @@ class ReelScreenState extends State<ReelScreen>
 
     setState(() {
       _currentIndex = index;
+      _currentPostId = _posts[index]['_id']; // Track by ID
       _isScrolling = false;
     });
 
@@ -752,11 +870,31 @@ class ReelScreenState extends State<ReelScreen>
       _loadMorePosts();
     }
 
-    // Show ad if needed
-    if (!_isAdFree) {
-      _reelsSinceLastAd++;
-      if (_reelsSinceLastAd >= _adFrequency) {
-        _showAdIfReady();
+    // Show ad if needed (only if ads are enabled and user is not ad-free)
+    if (!_isAdFree && _adsEnabled) {
+      // Skip counting the first page change (initial load)
+      if (!_isFirstPageChange) {
+        _reelsSinceLastAd++;
+        debugPrint(
+          '📺 Reel $index viewed. Reels since ad: $_reelsSinceLastAd / $_adFrequency',
+        );
+        if (_reelsSinceLastAd >= _adFrequency) {
+          debugPrint(
+            '🎬 Time to show ad! ($_reelsSinceLastAd >= $_adFrequency)',
+          );
+          _showAdIfReady();
+        }
+      } else {
+        debugPrint(
+          '📺 Initial reel loaded (index $index), not counting for ad',
+        );
+        _isFirstPageChange = false;
+      }
+    } else {
+      if (_isAdFree) {
+        debugPrint('🎁 User is ad-free, skipping ad');
+      } else {
+        debugPrint('🔇 Ads disabled, skipping ad');
       }
     }
 
@@ -1148,6 +1286,10 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
   Widget _buildVideoPlayer(int index) {
     final isReady = _videoReady[index] == true;
     final controller = _videoControllers[index];
+    final post = _posts[index];
+    final thumbnailUrl = post['thumbnailUrl'] != null
+        ? ApiService.getImageUrl(post['thumbnailUrl'])
+        : null;
 
     if (isReady && controller != null && controller.value.isInitialized) {
       return SizedBox.expand(
@@ -1162,22 +1304,17 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
       );
     }
 
-    // Loading state
-    return Container(
-      color: Colors.black,
-      child: const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
-            SizedBox(height: 16),
-            Text(
-              'Loading...',
-              style: TextStyle(color: Colors.white, fontSize: 14),
-            ),
-          ],
-        ),
-      ),
+    // Loading state - show thumbnail only (HLS handles buffering internally)
+    return SizedBox.expand(
+      child: thumbnailUrl != null && thumbnailUrl.isNotEmpty
+          ? Image.network(
+              thumbnailUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(color: Colors.black);
+              },
+            )
+          : Container(color: Colors.black),
     );
   }
 
