@@ -23,6 +23,7 @@ const upload = require('../middleware/upload');
 router.get('/entries', getEntries);
 router.get('/leaderboard', getLeaderboard);
 router.get('/current-competition', getCurrentCompetitionInfo);
+router.get('/competitions/all', getCompetitions); // Get all competitions (for debugging)
 
 // Protected routes (require authentication)
 router.post('/submit', protect, upload.fields([

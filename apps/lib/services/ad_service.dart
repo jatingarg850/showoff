@@ -2,6 +2,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:async';
+import 'subscription_service.dart';
 
 class AdService {
   static String get interstitialAdUnitId {
@@ -24,8 +25,26 @@ class AdService {
     throw UnsupportedError('Unsupported platform');
   }
 
+  // Check if ads should be shown (not ad-free)
+  static Future<bool> shouldShowAds() async {
+    try {
+      final isAdFree = await SubscriptionService.instance.isAdFree();
+      return !isAdFree;
+    } catch (e) {
+      debugPrint('Error checking ad-free status: $e');
+      return true; // Show ads by default if error
+    }
+  }
+
   // Load an interstitial ad
   static Future<InterstitialAd?> loadInterstitialAd() async {
+    // Check if user is ad-free
+    final shouldShow = await shouldShowAds();
+    if (!shouldShow) {
+      debugPrint('⏭️ Skipping ad load - user has ad-free subscription');
+      return null;
+    }
+
     final completer = Completer<InterstitialAd?>();
 
     InterstitialAd.load(

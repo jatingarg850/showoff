@@ -292,9 +292,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           end: Alignment.bottomRight,
                         ),
                         image:
-                            (_userData?['profilePicture'] ??
-                                    widget.userInfo['profilePicture']) !=
-                                null
+                            ApiService.isValidImageUrl(
+                              _userData?['profilePicture'] ??
+                                  widget.userInfo['profilePicture'],
+                            )
                             ? DecorationImage(
                                 image: NetworkImage(
                                   ApiService.getImageUrl(
@@ -745,7 +746,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             decoration: BoxDecoration(
               color: post['color'] ?? Colors.grey[800],
               borderRadius: BorderRadius.circular(12),
-              image: post['thumbnailUrl'] != null
+              image: ApiService.isValidImageUrl(post['thumbnailUrl'])
                   ? DecorationImage(
                       image: NetworkImage(
                         ApiService.getImageUrl(post['thumbnailUrl']),
@@ -843,7 +844,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             decoration: BoxDecoration(
               color: Colors.purple[100],
               borderRadius: BorderRadius.circular(12),
-              image: sytPost['thumbnailUrl'] != null
+              image: ApiService.isValidImageUrl(sytPost['thumbnailUrl'])
                   ? DecorationImage(
                       image: NetworkImage(
                         ApiService.getImageUrl(sytPost['thumbnailUrl']),
@@ -978,7 +979,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             decoration: BoxDecoration(
               color: Colors.pink[100],
               borderRadius: BorderRadius.circular(12),
-              image: likedPost['thumbnailUrl'] != null
+              image: ApiService.isValidImageUrl(likedPost['thumbnailUrl'])
                   ? DecorationImage(
                       image: NetworkImage(
                         ApiService.getImageUrl(likedPost['thumbnailUrl']),

@@ -25,7 +25,7 @@ const subscriptionPlanSchema = new mongoose.Schema({
   },
   currency: {
     type: String,
-    default: 'USD'
+    default: 'INR'
   },
   
   // Features
@@ -133,7 +133,7 @@ const userSubscriptionSchema = new mongoose.Schema({
   },
   currency: {
     type: String,
-    default: 'USD'
+    default: 'INR'
   },
   paymentMethod: {
     type: String,

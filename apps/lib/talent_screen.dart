@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'leaderboard_screen.dart';
 import 'notification_screen.dart';
 import 'syt_reel_screen.dart';
-import 'music_selection_screen.dart';
+import 'content_creation_flow_screen.dart';
 import 'services/api_service.dart';
 import 'ai_chat_screen.dart';
 
@@ -394,7 +394,7 @@ class _TalentScreenState extends State<TalentScreen> {
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) =>
-                                            const MusicSelectionScreen(
+                                            const ContentCreationFlowScreen(
                                               selectedPath: 'SYT',
                                             ),
                                       ),
@@ -562,7 +562,7 @@ class _TalentScreenState extends State<TalentScreen> {
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) =>
-                                          const MusicSelectionScreen(
+                                          const ContentCreationFlowScreen(
                                             selectedPath: 'SYT',
                                           ),
                                     ),

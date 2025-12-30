@@ -72,16 +72,16 @@ class _CartScreenState extends State<CartScreen> {
     for (var item in items) {
       final product = item['product'] ?? {};
       final quantity = item['quantity'] ?? 1;
-      final basePriceUSD = (product['price'] ?? 0.0) as double;
+      final basePriceINR = (product['price'] ?? 0.0) as double;
 
-      // Convert USD to user's currency
-      final basePriceLocal = await CurrencyService.convertFromUSD(basePriceUSD);
+      // Convert INR to user's currency
+      final basePriceLocal = await CurrencyService.convertFromINR(basePriceINR);
 
       // 50% cash in local currency
       _totalUPI += (basePriceLocal * 0.5) * quantity;
 
       // 50% coins (1 coin = 1 INR)
-      _totalCoins += ((basePriceLocal * 0.5) * 1 * quantity).ceil();
+      _totalCoins += ((basePriceLocal * 0.5) * 1 * quantity).toInt();
     }
 
     if (mounted) {
@@ -514,15 +514,15 @@ class _CartScreenState extends State<CartScreen> {
   Future<String> _getItemPriceFormatted(Map<String, dynamic> item) async {
     final product = item['product'] ?? {};
     final quantity = item['quantity'] ?? 1;
-    final basePriceUSD = (product['price'] ?? 0.0) as double;
+    final basePriceINR = (product['price'] ?? 0.0) as double;
 
     // Convert to local currency
-    final basePriceLocal = await CurrencyService.convertFromUSD(basePriceUSD);
+    final basePriceLocal = await CurrencyService.convertFromINR(basePriceINR);
     final totalPrice = basePriceLocal * quantity;
 
     // Calculate 50/50 split
     final cashAmount = totalPrice * 0.5;
-    final coinAmount = (totalPrice * 0.5 * 100).ceil();
+    final coinAmount = (totalPrice * 0.5).toInt();
 
     // Format based on currency
     String formattedCash;

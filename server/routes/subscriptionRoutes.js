@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getPlans,
+  createSubscriptionOrder,
   subscribe,
   getMySubscription,
   cancelSubscription,
@@ -10,7 +11,8 @@ const {
   updatePlan,
   deletePlan,
   getAllSubscriptions,
-  adminCancelSubscription
+  adminCancelSubscription,
+  verifySubscriptionPayment
 } = require('../controllers/subscriptionController');
 const { protect, adminOnly } = require('../middleware/auth');
 
@@ -18,7 +20,9 @@ const { protect, adminOnly } = require('../middleware/auth');
 router.get('/plans', getPlans);
 
 // User routes
+router.post('/create-order', protect, createSubscriptionOrder);
 router.post('/subscribe', protect, subscribe);
+router.post('/verify-payment', protect, verifySubscriptionPayment);
 router.get('/my-subscription', protect, getMySubscription);
 router.put('/cancel', protect, cancelSubscription);
 

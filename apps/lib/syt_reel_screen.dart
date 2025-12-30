@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'comments_screen.dart';
 import 'gift_screen.dart';
+import 'content_creation_flow_screen.dart';
 import 'services/api_service.dart';
 import 'services/background_music_service.dart';
+import 'config/api_config.dart';
 
 class SYTReelScreen extends StatefulWidget {
   final List<Map<String, dynamic>> competitions;
@@ -22,7 +25,7 @@ class SYTReelScreen extends StatefulWidget {
 }
 
 class _SYTReelScreenState extends State<SYTReelScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late PageController _pageController;
 
   late AnimationController _fadeController;
@@ -30,6 +33,7 @@ class _SYTReelScreenState extends State<SYTReelScreen>
 
   int _currentIndex = 0;
   bool _isDisposed = false; // Track if screen is being disposed
+  bool _isScreenVisible = true; // Track if screen is visible
 
   // Track liked, voted and saved states for each reel
   final Map<int, bool> _likedReels = {};
@@ -39,6 +43,17 @@ class _SYTReelScreenState extends State<SYTReelScreen>
 
   // Video controllers for each reel
   final Map<int, VideoPlayerController?> _videoControllers = {};
+  final Map<int, bool> _videoInitialized = {};
+  final Map<int, bool> _videoReady = {};
+
+  // Cache manager for videos
+  static final _cacheManager = CacheManager(
+    Config(
+      'sytReelVideoCache',
+      stalePeriod: const Duration(days: 3),
+      maxNrOfCacheObjects: 10,
+    ),
+  );
 
   // Background music tracking
   String? _currentMusicId;
@@ -47,6 +62,7 @@ class _SYTReelScreenState extends State<SYTReelScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     _currentIndex = widget.initialIndex;
 
@@ -74,6 +90,72 @@ class _SYTReelScreenState extends State<SYTReelScreen>
     _initializeVideoForIndex(_currentIndex);
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _isScreenVisible = false;
+      _stopAllMedia();
+    } else if (state == AppLifecycleState.resumed) {
+      _isScreenVisible = true;
+      if (widget.competitions.isNotEmpty && !_isDisposed && mounted) {
+        _resumeCurrentVideo();
+      }
+    }
+  }
+
+  void _stopAllMedia() {
+    // Stop all videos
+    _pauseAllVideos();
+
+    // Stop music
+    _musicService.stopBackgroundMusic();
+    _currentMusicId = null;
+  }
+
+  void _resumeCurrentVideo() {
+    if (!_isScreenVisible || _isDisposed) return;
+
+    final controller = _videoControllers[_currentIndex];
+    if (controller != null && _videoReady[_currentIndex] == true) {
+      try {
+        controller.setVolume(1.0);
+        controller.play();
+      } catch (e) {
+        print('Error resuming SYT video: $e');
+      }
+    }
+
+    // Resume music - reload if needed
+    _musicService.resumeBackgroundMusic();
+
+    // If music was stopped, reload it for current reel
+    if (_musicService.getCurrentMusicId() == null &&
+        _currentIndex < widget.competitions.length) {
+      _playBackgroundMusicForSYTReel(_currentIndex);
+    }
+  }
+
+  // Public methods for MainScreen
+  void pauseVideo() {
+    _isScreenVisible = false;
+    _stopAllMedia();
+  }
+
+  void stopAllVideosCompletely() {
+    _isScreenVisible = false;
+    _isDisposed = true;
+    _stopAllMedia();
+  }
+
+  void resumeVideo() {
+    _isScreenVisible = true;
+    _isDisposed = false;
+    _resumeCurrentVideo();
+  }
+
   Future<void> _loadEntriesStats() async {
     print('Loading stats for entries...');
     // Load stats for the current entry and nearby entries
@@ -89,6 +171,7 @@ class _SYTReelScreenState extends State<SYTReelScreen>
   void dispose() {
     print('🗑️ Disposing SYTReelScreen - stopping all videos and music');
     _isDisposed = true;
+    WidgetsBinding.instance.removeObserver(this);
 
     // Stop background music
     try {
@@ -125,6 +208,52 @@ class _SYTReelScreenState extends State<SYTReelScreen>
     super.dispose();
   }
 
+  /// Get video URL for playback
+  /// Supports both HLS (.m3u8) and MP4 formats
+  /// Server will return HLS URLs when available, otherwise MP4
+  String _getVideoUrl(String videoUrl) {
+    // If already HLS, return as-is
+    if (videoUrl.endsWith('.m3u8')) {
+      print('🎬 Using HLS URL: $videoUrl');
+      return videoUrl;
+    }
+
+    // For MP4 files, return as-is
+    if (videoUrl.endsWith('.mp4') || videoUrl.contains('wasabisys.com')) {
+      print('🎬 Using MP4 URL: $videoUrl');
+      return videoUrl;
+    }
+
+    // Default: return original URL
+    print('🎬 Using video URL: $videoUrl');
+    return videoUrl;
+  }
+
+  /// Handle video state changes for buffering detection
+  void _onVideoStateChanged(VideoPlayerController controller, int index) {
+    if (!controller.value.isInitialized) return;
+
+    final buffered = controller.value.buffered;
+    final duration = controller.value.duration;
+
+    if (buffered.isNotEmpty && duration.inMilliseconds > 0) {
+      final bufferedEnd = buffered.last.end;
+      // Ready when 15% buffered
+      if (bufferedEnd.inMilliseconds >= duration.inMilliseconds * 0.15) {
+        if (_videoReady[index] != true && mounted) {
+          setState(() {
+            _videoReady[index] = true;
+          });
+
+          // Auto-play if current and not scrolling
+          if (index == _currentIndex && !_isDisposed) {
+            _playVideoAtIndex(index);
+          }
+        }
+      }
+    }
+  }
+
   Future<void> _initializeVideoForIndex(int index) async {
     // CRITICAL: Check if screen is disposed before starting initialization
     if (_isDisposed || !mounted) {
@@ -138,22 +267,90 @@ class _SYTReelScreenState extends State<SYTReelScreen>
       return;
     }
 
-    final competition = widget.competitions[index];
-    final videoUrl = competition['videoUrl'];
-
-    if (videoUrl == null) {
+    // Already initialized
+    if (_videoControllers[index] != null) {
       return;
     }
 
-    // Dispose previous controller if exists
-    if (_videoControllers[index] != null) {
-      await _videoControllers[index]!.pause();
+    final competition = widget.competitions[index];
+    final videoUrl = competition['videoUrl'];
+
+    if (videoUrl == null || videoUrl.isEmpty) {
       return;
     }
 
     try {
-      final fullUrl = ApiService.getImageUrl(videoUrl);
-      final controller = VideoPlayerController.networkUrl(Uri.parse(fullUrl));
+      String fullUrl = videoUrl;
+
+      // Convert relative URLs to full URLs
+      if (videoUrl.startsWith('/uploads')) {
+        fullUrl = '${ApiConfig.baseUrl}$videoUrl';
+      } else if (!videoUrl.startsWith('http')) {
+        fullUrl = ApiService.getImageUrl(videoUrl);
+      }
+
+      // Use pre-signed URL if available for Wasabi storage
+      if (competition['_presignedUrl'] != null) {
+        fullUrl = competition['_presignedUrl'];
+      } else if (fullUrl.contains('wasabisys.com')) {
+        try {
+          final presignedResponse = await ApiService.getPresignedUrl(fullUrl);
+          if (presignedResponse['success'] == true &&
+              presignedResponse['data'] != null) {
+            fullUrl = presignedResponse['data']['presignedUrl'];
+            widget.competitions[index]['_presignedUrl'] = fullUrl;
+          }
+        } catch (e) {
+          print('Pre-signed URL failed: $e');
+        }
+      }
+
+      // Get video URL for playback (supports both HLS and MP4)
+      fullUrl = _getVideoUrl(fullUrl);
+      print('🎬 Video URL for SYT video $index: $fullUrl');
+
+      // Try to use cached file first
+      VideoPlayerController controller;
+      try {
+        final fileInfo = await _cacheManager.getFileFromCache(fullUrl);
+        if (fileInfo != null) {
+          controller = VideoPlayerController.file(
+            fileInfo.file,
+            videoPlayerOptions: VideoPlayerOptions(
+              mixWithOthers: true,
+              allowBackgroundPlayback: false,
+            ),
+          );
+        } else {
+          controller = VideoPlayerController.networkUrl(
+            Uri.parse(fullUrl),
+            videoPlayerOptions: VideoPlayerOptions(
+              mixWithOthers: true,
+              allowBackgroundPlayback: false,
+            ),
+          );
+          // Cache in background
+          _cacheManager.downloadFile(fullUrl).then((_) {}).catchError((e) {
+            print('Cache error: $e');
+          });
+        }
+      } catch (e) {
+        controller = VideoPlayerController.networkUrl(
+          Uri.parse(fullUrl),
+          videoPlayerOptions: VideoPlayerOptions(
+            mixWithOthers: true,
+            allowBackgroundPlayback: false,
+          ),
+        );
+      }
+
+      _videoControllers[index] = controller;
+
+      // Add listener for buffering state
+      controller.addListener(() {
+        if (_isDisposed || !mounted) return;
+        _onVideoStateChanged(controller, index);
+      });
 
       await controller.initialize();
 
@@ -168,15 +365,26 @@ class _SYTReelScreenState extends State<SYTReelScreen>
       }
 
       controller.setLooping(true);
-      await controller.play();
+      controller.setVolume(index == _currentIndex ? 1.0 : 0.0);
 
-      if (mounted && !_isDisposed) {
+      if (mounted) {
         setState(() {
-          _videoControllers[index] = controller;
+          _videoInitialized[index] = true;
         });
       }
+
+      // Auto-play if this is the current video and ready
+      if (index == _currentIndex && _videoReady[index] == true) {
+        _playVideoAtIndex(index);
+      }
     } catch (e) {
-      print('Error initializing video: $e');
+      print('Error initializing SYT video $index: $e');
+      if (mounted) {
+        setState(() {
+          _videoInitialized[index] = false;
+          _videoReady[index] = false;
+        });
+      }
     }
   }
 
@@ -193,6 +401,31 @@ class _SYTReelScreenState extends State<SYTReelScreen>
     }
   }
 
+  // Clean up controllers far from current position
+  void _cleanupDistantControllers(int currentIndex) {
+    final keysToRemove = <int>[];
+
+    _videoControllers.forEach((index, controller) {
+      // Keep current, previous, and next 2
+      final shouldKeep = index >= currentIndex - 1 && index <= currentIndex + 2;
+
+      if (!shouldKeep && controller != null) {
+        try {
+          controller.dispose();
+        } catch (e) {
+          print('Error disposing controller $index: $e');
+        }
+        keysToRemove.add(index);
+      }
+    });
+
+    for (final key in keysToRemove) {
+      _videoControllers.remove(key);
+      _videoInitialized.remove(key);
+      _videoReady.remove(key);
+    }
+  }
+
   void _playVideoAtIndex(int index) {
     // CRITICAL: Check if screen is disposed before playing
     if (_isDisposed || !mounted) {
@@ -203,6 +436,7 @@ class _SYTReelScreenState extends State<SYTReelScreen>
     _pauseAllVideos();
     if (_videoControllers[index] != null) {
       try {
+        _videoControllers[index]!.setVolume(1.0);
         _videoControllers[index]!.play();
       } catch (e) {
         print('Error playing video: $e');
@@ -251,16 +485,48 @@ class _SYTReelScreenState extends State<SYTReelScreen>
 
         HapticFeedback.mediumImpact();
 
+        // Show success message with coin deduction info
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('✅ Vote recorded! -1 coin deducted'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+
         // Don't reload stats immediately - the voted state is already set correctly
         // Stats will be reloaded on next page change or app restart
       } else {
         print('Vote failed: ${response['message']}');
-        // Vote failed (already voted) - reload stats to get accurate state
+
+        // Show error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response['message'] ?? 'Vote failed'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+
+        // Vote failed (already voted or insufficient coins) - reload stats to get accurate state
         await _reloadEntryStats(index);
       }
     } catch (e) {
-      // Silently handle errors - the UI state shows whether voting is available
+      // Show error message
       print('Vote error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error voting: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -495,8 +761,27 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
           _fadeController.reset();
           _fadeController.forward();
 
-          // Play video at current index
-          _playVideoAtIndex(index);
+          // Pause previous video
+          _pauseAllVideos();
+
+          // Play video at current index if ready
+          if (_videoReady[index] == true) {
+            _playVideoAtIndex(index);
+          } else if (_videoInitialized[index] != true) {
+            _initializeVideoForIndex(index);
+          }
+
+          // Preload adjacent videos
+          if (index + 1 < widget.competitions.length &&
+              _videoControllers[index + 1] == null) {
+            _initializeVideoForIndex(index + 1);
+          }
+          if (index > 0 && _videoControllers[index - 1] == null) {
+            _initializeVideoForIndex(index - 1);
+          }
+
+          // Clean up distant controllers
+          _cleanupDistantControllers(index);
 
           // Load stats for nearby entries
           _reloadEntryStats(index);
@@ -796,6 +1081,65 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
                           color: Colors.white,
                         ),
                       ),
+                      const SizedBox(height: 20),
+
+                      // Show off button - navigate to unified content creation flow
+                      GestureDetector(
+                        onTap: () {
+                          // Pause current video and music before navigating
+                          pauseVideo();
+
+                          // Navigate to unified content creation flow for SYT
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ContentCreationFlowScreen(
+                                selectedPath: 'SYT',
+                                sytCategory: reel['category'],
+                              ),
+                            ),
+                          ).then((_) {
+                            // Resume video and music when returning
+                            if (mounted) {
+                              resumeVideo();
+                            }
+                          });
+                        },
+                        child: Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.purple.withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Icon(
+                                Icons.add_circle_outline,
+                                size: 28,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Show',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            const Text(
+                              'off',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -845,46 +1189,57 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
                           ),
                           const SizedBox(width: 12),
 
-                          // Username
-                          Text(
-                            reel['username'],
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-
-                          // SYT Competition badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Colors.amber, Colors.orange],
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                              ),
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
+                          // Username and badge (wrapped in Expanded to prevent overflow)
+                          Expanded(
+                            child: Row(
                               children: [
-                                Icon(
-                                  Icons.emoji_events,
-                                  color: Colors.white,
-                                  size: 16,
+                                // Username
+                                Flexible(
+                                  child: Text(
+                                    reel['username'],
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
-                                SizedBox(width: 4),
-                                Text(
-                                  'SYT',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
+                                const SizedBox(width: 8),
+
+                                // SYT Competition badge
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [Colors.amber, Colors.orange],
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.emoji_events,
+                                        color: Colors.white,
+                                        size: 14,
+                                      ),
+                                      SizedBox(width: 3),
+                                      Text(
+                                        'SYT',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],

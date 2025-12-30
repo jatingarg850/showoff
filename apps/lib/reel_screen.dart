@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'dart:async';
 import 'comments_screen.dart';
 import 'gift_screen.dart';
+import 'content_creation_flow_screen.dart';
 import 'user_profile_screen.dart';
 import 'search_screen.dart';
 import 'messages_screen.dart';
@@ -160,8 +161,14 @@ class ReelScreenState extends State<ReelScreen>
       }
     }
 
-    // Resume music
+    // Resume music - reload if needed
     _musicService.resumeBackgroundMusic();
+
+    // If music was stopped, reload it for current reel
+    if (_musicService.getCurrentMusicId() == null &&
+        _currentIndex < _posts.length) {
+      _loadMusicForReel(_currentIndex);
+    }
   }
 
   // Public methods for MainScreen
@@ -1490,6 +1497,63 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
               await _reloadPostStats(post['_id'], index);
               if (mounted && _isScreenVisible) _resumeCurrentVideo();
             }),
+            const SizedBox(height: 24),
+
+            // Show off button - navigate to unified content creation flow
+            GestureDetector(
+              onTap: () {
+                // Pause current video and music before navigating
+                _pauseCurrentVideo();
+
+                // Navigate to unified content creation flow for Reels
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        const ContentCreationFlowScreen(selectedPath: 'reels'),
+                  ),
+                ).then((_) {
+                  // Resume video and music when returning
+                  if (mounted && _isScreenVisible) {
+                    _resumeCurrentVideo();
+                  }
+                });
+              },
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(
+                      Icons.add_circle_outline,
+                      size: 28,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Show',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'off',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

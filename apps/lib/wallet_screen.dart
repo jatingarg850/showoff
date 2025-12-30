@@ -223,9 +223,9 @@ class _WalletScreenState extends State<WalletScreen>
     // 1 coin = 1 INR
     final inrAmount = coins.toDouble();
     // Convert INR to local currency
-    return await CurrencyService.convertFromUSD(
-      inrAmount / 83,
-    ); // 83 INR ≈ 1 USD for conversion
+    return await CurrencyService.convertFromINR(
+      inrAmount,
+    ); // INR is the base currency
   }
 
   Future<String> _formatCoinBalance(int coins) async {

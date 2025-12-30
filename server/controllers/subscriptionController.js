@@ -22,6 +22,66 @@ exports.getPlans = async (req, res) => {
   }
 };
 
+// @desc    Create Razorpay order for subscription
+// @route   POST /api/subscriptions/create-order
+// @access  Private
+exports.createSubscriptionOrder = async (req, res) => {
+  try {
+    const { amount } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid amount is required'
+      });
+    }
+
+    // Validate Razorpay configuration
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      return res.status(500).json({
+        success: false,
+        message: 'Payment gateway not configured'
+      });
+    }
+
+    // Create Razorpay order
+    const Razorpay = require('razorpay');
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+
+    // Generate receipt
+    const timestamp = Date.now().toString().slice(-8);
+    const userIdShort = req.user.id.slice(-8);
+    const receipt = `s_${userIdShort}_${timestamp}`; // s_ prefix for subscription
+
+    const options = {
+      amount: Math.round(amount * 100), // Convert to paise
+      currency: 'INR',
+      receipt: receipt,
+      notes: {
+        userId: req.user.id,
+        type: 'subscription',
+        planTier: 'pro',
+      },
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    res.status(201).json({
+      success: true,
+      data: order
+    });
+  } catch (error) {
+    console.error('Error creating subscription order:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 // @desc    Subscribe to a plan
 // @route   POST /api/subscriptions/subscribe
 // @access  Private
@@ -362,6 +422,101 @@ exports.adminCancelSubscription = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Subscription cancelled by admin',
+      data: subscription
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Verify subscription payment via Razorpay
+// @route   POST /api/subscriptions/verify-payment
+// @access  Private
+exports.verifySubscriptionPayment = async (req, res) => {
+  try {
+    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+
+    // Verify signature with Razorpay
+    const crypto = require('crypto');
+    const hmac = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET);
+    hmac.update(razorpayOrderId + '|' + razorpayPaymentId);
+    const generated_signature = hmac.digest('hex');
+
+    if (generated_signature !== razorpaySignature) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment signature'
+      });
+    }
+
+    // Get the premium plan (assuming it's the only plan or has a specific ID)
+    const premiumPlan = await SubscriptionPlan.findOne({ tier: 'pro' });
+    if (!premiumPlan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Premium plan not found'
+      });
+    }
+
+    // Check if user already has active subscription
+    const existingSubscription = await UserSubscription.findOne({
+      user: req.user.id,
+      status: 'active'
+    });
+
+    if (existingSubscription) {
+      return res.status(400).json({
+        success: false,
+        message: 'You already have an active subscription'
+      });
+    }
+
+    // Create subscription
+    const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    const subscription = await UserSubscription.create({
+      user: req.user.id,
+      plan: premiumPlan._id,
+      status: 'active',
+      billingCycle: 'monthly',
+      startDate: new Date(),
+      endDate,
+      nextBillingDate: endDate,
+      amountPaid: premiumPlan.price.monthly,
+      currency: premiumPlan.currency,
+      paymentMethod: 'razorpay',
+      transactionId: razorpayPaymentId,
+      autoRenew: true
+    });
+
+    // Update user subscription tier and add verified badge
+    await User.findByIdAndUpdate(req.user.id, {
+      subscriptionTier: premiumPlan.tier,
+      subscriptionExpiry: endDate,
+      isVerified: true // Add verified badge
+    });
+
+    // Create transaction record
+    const user = await User.findById(req.user.id);
+    await Transaction.create({
+      user: req.user.id,
+      type: 'subscription',
+      amount: -premiumPlan.price.monthly,
+      balanceAfter: user.coinBalance, // Add balanceAfter field
+      description: `Subscription to ${premiumPlan.name} (monthly)`,
+      status: 'completed',
+      metadata: {
+        subscriptionId: subscription._id,
+        planId: premiumPlan._id,
+        razorpayPaymentId
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Subscription activated successfully',
       data: subscription
     });
   } catch (error) {

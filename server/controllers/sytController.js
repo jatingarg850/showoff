@@ -3,7 +3,7 @@ const Vote = require('../models/Vote');
 const Like = require('../models/Like');
 const User = require('../models/User');
 const CompetitionSettings = require('../models/CompetitionSettings');
-const { awardCoins } = require('../utils/coinSystem');
+const { awardCoins, deductCoins } = require('../utils/coinSystem');
 
 // Helper to get current competition period
 const getCurrentPeriod = (type) => {
@@ -49,9 +49,19 @@ exports.submitEntry = async (req, res) => {
     const competition = await getCurrentCompetition(competitionType);
     
     if (!competition) {
+      // Provide helpful error message with available competitions
+      const allCompetitions = await CompetitionSettings.find({ isActive: true });
       return res.status(400).json({
         success: false,
         message: `No active ${competitionType} competition at this time`,
+        availableCompetitions: allCompetitions.map(c => ({
+          type: c.type,
+          title: c.title,
+          startDate: c.startDate,
+          endDate: c.endDate,
+          isActive: c.isCurrentlyActive(),
+        })),
+        hint: 'Please ask admin to create an active competition or try a different competition type',
       });
     }
 
@@ -60,6 +70,11 @@ exports.submitEntry = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Competition is not currently active',
+        competition: {
+          title: competition.title,
+          startDate: competition.startDate,
+          endDate: competition.endDate,
+        },
       });
     }
 
@@ -169,12 +184,10 @@ exports.getEntries = async (req, res) => {
         query.competitionType = filter;
         query.competitionPeriod = competition.periodId;
       } else {
-        // No active competition, return empty array
-        return res.status(200).json({
-          success: true,
-          data: [],
-          message: `No active ${filter} competition`,
-        });
+        // No active competition - return entries from any recent period for this type
+        // This allows viewing entries even if competition isn't active
+        query.competitionType = filter;
+        // Don't filter by period - show all entries for this type
       }
     }
 
@@ -186,6 +199,7 @@ exports.getEntries = async (req, res) => {
     res.status(200).json({
       success: true,
       data: entries,
+      message: entries.length === 0 ? `No entries found for ${filter || 'this'} competition` : undefined,
     });
   } catch (error) {
     res.status(500).json({
@@ -229,6 +243,34 @@ exports.voteEntry = async (req, res) => {
       });
     }
 
+    // Check if voter has enough coins (1 coin required to vote)
+    const voter = await User.findById(req.user.id);
+    if (!voter || voter.coinBalance < 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Insufficient coins to vote. You need at least 1 coin to vote.',
+        requiredCoins: 1,
+        currentCoins: voter ? voter.coinBalance : 0,
+      });
+    }
+
+    // Deduct 1 coin from voter
+    try {
+      await deductCoins(
+        req.user.id,
+        1,
+        'vote_cast',
+        'Voted for SYT entry',
+        { relatedSYTEntry: entry._id }
+      );
+    } catch (coinError) {
+      console.error('❌ Error deducting coins:', coinError);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to deduct voting cost. Please try again.',
+      });
+    }
+
     // Create vote
     await Vote.create({
       user: req.user.id,
@@ -262,6 +304,8 @@ exports.voteEntry = async (req, res) => {
       success: true,
       message: 'Vote recorded successfully',
       votesCount: entry.votesCount,
+      coinsDeducted: 1,
+      coinsAwarded: 1,
     });
   } catch (error) {
     res.status(500).json({

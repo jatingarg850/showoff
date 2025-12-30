@@ -26,6 +26,7 @@ try {
 // @access  Private
 exports.watchAd = async (req, res) => {
   try {
+    const { adNumber } = req.body;
     const user = await User.findById(req.user.id);
 
     // Check daily limit based on subscription
@@ -63,8 +64,21 @@ exports.watchAd = async (req, res) => {
       });
     }
 
+    // Get reward from admin-configured ad or use default
+    let adCoins = parseInt(process.env.AD_WATCH_COINS);
+    
+    if (adNumber) {
+      const RewardedAd = require('../models/RewardedAd');
+      const ad = await RewardedAd.findOne({ adNumber, isActive: true });
+      if (ad) {
+        adCoins = ad.rewardCoins;
+        console.log(`💰 Using admin-configured reward for ad ${adNumber}: ${adCoins} coins`);
+      } else {
+        console.log(`⚠️ Ad ${adNumber} not found, using default reward: ${adCoins} coins`);
+      }
+    }
+
     // Award coins
-    const adCoins = parseInt(process.env.AD_WATCH_COINS);
     await awardCoins(user._id, adCoins, 'ad_watch', 'Watched rewarded ad');
 
     // Update user
@@ -508,7 +522,7 @@ exports.purchaseCoins = async (req, res) => {
 // @access  Private
 exports.createStripePaymentIntent = async (req, res) => {
   try {
-    const { amount, currency = 'usd' } = req.body;
+    const { amount, currency = 'inr' } = req.body;
 
     if (!amount || amount <= 0) {
       return res.status(400).json({
@@ -568,12 +582,12 @@ exports.confirmStripePayment = async (req, res) => {
     }
 
     // Convert amount to coins (1 INR = 1 coin)
-    const amountInUSD = paymentIntent.amount / 100;
+    const amountInINR = paymentIntent.amount / 100;
     let coinsToAdd;
     if (currency.toLowerCase() === 'inr') {
-      coinsToAdd = Math.floor(amountInUSD); // 1 INR = 1 coin
+      coinsToAdd = Math.floor(amountInINR); // 1 INR = 1 coin
     } else {
-      coinsToAdd = Math.floor(amountInUSD * 83); // 1 USD ≈ 83 INR ≈ 83 coins
+      coinsToAdd = Math.floor(amountInINR); // Default to INR
     }
 
     // Award coins to user
@@ -581,10 +595,10 @@ exports.confirmStripePayment = async (req, res) => {
       req.user.id,
       coinsToAdd,
       'purchase',
-      `Added money via Stripe: $${amountInUSD}`,
+      `Added money via Stripe: ₹${amountInINR}`,
       {
         stripePaymentIntentId: paymentIntentId,
-        amountPaid: amountInUSD,
+        amountPaid: amountInINR,
         currency: paymentIntent.currency,
       }
     );
@@ -593,7 +607,7 @@ exports.confirmStripePayment = async (req, res) => {
       success: true,
       message: 'Money added successfully',
       coinsAdded: coinsToAdd,
-      amountPaid: amountInUSD,
+      amountPaid: amountInINR,
     });
   } catch (error) {
     res.status(500).json({
@@ -665,12 +679,12 @@ exports.addMoney = async (req, res) => {
         });
       }
 
-      const amountInUSD = paymentIntent.amount / 100;
-      coinsToAdd = Math.floor(amountInUSD * 83); // 1 USD ≈ 83 INR ≈ 83 coins
-      description = `Added money via Stripe: $${amountInUSD}`;
+      const amountInINR = paymentIntent.amount / 100;
+      coinsToAdd = Math.floor(amountInINR); // 1 INR = 1 coin
+      description = `Added money via Stripe: ₹${amountInINR}`;
       transactionData = {
         stripePaymentIntentId: paymentIntentId,
-        amountPaid: amountInUSD,
+        amountPaid: amountInINR,
         currency: paymentIntent.currency,
       };
     } else if (detectedGateway === 'razorpay') {

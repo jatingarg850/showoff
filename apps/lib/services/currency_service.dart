@@ -10,11 +10,10 @@ class CurrencyService {
 
   // Free exchange rate API (no key required)
   static const String _apiUrl =
-      'https://api.exchangerate-api.com/v4/latest/USD';
+      'https://api.exchangerate-api.com/v4/latest/INR';
 
   // Supported currencies with their symbols
   static const Map<String, String> currencySymbols = {
-    'USD': '\$',
     'INR': '₹',
     'EUR': '€',
     'GBP': '£',
@@ -28,7 +27,6 @@ class CurrencyService {
 
   // Country to currency mapping
   static const Map<String, String> countryCurrencyMap = {
-    'US': 'USD',
     'IN': 'INR',
     'GB': 'GBP',
     'EU': 'EUR',
@@ -134,10 +132,9 @@ class CurrencyService {
     // Return default rates if fetch fails
     debugPrint('💱 Using default exchange rates');
     return {
-      'USD': 1.0,
-      'INR': 83.0,
-      'EUR': 0.92,
-      'GBP': 0.79,
+      'INR': 1.0,
+      'EUR': 0.012,
+      'GBP': 0.010,
       'JPY': 149.0,
       'AUD': 1.52,
       'CAD': 1.36,
@@ -148,19 +145,19 @@ class CurrencyService {
   }
 
   /// Convert USD to user's currency
-  static Future<double> convertFromUSD(double usdAmount) async {
+  static Future<double> convertFromINR(double inrAmount) async {
     try {
       final currency = await getUserCurrency();
-      if (currency == 'USD') return usdAmount;
+      if (currency == 'INR') return inrAmount;
 
       final rates = await getExchangeRates();
       final rate = rates[currency] ?? 1.0;
 
-      debugPrint('💱 Converting $usdAmount USD to $currency at rate $rate');
-      return usdAmount * rate;
+      debugPrint('💱 Converting $inrAmount INR to $currency at rate $rate');
+      return inrAmount * rate;
     } catch (e) {
       debugPrint('Error converting currency: $e');
-      return usdAmount;
+      return inrAmount;
     }
   }
 
@@ -171,9 +168,9 @@ class CurrencyService {
   }
 
   /// Format price in user's currency
-  static Future<String> formatPrice(double usdPrice) async {
+  static Future<String> formatPrice(double inrPrice) async {
     try {
-      final convertedPrice = await convertFromUSD(usdPrice);
+      final convertedPrice = await convertFromINR(inrPrice);
       final symbol = await getCurrencySymbol();
       final currency = await getUserCurrency();
 
@@ -186,7 +183,7 @@ class CurrencyService {
       }
     } catch (e) {
       print('Error formatting price: $e');
-      return '\$${usdPrice.toStringAsFixed(2)}';
+      return '\$${inrPrice.toStringAsFixed(2)}';
     }
   }
 

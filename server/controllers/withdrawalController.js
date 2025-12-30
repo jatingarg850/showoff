@@ -42,17 +42,13 @@ exports.requestWithdrawal = async (req, res) => {
     const coinToInrRate = parseInt(process.env.COIN_TO_INR_RATE) || 1;
     const inrAmount = coinAmount / coinToInrRate;
     
-    // Convert to USD (simplified - in production use real exchange rates)
-    const usdAmount = inrAmount / 83;
-    
-    // Convert to local currency
+    // Local currency is INR
     const exchangeRates = {
-      USD: 1,
-      INR: 83,
-      EUR: 0.92,
-      GBP: 0.79,
+      INR: 1,
+      EUR: 0.012,
+      GBP: 0.010,
     };
-    const localAmount = usdAmount * (exchangeRates[user.currency || 'INR'] || 83);
+    const localAmount = inrAmount * (exchangeRates[user.currency || 'INR'] || 1);
 
     // Handle ID document uploads from request files
     const idDocuments = [];
@@ -99,7 +95,7 @@ exports.requestWithdrawal = async (req, res) => {
     const withdrawalData = {
       user: user._id,
       coinAmount,
-      usdAmount,
+      inrAmount,
       localAmount,
       currency: user.currency || 'INR',
       method,

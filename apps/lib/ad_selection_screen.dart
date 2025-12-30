@@ -93,7 +93,7 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
       await RewardedAdService.trackAdConversion(adNumber);
 
       // Call backend to award coins (flexible reward)
-      final response = await ApiService.watchAd();
+      final response = await ApiService.watchAd(adNumber: adNumber);
 
       if (mounted) {
         setState(() => _isLoading = false);

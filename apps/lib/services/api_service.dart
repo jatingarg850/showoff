@@ -14,7 +14,7 @@ class ApiService {
   // Helper function to construct full image URLs
   static String getImageUrl(String? path) {
     if (path == null || path.isEmpty) {
-      return '';
+      return 'https://via.placeholder.com/300x300?text=No+Image';
     }
     if (path.startsWith('http://') || path.startsWith('https://')) {
       return path;
@@ -47,6 +47,24 @@ class ApiService {
       return '$serverUrl$path';
     }
     return '$serverUrl/$path';
+  }
+
+  // Check if an image URL is valid (not empty after processing)
+  static bool isValidImageUrl(String? path) {
+    if (path == null || path.isEmpty) {
+      return false;
+    }
+    final url = getImageUrl(path);
+    return url.isNotEmpty;
+  }
+
+  // Check if an audio URL is valid (not empty after processing)
+  static bool isValidAudioUrl(String? path) {
+    if (path == null || path.isEmpty) {
+      return false;
+    }
+    final url = getAudioUrl(path);
+    return url.isNotEmpty;
   }
 
   static Future<Map<String, String>> _getHeaders() async {
@@ -787,10 +805,11 @@ class ApiService {
   }
 
   // Coin APIs
-  static Future<Map<String, dynamic>> watchAd() async {
+  static Future<Map<String, dynamic>> watchAd({int? adNumber}) async {
     final response = await http.post(
       Uri.parse('$baseUrl/coins/watch-ad'),
       headers: await _getHeaders(),
+      body: jsonEncode({if (adNumber != null) 'adNumber': adNumber}),
     );
     return jsonDecode(response.body);
   }
@@ -872,7 +891,7 @@ class ApiService {
   // Create Stripe payment intent
   static Future<Map<String, dynamic>> createStripePaymentIntent({
     required double amount,
-    String currency = 'usd',
+    String currency = 'inr',
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/coins/create-stripe-intent'),
@@ -926,6 +945,24 @@ class ApiService {
 
     final response = await http.post(
       Uri.parse('$baseUrl/coins/create-purchase-order'),
+      headers: await _getHeaders(),
+      body: jsonEncode(requestBody),
+    );
+    return jsonDecode(response.body);
+  }
+
+  // Create Razorpay order for subscription payment
+  static Future<Map<String, dynamic>> createRazorpayOrderForSubscription({
+    required double amount,
+  }) async {
+    final requestBody = {
+      'amount': amount, // Send amount in rupees, backend will convert to paise
+    };
+
+    print('🌐 API Service DEBUG - Creating subscription order: $requestBody');
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/subscriptions/create-order'),
       headers: await _getHeaders(),
       body: jsonEncode(requestBody),
     );
@@ -1838,6 +1875,25 @@ class ApiService {
         'billingCycle': billingCycle,
         'paymentMethod': paymentMethod ?? 'coins',
         'transactionId': transactionId,
+      }),
+    );
+    final decoded = jsonDecode(response.body);
+    return Map<String, dynamic>.from(decoded);
+  }
+
+  // Verify subscription payment via Razorpay
+  static Future<Map<String, dynamic>> verifySubscriptionPayment({
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/subscriptions/verify-payment'),
+      headers: await _getHeaders(),
+      body: jsonEncode({
+        'razorpayOrderId': razorpayOrderId,
+        'razorpayPaymentId': razorpayPaymentId,
+        'razorpaySignature': razorpaySignature,
       }),
     );
     final decoded = jsonDecode(response.body);

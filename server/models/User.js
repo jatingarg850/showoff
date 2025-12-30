@@ -264,7 +264,7 @@ const userSchema = new mongoose.Schema({
   country: String,
   currency: {
     type: String,
-    default: 'USD',
+    default: 'INR',
   },
   
   // Billing Information

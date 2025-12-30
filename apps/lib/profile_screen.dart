@@ -156,8 +156,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             child: ClipOval(
                               child:
-                                  user['profilePicture'] != null &&
-                                      user['profilePicture'].isNotEmpty
+                                  ApiService.isValidImageUrl(
+                                    user['profilePicture'],
+                                  )
                                   ? Image.network(
                                       ApiService.getImageUrl(
                                         user['profilePicture'],
@@ -697,7 +698,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             decoration: BoxDecoration(
               color: _getGridItemColor(index),
               borderRadius: BorderRadius.circular(12),
-              image: post['thumbnailUrl'] != null
+              image: ApiService.isValidImageUrl(post['thumbnailUrl'])
                   ? DecorationImage(
                       image: NetworkImage(
                         ApiService.getImageUrl(post['thumbnailUrl']),
@@ -768,7 +769,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             decoration: BoxDecoration(
               color: Colors.purple[100],
               borderRadius: BorderRadius.circular(12),
-              image: sytPost['thumbnailUrl'] != null
+              image: ApiService.isValidImageUrl(sytPost['thumbnailUrl'])
                   ? DecorationImage(
                       image: NetworkImage(
                         ApiService.getImageUrl(sytPost['thumbnailUrl']),

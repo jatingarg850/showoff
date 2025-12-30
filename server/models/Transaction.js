@@ -15,6 +15,7 @@ const transactionSchema = new mongoose.Schema({
       'view_reward',
       'ad_watch',
       'referral',
+      'referral_bonus',
       'spin_wheel',
       'vote_received',
       'gift_received',
