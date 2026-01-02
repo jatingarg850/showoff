@@ -77,6 +77,14 @@ class ApiService {
 
   static Future<Map<String, String>> _getMultipartHeaders() async {
     final token = await StorageService.getToken();
+    debugPrint(
+      '🔐 Multipart Headers - Token: ${token != null ? "Present" : "Missing"}',
+    );
+
+    if (token == null) {
+      debugPrint('⚠️ WARNING: No token found for multipart request!');
+    }
+
     return {if (token != null) 'Authorization': 'Bearer $token'};
   }
 
@@ -491,6 +499,20 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
+  // Get a single post by ID
+  static Future<Map<String, dynamic>> getPost(String postId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/posts/$postId'),
+        headers: await _getHeaders(),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('❌ Error fetching post $postId: $e');
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
   static Future<Map<String, dynamic>> toggleLike(String postId) async {
     final response = await http.post(
       Uri.parse('$baseUrl/posts/$postId/like'),
@@ -689,9 +711,25 @@ class ApiService {
       request.fields['backgroundMusicId'] = backgroundMusicId;
     }
 
-    final streamedResponse = await request.send();
-    final response = await http.Response.fromStream(streamedResponse);
-    return jsonDecode(response.body);
+    try {
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      debugPrint('📤 SYT Submit Response Status: ${response.statusCode}');
+
+      if (response.statusCode == 401) {
+        debugPrint('❌ Unauthorized (401): Token may be expired or invalid');
+        debugPrint('📡 Response: ${response.body}');
+      } else if (response.statusCode == 403) {
+        debugPrint('❌ Forbidden (403): Access denied');
+        debugPrint('📡 Response: ${response.body}');
+      }
+
+      return jsonDecode(response.body);
+    } catch (e) {
+      debugPrint('❌ Error submitting SYT entry: $e');
+      return {'success': false, 'message': 'Error: $e'};
+    }
   }
 
   static Future<Map<String, dynamic>> getSYTEntries({
@@ -1207,9 +1245,27 @@ class ApiService {
       await http.MultipartFile.fromPath('image', imageFile.path),
     );
 
-    final streamedResponse = await request.send();
-    final response = await http.Response.fromStream(streamedResponse);
-    return jsonDecode(response.body);
+    try {
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      debugPrint(
+        '📤 Daily Selfie Submit Response Status: ${response.statusCode}',
+      );
+
+      if (response.statusCode == 401) {
+        debugPrint('❌ Unauthorized (401): Token may be expired or invalid');
+        debugPrint('📡 Response: ${response.body}');
+      } else if (response.statusCode == 403) {
+        debugPrint('❌ Forbidden (403): Access denied');
+        debugPrint('📡 Response: ${response.body}');
+      }
+
+      return jsonDecode(response.body);
+    } catch (e) {
+      debugPrint('❌ Error submitting daily selfie: $e');
+      return {'success': false, 'message': 'Error: $e'};
+    }
   }
 
   static Future<Map<String, dynamic>> getDailySelfies({

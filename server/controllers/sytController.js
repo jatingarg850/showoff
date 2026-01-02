@@ -111,6 +111,20 @@ exports.submitEntry = async (req, res) => {
       videoUrl = `/uploads/videos/${videoFile.filename}`;
     }
 
+    // Convert video to HLS format for better streaming
+    let hlsUrl = null;
+    try {
+      console.log('🎬 Converting SYT video to HLS format...');
+      const { convertVideoToHLS } = require('../utils/hlsConverter');
+      const videoId = `syt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      hlsUrl = await convertVideoToHLS(videoUrl, videoId);
+      console.log('✅ HLS conversion completed:', hlsUrl);
+    } catch (hlsError) {
+      console.warn('⚠️ HLS conversion failed, using original video:', hlsError.message);
+      // Continue with original video if HLS conversion fails
+      hlsUrl = null;
+    }
+
     // Handle thumbnail URL if provided
     let thumbnailUrl = null;
     if (thumbnailFile) {
@@ -138,7 +152,7 @@ exports.submitEntry = async (req, res) => {
 
     const entry = await SYTEntry.create({
       user: req.user.id,
-      videoUrl: videoUrl,
+      videoUrl: hlsUrl || videoUrl,  // Use HLS URL if available, otherwise original
       thumbnailUrl: thumbnailUrl,
       title,
       description,

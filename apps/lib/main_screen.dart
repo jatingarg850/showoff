@@ -17,13 +17,14 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   late int _currentIndex;
+  late String? _currentInitialPostId;
 
   // Global key to access reel screen state
   final GlobalKey<ReelScreenState> _reelScreenKey =
       GlobalKey<ReelScreenState>();
 
   // Keep screen instances to preserve state
-  late final Widget _reelScreen;
+  late Widget _reelScreen;
   late final Widget _talentScreen;
   late final Widget _pathScreen;
   late final Widget _walletScreen;
@@ -33,6 +34,7 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _currentInitialPostId = widget.initialPostId;
 
     // Create screens once and reuse them
     _reelScreen = ReelScreen(
@@ -43,6 +45,22 @@ class _MainScreenState extends State<MainScreen> {
     _pathScreen = PathSelectionScreen(key: const ValueKey('path_screen'));
     _walletScreen = WalletScreen(key: const ValueKey('wallet_screen'));
     _profileScreen = ProfileScreen(key: const ValueKey('profile_screen'));
+  }
+
+  @override
+  void didUpdateWidget(MainScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If initialPostId changed, recreate the ReelScreen
+    if (oldWidget.initialPostId != widget.initialPostId) {
+      print(
+        '🔄 MainScreen: initialPostId changed from ${oldWidget.initialPostId} to ${widget.initialPostId}',
+      );
+      _currentInitialPostId = widget.initialPostId;
+      _reelScreen = ReelScreen(
+        key: _reelScreenKey,
+        initialPostId: widget.initialPostId,
+      );
+    }
   }
 
   Widget _getCurrentScreen() {

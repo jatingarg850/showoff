@@ -544,7 +544,13 @@ class _PreviewScreenState extends State<PreviewScreen> {
                   );
 
                   try {
+                    // Verify media file exists
                     final mediaFile = File(widget.mediaPath!);
+                    if (!await mediaFile.exists()) {
+                      throw Exception(
+                        'Media file not found: ${widget.mediaPath}',
+                      );
+                    }
 
                     // Extract hashtags from caption
                     final hashtags = widget.caption
@@ -679,7 +685,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
                       String mediaUrl;
                       String mediaType;
                       String? thumbnailUrl;
-                      File fileToUpload = mediaFile;
+                      File fileToUpload =
+                          mediaFile; // Initialize with original file
 
                       if (widget.isVideo) {
                         // CRITICAL: Merge video with background music if selected
@@ -748,6 +755,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                           print('⚠️ Video compression failed: $e');
                           print('  - Uploading original video');
                           // Continue with original video if compression fails
+                          // fileToUpload is already set to original
                         }
 
                         mediaUrl = await wasabiService.uploadVideo(

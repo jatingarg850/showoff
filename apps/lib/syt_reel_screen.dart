@@ -5,7 +5,6 @@ import 'package:share_plus/share_plus.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'comments_screen.dart';
 import 'gift_screen.dart';
-import 'content_creation_flow_screen.dart';
 import 'services/api_service.dart';
 import 'services/background_music_service.dart';
 import 'config/api_config.dart';
@@ -1081,65 +1080,6 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
                           color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 20),
-
-                      // Show off button - navigate to unified content creation flow
-                      GestureDetector(
-                        onTap: () {
-                          // Pause current video and music before navigating
-                          pauseVideo();
-
-                          // Navigate to unified content creation flow for SYT
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ContentCreationFlowScreen(
-                                selectedPath: 'SYT',
-                                sytCategory: reel['category'],
-                              ),
-                            ),
-                          ).then((_) {
-                            // Resume video and music when returning
-                            if (mounted) {
-                              resumeVideo();
-                            }
-                          });
-                        },
-                        child: Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.purple.withValues(alpha: 0.3),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: const Icon(
-                                Icons.add_circle_outline,
-                                size: 28,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Show',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            const Text(
-                              'off',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -1276,25 +1216,6 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
                 ),
               );
             },
-          ),
-        ),
-
-        // Floating action button
-        Positioned(
-          right: 20,
-          bottom: 110,
-          child: Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.auto_awesome,
-              color: Colors.white,
-              size: 24,
-            ),
           ),
         ),
       ],

@@ -376,8 +376,8 @@ class _CameraScreenState extends State<CameraScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    widget.selectedPath == 'reels'
-                        ? 'Reels'
+                    widget.selectedPath == 'Show'
+                        ? 'Show'
                         : widget.selectedPath == 'selfie_challenge'
                         ? 'Daily Selfie'
                         : 'SYT',

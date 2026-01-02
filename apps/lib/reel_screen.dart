@@ -6,7 +6,6 @@ import 'package:share_plus/share_plus.dart';
 import 'dart:async';
 import 'comments_screen.dart';
 import 'gift_screen.dart';
-import 'content_creation_flow_screen.dart';
 import 'user_profile_screen.dart';
 import 'search_screen.dart';
 import 'messages_screen.dart';
@@ -98,6 +97,19 @@ class ReelScreenState extends State<ReelScreen>
     _loadCurrentUser();
     _checkSubscriptionStatus();
     _loadFeed();
+  }
+
+  @override
+  void didUpdateWidget(ReelScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If initialPostId changed, reload feed and navigate to the new post
+    if (oldWidget.initialPostId != widget.initialPostId &&
+        widget.initialPostId != null) {
+      debugPrint(
+        '🔄 Initial post ID changed from ${oldWidget.initialPostId} to ${widget.initialPostId}',
+      );
+      _loadFeed();
+    }
   }
 
   @override
@@ -274,19 +286,10 @@ class ReelScreenState extends State<ReelScreen>
   Future<void> _loadFeed() async {
     if (!mounted) return;
 
-    // Use cached data if available
-    if (_hasFetchedData && _cachedPosts != null && _cachedPosts!.isNotEmpty) {
-      setState(() {
-        _posts = _cachedPosts!;
-        _isLoading = false;
-      });
-      _initializeForIndex(_getInitialIndex());
-      return;
-    }
-
     setState(() => _isLoading = true);
 
     try {
+      // Always load the feed first
       final response = await ApiService.getFeed(page: 1, limit: _postsPerPage);
       debugPrint('📺 Feed response: $response');
 
@@ -298,38 +301,64 @@ class ReelScreenState extends State<ReelScreen>
         return;
       }
 
-      final posts = List<Map<String, dynamic>>.from(response['data']);
+      // Handle different response structures
+      List<Map<String, dynamic>> posts = [];
+
+      if (response['data'] != null && response['data'] is List) {
+        posts = List<Map<String, dynamic>>.from(response['data']);
+      } else if (response['posts'] != null && response['posts'] is List) {
+        posts = List<Map<String, dynamic>>.from(response['posts']);
+      }
+
       debugPrint('📺 Loaded ${posts.length} posts');
 
-      await _batchFetchPresignedUrls(posts);
-
-      _cachedPosts = posts;
-      _hasFetchedData = true;
-      _hasMorePosts = posts.length >= _postsPerPage;
-
-      if (posts.isNotEmpty && mounted) {
-        setState(() {
-          _posts = posts;
-          _isLoading = false;
-        });
-
-        final initialIndex = _getInitialIndex();
-        _initializeForIndex(initialIndex);
-
-        // Set current post ID
-        if (initialIndex < _posts.length) {
-          _currentPostId = _posts[initialIndex]['_id'];
+      // If initialPostId is provided, find it in the posts
+      int initialIndex = 0;
+      if (widget.initialPostId != null) {
+        final foundIndex = posts.indexWhere(
+          (post) => post['_id'] == widget.initialPostId,
+        );
+        if (foundIndex != -1) {
+          initialIndex = foundIndex;
+          debugPrint('✅ Found initial post at index: $foundIndex');
+        } else {
+          debugPrint(
+            '⚠️ Initial post not found in feed, starting from index 0',
+          );
         }
+      }
 
-        // Jump to initial post if specified
-        if (widget.initialPostId != null && initialIndex > 0) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _pageController.jumpToPage(initialIndex);
+      if (posts.isNotEmpty) {
+        await _batchFetchPresignedUrls(posts);
+
+        _cachedPosts = posts;
+        _hasFetchedData = true;
+        _hasMorePosts = posts.length >= _postsPerPage;
+
+        if (mounted) {
+          setState(() {
+            _posts = posts;
+            _isLoading = false;
           });
+
+          // Initialize video for the initial post
+          _initializeForIndex(initialIndex);
+          if (posts.isNotEmpty) {
+            _currentPostId = posts[initialIndex]['_id'];
+            _currentIndex = initialIndex;
+          }
+
+          // Jump to initial post if not at index 0
+          if (initialIndex > 0) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _pageController.jumpToPage(initialIndex);
+            });
+          }
         }
       } else {
+        debugPrint('⚠️ No posts in feed response');
         setState(() {
-          _posts = posts;
+          _posts = [];
           _isLoading = false;
           _hasMorePosts = false;
         });
@@ -338,24 +367,6 @@ class ReelScreenState extends State<ReelScreen>
       debugPrint('❌ Error loading feed: $e');
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  int _getInitialIndex() {
-    if (widget.initialPostId != null) {
-      final index = _posts.indexWhere(
-        (post) => post['_id'] == widget.initialPostId,
-      );
-      if (index != -1) {
-        print(
-          '✅ Found initial post at index: $index (ID: ${widget.initialPostId})',
-        );
-        return index;
-      }
-      print(
-        '⚠️ Initial post not found in feed (ID: ${widget.initialPostId}), starting from 0',
-      );
-    }
-    return 0;
   }
 
   /// Get the current index of a post by its ID
@@ -1497,63 +1508,6 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
               await _reloadPostStats(post['_id'], index);
               if (mounted && _isScreenVisible) _resumeCurrentVideo();
             }),
-            const SizedBox(height: 24),
-
-            // Show off button - navigate to unified content creation flow
-            GestureDetector(
-              onTap: () {
-                // Pause current video and music before navigating
-                _pauseCurrentVideo();
-
-                // Navigate to unified content creation flow for Reels
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        const ContentCreationFlowScreen(selectedPath: 'reels'),
-                  ),
-                ).then((_) {
-                  // Resume video and music when returning
-                  if (mounted && _isScreenVisible) {
-                    _resumeCurrentVideo();
-                  }
-                });
-              },
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Icon(
-                      Icons.add_circle_outline,
-                      size: 28,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Show',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'off',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
