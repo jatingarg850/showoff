@@ -341,35 +341,86 @@
         }
 
         function approveWithdrawal(withdrawalId) {
-            const notes = prompt('Enter admin notes (optional):');
-            const transactionId = prompt('Enter transaction ID (optional):');
-            
-            if (confirm('Are you sure you want to approve this withdrawal?')) {
-                fetch(`/api/admin/withdrawals/${withdrawalId}/approve`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
-                    },
-                    body: JSON.stringify({ 
-                        adminNotes: notes,
-                        transactionId: transactionId
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Withdrawal approved successfully');
-                        closeModal();
-                        window.location.reload();
-                    } else {
-                        alert('Error: ' + data.message);
+            // Fetch withdrawal details to show amount
+            fetch(`/api/admin/withdrawals/${withdrawalId}`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const withdrawal = data.data;
+                    const coinAmount = withdrawal.coinAmount;
+                    const inrAmount = withdrawal.localAmount;
+                    
+                    // Ask admin for the amount to withdraw in rupees
+                    let withdrawAmount = null;
+                    let validAmount = false;
+                    
+                    while (!validAmount) {
+                        withdrawAmount = prompt(
+                            `Withdrawal Request:\n\n` +
+                            `User: ${withdrawal.user.displayName}\n` +
+                            `Coins: ${coinAmount}\n` +
+                            `Requested Amount (₹): ${inrAmount.toFixed(2)}\n\n` +
+                            `Enter the amount in rupees to withdraw:`,
+                            inrAmount.toFixed(2)
+                        );
+                        
+                        if (withdrawAmount === null) {
+                            return; // User cancelled
+                        }
+                        
+                        const finalAmount = parseFloat(withdrawAmount);
+                        
+                        if (isNaN(finalAmount) || finalAmount <= 0) {
+                            alert('Invalid amount. Please enter a positive number.');
+                            continue;
+                        }
+                        
+                        validAmount = true;
+                        
+                        const notes = prompt('Enter admin notes (optional):');
+                        const transactionId = prompt('Enter transaction ID (optional):');
+                        
+                        if (confirm(`Approve withdrawal of ₹${finalAmount.toFixed(2)}?`)) {
+                            console.log('Sending approvedAmount:', finalAmount, 'Type:', typeof finalAmount);
+                            fetch(`/api/admin/withdrawals/${withdrawalId}/approve`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+                                },
+                                body: JSON.stringify({ 
+                                    adminNotes: notes || '',
+                                    transactionId: transactionId || '',
+                                    approvedAmount: parseFloat(finalAmount)
+                                })
+                            })
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    alert(`Withdrawal approved successfully!\nAmount: ₹${finalAmount.toFixed(2)}`);
+                                    closeModal();
+                                    window.location.reload();
+                                } else {
+                                    alert('Error: ' + data.message);
+                                }
+                            })
+                            .catch(error => {
+                                alert('Error: ' + error.message);
+                            });
+                        }
                     }
-                })
-                .catch(error => {
-                    alert('Error: ' + error.message);
-                });
-            }
+                } else {
+                    alert('Error loading withdrawal details');
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
         }
 
         function rejectWithdrawal(withdrawalId) {

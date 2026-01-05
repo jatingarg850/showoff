@@ -86,22 +86,49 @@ exports.createPostWithUrl = async (req, res) => {
     // Populate user data
     await post.populate('user', 'username displayName profilePicture isVerified');
 
-    // Award coins for upload
-    const { awardCoins } = require('../utils/coinSystem');
+    // 💰 REWARD: Award coins for upload with daily limit
+    const uploadRewardCoins = parseInt(process.env.UPLOAD_REWARD_COINS_PER_POST) || 5;
+    const maxUploadsPerDay = parseInt(process.env.MAX_UPLOADS_PER_DAY) || 10;
+    
     try {
-      await awardCoins(
-        req.user.id,
-        10, // 10 coins for upload
-        'upload_reward',
-        'Content upload reward'
-      );
+      const user = await User.findById(req.user.id);
+      if (!user) {
+        console.warn('⚠️ User not found for coin award');
+      } else {
+        // Reset daily upload count if new day
+        const today = new Date().setHours(0, 0, 0, 0);
+        const lastUploadDate = user.lastUploadDate ? new Date(user.lastUploadDate).setHours(0, 0, 0, 0) : 0;
 
-      // Update user's coin balance
-      await User.findByIdAndUpdate(req.user.id, {
-        $inc: { coinBalance: 10 }
-      });
+        if (today > lastUploadDate) {
+          user.dailyUploadsCount = 0;
+        }
+
+        // Check if daily limit reached
+        if (user.dailyUploadsCount < maxUploadsPerDay) {
+          // Award coins
+          user.coinBalance += uploadRewardCoins;
+          user.totalCoinsEarned += uploadRewardCoins;
+          user.dailyUploadsCount += 1;
+          user.lastUploadDate = Date.now();
+          await user.save();
+
+          // Create transaction record
+          const Transaction = require('../models/Transaction');
+          await Transaction.create({
+            user: req.user.id,
+            type: 'upload_reward',
+            amount: uploadRewardCoins,
+            balanceAfter: user.coinBalance,
+            description: `Upload reward for post (${user.dailyUploadsCount}/${maxUploadsPerDay} today)`,
+          });
+
+          console.log(`✅ Upload reward: ${uploadRewardCoins} coins added to user ${req.user.id} (${user.dailyUploadsCount}/${maxUploadsPerDay})`);
+        } else {
+          console.log(`⚠️ Daily upload limit reached for user ${req.user.id}`);
+        }
+      }
     } catch (coinError) {
-      console.warn('⚠️ Error awarding coins:', coinError.message);
+      console.warn('⚠️ Error awarding upload coins:', coinError.message);
       // Continue even if coin award fails
     }
 
@@ -186,8 +213,71 @@ exports.createPost = async (req, res) => {
       $inc: { postsCount: 1 },
     });
 
-    // Check and award upload reward
-    const rewardResult = await checkUploadReward(req.user.id);
+    // 💰 REWARD: Award coins for upload with daily limit
+    const uploadRewardCoins = parseInt(process.env.UPLOAD_REWARD_COINS_PER_POST) || 5;
+    const maxUploadsPerDay = parseInt(process.env.MAX_UPLOADS_PER_DAY) || 10;
+    
+    let rewardResult = {
+      coinsAwarded: 0,
+      dailyUploadsCount: 0,
+      maxUploadsPerDay: maxUploadsPerDay,
+      limitReached: false,
+    };
+
+    try {
+      const user = await User.findById(req.user.id);
+      if (!user) {
+        console.warn('⚠️ User not found for coin award');
+      } else {
+        // Reset daily upload count if new day
+        const today = new Date().setHours(0, 0, 0, 0);
+        const lastUploadDate = user.lastUploadDate ? new Date(user.lastUploadDate).setHours(0, 0, 0, 0) : 0;
+
+        if (today > lastUploadDate) {
+          user.dailyUploadsCount = 0;
+        }
+
+        // Check if daily limit reached
+        if (user.dailyUploadsCount < maxUploadsPerDay) {
+          // Award coins
+          user.coinBalance += uploadRewardCoins;
+          user.totalCoinsEarned += uploadRewardCoins;
+          user.dailyUploadsCount += 1;
+          user.lastUploadDate = Date.now();
+          await user.save();
+
+          // Create transaction record
+          const Transaction = require('../models/Transaction');
+          await Transaction.create({
+            user: req.user.id,
+            type: 'upload_reward',
+            amount: uploadRewardCoins,
+            balanceAfter: user.coinBalance,
+            description: `Upload reward for post (${user.dailyUploadsCount}/${maxUploadsPerDay} today)`,
+          });
+
+          rewardResult = {
+            coinsAwarded: uploadRewardCoins,
+            dailyUploadsCount: user.dailyUploadsCount,
+            maxUploadsPerDay: maxUploadsPerDay,
+            limitReached: false,
+          };
+
+          console.log(`✅ Upload reward: ${uploadRewardCoins} coins added to user ${req.user.id} (${user.dailyUploadsCount}/${maxUploadsPerDay})`);
+        } else {
+          rewardResult = {
+            coinsAwarded: 0,
+            dailyUploadsCount: user.dailyUploadsCount,
+            maxUploadsPerDay: maxUploadsPerDay,
+            limitReached: true,
+          };
+          console.log(`⚠️ Daily upload limit reached for user ${req.user.id}`);
+        }
+      }
+    } catch (coinError) {
+      console.warn('⚠️ Error awarding upload coins:', coinError.message);
+      // Continue even if coin award fails
+    }
 
     res.status(201).json({
       success: true,
@@ -594,6 +684,40 @@ exports.sharePost = async (req, res) => {
       });
     }
 
+    const User = require('../models/User');
+    const Transaction = require('../models/Transaction');
+    
+    // Get customizable share reward from env
+    const shareRewardCoins = parseInt(process.env.SHARE_REWARD_COINS) || 5;
+    const maxSharesPerDay = parseInt(process.env.MAX_SHARES_PER_DAY) || 10;
+    
+    // Check daily share limit
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Reset daily share count if new day
+    const today = new Date().setHours(0, 0, 0, 0);
+    const lastShareDate = user.lastShareDate ? new Date(user.lastShareDate).setHours(0, 0, 0, 0) : 0;
+
+    if (today > lastShareDate) {
+      user.dailySharesCount = 0;
+    }
+
+    // Check if daily limit reached
+    if (user.dailySharesCount >= maxSharesPerDay) {
+      return res.status(400).json({
+        success: false,
+        message: `Daily share limit reached (${maxSharesPerDay} shares per day)`,
+        dailySharesCount: user.dailySharesCount,
+        maxSharesPerDay: maxSharesPerDay,
+      });
+    }
+
     // Create share record
     await Share.create({
       user: req.user.id,
@@ -605,31 +729,25 @@ exports.sharePost = async (req, res) => {
     post.sharesCount += 1;
     await post.save();
 
-    // 💰 REWARD: Add 5 coins to user's wallet for sharing
-    const User = require('../models/User');
-    const Transaction = require('../models/Transaction');
-    
-    const shareRewardCoins = 5;
-    
+    // 💰 REWARD: Add customizable coins to user's wallet for sharing
     try {
-      const user = await User.findById(req.user.id);
-      if (user) {
-        // Add coins to wallet
-        user.coinBalance += shareRewardCoins;
-        user.totalCoinsEarned += shareRewardCoins;
-        await user.save();
+      // Add coins to wallet
+      user.coinBalance += shareRewardCoins;
+      user.totalCoinsEarned += shareRewardCoins;
+      user.dailySharesCount += 1;
+      user.lastShareDate = Date.now();
+      await user.save();
 
-        // Create transaction record
-        await Transaction.create({
-          user: req.user.id,
-          type: 'share_reward',
-          amount: shareRewardCoins,
-          balanceAfter: user.coinBalance,
-          description: `Share reward for post`,
-        });
+      // Create transaction record
+      await Transaction.create({
+        user: req.user.id,
+        type: 'share_reward',
+        amount: shareRewardCoins,
+        balanceAfter: user.coinBalance,
+        description: `Share reward for post (${user.dailySharesCount}/${maxSharesPerDay} today)`,
+      });
 
-        console.log(`✅ Share reward: ${shareRewardCoins} coins added to user ${req.user.id}`);
-      }
+      console.log(`✅ Share reward: ${shareRewardCoins} coins added to user ${req.user.id} (${user.dailySharesCount}/${maxSharesPerDay})`);
     } catch (coinError) {
       console.error('⚠️ Error adding share reward:', coinError);
       // Don't fail the share if coin reward fails
@@ -640,6 +758,8 @@ exports.sharePost = async (req, res) => {
       sharesCount: post.sharesCount,
       message: 'Post shared successfully',
       coinsAwarded: shareRewardCoins,
+      dailySharesCount: user.dailySharesCount,
+      maxSharesPerDay: maxSharesPerDay,
     });
   } catch (error) {
     res.status(500).json({

@@ -68,6 +68,10 @@ const withdrawalSchema = new mongoose.Schema({
   
   // Admin Notes
   adminNotes: String,
+  approvedAmount: {
+    type: Number,
+    description: 'Amount approved by admin in local currency (may differ from requested amount)'
+  },
   processedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

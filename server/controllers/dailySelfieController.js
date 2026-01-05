@@ -87,14 +87,51 @@ exports.submitDailySelfie = async (req, res) => {
 
     await selfie.populate('user', 'username displayName profilePicture isVerified');
 
-    // Award 5 coins for daily participation
-    await awardCoins(
-      req.user.id,
-      5,
-      'upload_reward',
-      'Daily selfie challenge participation',
-      { relatedDailySelfie: selfie._id }
-    );
+    // 💰 REWARD: Award coins for daily selfie with daily limit
+    const uploadRewardCoins = parseInt(process.env.UPLOAD_REWARD_COINS_PER_POST) || 5;
+    const maxUploadsPerDay = parseInt(process.env.MAX_UPLOADS_PER_DAY) || 10;
+    
+    try {
+      const user = await User.findById(req.user.id);
+      if (!user) {
+        console.warn('⚠️ User not found for coin award');
+      } else {
+        // Reset daily upload count if new day
+        const today = new Date().setHours(0, 0, 0, 0);
+        const lastUploadDate = user.lastUploadDate ? new Date(user.lastUploadDate).setHours(0, 0, 0, 0) : 0;
+
+        if (today > lastUploadDate) {
+          user.dailyUploadsCount = 0;
+        }
+
+        // Check if daily limit reached
+        if (user.dailyUploadsCount < maxUploadsPerDay) {
+          // Award coins
+          user.coinBalance += uploadRewardCoins;
+          user.totalCoinsEarned += uploadRewardCoins;
+          user.dailyUploadsCount += 1;
+          user.lastUploadDate = Date.now();
+          await user.save();
+
+          // Create transaction record
+          const Transaction = require('../models/Transaction');
+          await Transaction.create({
+            user: req.user.id,
+            type: 'upload_reward',
+            amount: uploadRewardCoins,
+            balanceAfter: user.coinBalance,
+            description: `Daily selfie upload reward (${user.dailyUploadsCount}/${maxUploadsPerDay} today)`,
+          });
+
+          console.log(`✅ Daily selfie reward: ${uploadRewardCoins} coins added to user ${req.user.id} (${user.dailyUploadsCount}/${maxUploadsPerDay})`);
+        } else {
+          console.log(`⚠️ Daily upload limit reached for user ${req.user.id}`);
+        }
+      }
+    } catch (coinError) {
+      console.warn('⚠️ Error awarding daily selfie coins:', coinError.message);
+      // Continue even if coin award fails
+    }
 
     // Check for new achievements
     try {

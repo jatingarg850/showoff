@@ -301,12 +301,20 @@ exports.createCoinPurchaseOrder = async (req, res) => {
 
     // Validate package
     const coinPackages = {
-      'package_1': { coins: 100, price: 99 }, // ₹0.99
-      'package_2': { coins: 500, price: 499 }, // ₹4.99
-      'package_3': { coins: 1000, price: 999 }, // ₹9.99
-      'package_4': { coins: 2500, price: 1999 }, // ₹19.99
-      'package_5': { coins: 5000, price: 4999 }, // ₹49.99
-      'package_6': { coins: 10000, price: 9999 }, // ₹99.99
+      // INR Packages
+      'package_inr_10': { coins: 10, price: 10, currency: 'INR' },      // ₹10
+      'package_inr_20': { coins: 20, price: 20, currency: 'INR' },      // ₹20
+      'package_inr_50': { coins: 50, price: 50, currency: 'INR' },      // ₹50
+      'package_inr_100': { coins: 100, price: 100, currency: 'INR' },   // ₹100
+      'package_inr_200': { coins: 200, price: 200, currency: 'INR' },   // ₹200
+      'package_inr_500': { coins: 500, price: 500, currency: 'INR' },   // ₹500
+      // USD Packages (for Stripe)
+      'package_usd_1': { coins: 100, price: 100, currency: 'USD' },     // $1 = 100 coins
+      'package_usd_5': { coins: 500, price: 500, currency: 'USD' },     // $5 = 500 coins
+      'package_usd_10': { coins: 1000, price: 1000, currency: 'USD' },  // $10 = 1000 coins
+      'package_usd_20': { coins: 2000, price: 2000, currency: 'USD' },  // $20 = 2000 coins
+      'package_usd_50': { coins: 5000, price: 5000, currency: 'USD' },  // $50 = 5000 coins
+      'package_usd_100': { coins: 10000, price: 10000, currency: 'USD' }, // $100 = 10000 coins
       'add_money': { coins: coins || 0, price: amount || 0 }, // Dynamic for add money
     };
 
@@ -449,12 +457,20 @@ exports.purchaseCoins = async (req, res) => {
 
     // Get package details
     const coinPackages = {
-      'package_1': { coins: 100, price: 99 },
-      'package_2': { coins: 500, price: 499 },
-      'package_3': { coins: 1000, price: 999 },
-      'package_4': { coins: 2500, price: 1999 },
-      'package_5': { coins: 5000, price: 4999 },
-      'package_6': { coins: 10000, price: 9999 },
+      // INR Packages
+      'package_inr_10': { coins: 10, price: 10, currency: 'INR' },      // ₹10
+      'package_inr_20': { coins: 20, price: 20, currency: 'INR' },      // ₹20
+      'package_inr_50': { coins: 50, price: 50, currency: 'INR' },      // ₹50
+      'package_inr_100': { coins: 100, price: 100, currency: 'INR' },   // ₹100
+      'package_inr_200': { coins: 200, price: 200, currency: 'INR' },   // ₹200
+      'package_inr_500': { coins: 500, price: 500, currency: 'INR' },   // ₹500
+      // USD Packages (for Stripe)
+      'package_usd_1': { coins: 100, price: 100, currency: 'USD' },     // $1 = 100 coins
+      'package_usd_5': { coins: 500, price: 500, currency: 'USD' },     // $5 = 500 coins
+      'package_usd_10': { coins: 1000, price: 1000, currency: 'USD' },  // $10 = 1000 coins
+      'package_usd_20': { coins: 2000, price: 2000, currency: 'USD' },  // $20 = 2000 coins
+      'package_usd_50': { coins: 5000, price: 5000, currency: 'USD' },  // $50 = 5000 coins
+      'package_usd_100': { coins: 10000, price: 10000, currency: 'USD' }, // $100 = 10000 coins
       'add_money': { coins: coins || 0, price: amount || 0 }, // Dynamic for add money
     };
 

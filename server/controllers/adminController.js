@@ -373,7 +373,12 @@ exports.updateWithdrawalStatus = async (req, res) => {
 // @access  Private (Admin only)
 exports.approveWithdrawal = async (req, res) => {
   try {
-    const { adminNotes, transactionId } = req.body;
+    const { adminNotes, transactionId, approvedAmount } = req.body;
+    
+    console.log('📝 Approve Withdrawal Request:');
+    console.log('  - approvedAmount from request:', approvedAmount);
+    console.log('  - adminNotes:', adminNotes);
+    console.log('  - transactionId:', transactionId);
     
     const withdrawal = await Withdrawal.findById(req.params.id);
     if (!withdrawal) {
@@ -390,13 +395,54 @@ exports.approveWithdrawal = async (req, res) => {
       });
     }
 
+    console.log('  - Current withdrawal localAmount:', withdrawal.localAmount);
+
+    // Validate approved amount if provided
+    let finalAmount = withdrawal.localAmount;
+    if (approvedAmount !== undefined && approvedAmount !== null && approvedAmount !== '') {
+      finalAmount = parseFloat(approvedAmount);
+      console.log('  - Parsed approvedAmount:', finalAmount);
+      
+      if (isNaN(finalAmount) || finalAmount <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid approved amount'
+        });
+      }
+      // Allow any positive amount - admin can approve more or less than requested
+    }
+
+    console.log('  - Final amount to save:', finalAmount);
+
     withdrawal.status = 'completed';
-    withdrawal.adminNotes = adminNotes;
+    withdrawal.adminNotes = adminNotes || `Approved for ₹${finalAmount}`;
     withdrawal.transactionId = transactionId || `TXN${Date.now()}`;
-    withdrawal.processedBy = req.user.id;
+    withdrawal.approvedAmount = finalAmount;
+    
+    console.log('  - Withdrawal approvedAmount set to:', withdrawal.approvedAmount);
+    
+    // Handle both JWT auth (req.user.id) and session auth
+    if (req.user && req.user.id && typeof req.user.id === 'object') {
+      // Valid ObjectId
+      withdrawal.processedBy = req.user.id;
+    } else if (req.user && req.user.id && req.user.id.toString().length === 24) {
+      // Valid ObjectId string
+      withdrawal.processedBy = req.user.id;
+    } else if (req.session && req.session.adminEmail) {
+      // For session-based auth, try to find the admin user
+      const User = require('../models/User');
+      const adminUser = await User.findOne({ email: req.session.adminEmail });
+      if (adminUser) {
+        withdrawal.processedBy = adminUser._id;
+      }
+      // If admin user not found, don't set processedBy (it's optional)
+    }
+    
     withdrawal.processedAt = new Date();
 
     await withdrawal.save();
+    
+    console.log('  - Withdrawal saved with approvedAmount:', withdrawal.approvedAmount);
 
     // Update transaction status
     await Transaction.updateOne(
@@ -408,16 +454,17 @@ exports.approveWithdrawal = async (req, res) => {
       },
       { 
         status: 'completed',
-        description: `Withdrawal completed - ${withdrawal.method}`
+        description: `Withdrawal completed - ₹${finalAmount} - ${withdrawal.method}`
       }
     );
 
     res.status(200).json({
       success: true,
-      message: 'Withdrawal approved successfully',
+      message: `Withdrawal approved successfully for ₹${finalAmount}`,
       data: withdrawal
     });
   } catch (error) {
+    console.error('❌ Error approving withdrawal:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -456,7 +503,24 @@ exports.rejectWithdrawal = async (req, res) => {
 
     withdrawal.status = 'rejected';
     withdrawal.adminNotes = rejectionReason;
-    withdrawal.processedBy = req.user.id;
+    
+    // Handle both JWT auth (req.user.id) and session auth
+    if (req.user && req.user.id && typeof req.user.id === 'object') {
+      // Valid ObjectId
+      withdrawal.processedBy = req.user.id;
+    } else if (req.user && req.user.id && req.user.id.toString().length === 24) {
+      // Valid ObjectId string
+      withdrawal.processedBy = req.user.id;
+    } else if (req.session && req.session.adminEmail) {
+      // For session-based auth, try to find the admin user
+      const User = require('../models/User');
+      const adminUser = await User.findOne({ email: req.session.adminEmail });
+      if (adminUser) {
+        withdrawal.processedBy = adminUser._id;
+      }
+      // If admin user not found, don't set processedBy (it's optional)
+    }
+    
     withdrawal.processedAt = new Date();
 
     await withdrawal.save();
@@ -482,6 +546,7 @@ exports.rejectWithdrawal = async (req, res) => {
       data: withdrawal
     });
   } catch (error) {
+    console.error('❌ Error rejecting withdrawal:', error);
     res.status(500).json({
       success: false,
       message: error.message

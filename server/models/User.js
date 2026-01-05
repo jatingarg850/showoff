@@ -165,6 +165,24 @@ const userSchema = new mongoose.Schema({
     type: Date,
   },
   
+  // Share Rewards
+  dailySharesCount: {
+    type: Number,
+    default: 0,
+  },
+  lastShareDate: {
+    type: Date,
+  },
+  
+  // Upload Rewards
+  dailyUploadsCount: {
+    type: Number,
+    default: 0,
+  },
+  lastUploadDate: {
+    type: Date,
+  },
+  
   // Spin Wheel
   lastSpinDate: {
     type: Date,

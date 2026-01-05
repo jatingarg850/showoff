@@ -15,13 +15,37 @@ const adminProtect = async (req, res, next) => {
   console.log('  - Path:', req.path);
   console.log('  - Method:', req.method);
   console.log('  - Session ID:', req.sessionID);
-  console.log('  - Session Data:', req.session);
   console.log('  - Has Authorization Header:', !!req.headers.authorization);
   
   // Check for session-based authentication first (for web admin panel)
   if (req.session && req.session.isAdmin) {
     console.log('✅ Admin authenticated via session');
-    req.user = { role: 'admin', id: 'admin' };
+    try {
+      const User = require('../models/User');
+      const adminUser = await User.findOne({ email: req.session.adminEmail || 'admin@showofflife.com' });
+      
+      if (adminUser) {
+        req.user = { 
+          id: adminUser._id, 
+          role: 'admin',
+          email: adminUser.email
+        };
+        console.log('✅ Admin user loaded from database:', adminUser._id);
+      } else {
+        // If admin user not found, still allow access but don't set an invalid ID
+        req.user = { 
+          role: 'admin',
+          email: req.session.adminEmail || 'admin@showofflife.com'
+        };
+        console.log('⚠️ Admin user not found in database, proceeding without user ID');
+      }
+    } catch (error) {
+      console.error('❌ Error loading admin user:', error);
+      req.user = { 
+        role: 'admin',
+        email: req.session.adminEmail || 'admin@showofflife.com'
+      };
+    }
     return next();
   }
 

@@ -15,6 +15,34 @@ const checkAdminWeb = async (req, res, next) => {
   
   // Simple session check - in production, use proper session management
   if (req.session && req.session.isAdmin) {
+    try {
+      // Get admin user from database
+      const adminUser = await User.findOne({ email: req.session.adminEmail || 'admin@showofflife.com' });
+      
+      if (adminUser) {
+        // Create a req.user object with the actual admin user ID
+        req.user = {
+          id: adminUser._id,
+          email: adminUser.email,
+          role: 'admin'
+        };
+      } else {
+        // Fallback if admin user not found
+        req.user = {
+          id: req.session.adminUserId || 'admin_web_user',
+          email: req.session.adminEmail || 'admin@showofflife.com',
+          role: 'admin'
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching admin user:', error);
+      // Fallback if database query fails
+      req.user = {
+        id: req.session.adminUserId || 'admin_web_user',
+        email: req.session.adminEmail || 'admin@showofflife.com',
+        role: 'admin'
+      };
+    }
     next();
   } else {
     console.log('❌ Admin auth failed, redirecting to login');
@@ -536,10 +564,23 @@ router.get('/withdrawals', checkAdminWeb, async (req, res) => {
       return acc;
     }, {});
 
-    // Get total amounts
+    // Get total amounts - use approvedAmount if available, otherwise use localAmount
     const totalAmounts = await Withdrawal.aggregate([
       { $match: { status: 'completed' } },
-      { $group: { _id: null, total: { $sum: '$localAmount' } } }
+      { 
+        $group: { 
+          _id: null, 
+          total: { 
+            $sum: {
+              $cond: [
+                { $ne: ['$approvedAmount', null] },
+                '$approvedAmount',
+                '$localAmount'
+              ]
+            }
+          }
+        } 
+      }
     ]);
 
     res.render('admin/withdrawals', {
@@ -559,6 +600,127 @@ router.get('/withdrawals', checkAdminWeb, async (req, res) => {
   } catch (error) {
     console.error('Withdrawals page error:', error);
     res.status(500).send('Internal Server Error');
+  }
+});
+
+// Approve withdrawal
+router.post('/withdrawals/:id/approve', checkAdminWeb, async (req, res) => {
+  try {
+    const { adminNotes, transactionId } = req.body;
+    const Withdrawal = require('../models/Withdrawal');
+    const Transaction = require('../models/Transaction');
+    
+    const withdrawal = await Withdrawal.findById(req.params.id);
+    if (!withdrawal) {
+      return res.status(404).json({
+        success: false,
+        message: 'Withdrawal request not found'
+      });
+    }
+
+    if (withdrawal.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only pending withdrawals can be approved'
+      });
+    }
+
+    withdrawal.status = 'completed';
+    withdrawal.adminNotes = adminNotes;
+    withdrawal.transactionId = transactionId || `TXN${Date.now()}`;
+    withdrawal.processedBy = req.user.id;
+    withdrawal.processedAt = new Date();
+
+    await withdrawal.save();
+
+    // Update transaction status
+    await Transaction.updateOne(
+      { 
+        user: withdrawal.user,
+        type: 'withdrawal',
+        amount: -withdrawal.coinAmount,
+        status: 'pending'
+      },
+      { 
+        status: 'completed',
+        description: `Withdrawal completed - ${withdrawal.method}`
+      }
+    );
+
+    res.json({
+      success: true,
+      message: 'Withdrawal approved successfully',
+      data: withdrawal
+    });
+  } catch (error) {
+    console.error('❌ Error approving withdrawal:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// Reject withdrawal
+router.post('/withdrawals/:id/reject', checkAdminWeb, async (req, res) => {
+  try {
+    const { rejectionReason } = req.body;
+    const Withdrawal = require('../models/Withdrawal');
+    const Transaction = require('../models/Transaction');
+    const User = require('../models/User');
+    
+    const withdrawal = await Withdrawal.findById(req.params.id);
+    if (!withdrawal) {
+      return res.status(404).json({
+        success: false,
+        message: 'Withdrawal request not found'
+      });
+    }
+
+    if (withdrawal.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only pending withdrawals can be rejected'
+      });
+    }
+
+    withdrawal.status = 'rejected';
+    withdrawal.adminNotes = rejectionReason;
+    withdrawal.processedBy = req.user.id;
+    withdrawal.processedAt = new Date();
+
+    await withdrawal.save();
+
+    // Refund coins to user
+    const user = await User.findById(withdrawal.user);
+    user.coinBalance += withdrawal.coinAmount;
+    await user.save();
+
+    // Update transaction status
+    await Transaction.updateOne(
+      { 
+        user: withdrawal.user,
+        type: 'withdrawal',
+        amount: -withdrawal.coinAmount,
+        status: 'pending'
+      },
+      { 
+        status: 'rejected',
+        description: `Withdrawal rejected - ${rejectionReason}`
+      }
+    );
+
+    res.json({
+      success: true,
+      message: 'Withdrawal rejected successfully',
+      data: withdrawal
+    });
+  } catch (error) {
+    console.error('❌ Error rejecting withdrawal:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 });
 
@@ -611,56 +773,6 @@ router.get('/talent', checkAdminWeb, async (req, res) => {
     });
   } catch (error) {
     console.error('Talent page error:', error);
-    res.status(500).send('Internal Server Error');
-  }
-});
-
-// Subscriptions Management
-router.get('/subscriptions', checkAdminWeb, async (req, res) => {
-  try {
-    const { SubscriptionPlan, UserSubscription } = require('../models/Subscription');
-    
-    const plans = await SubscriptionPlan.find().sort({ displayOrder: 1 });
-    
-    // Get subscriber counts
-    const subscriberCounts = await UserSubscription.aggregate([
-      { $match: { status: 'active' } },
-      { $group: { _id: '$plan', count: { $sum: 1 } } }
-    ]);
-
-    const plansWithCounts = plans.map(plan => ({
-      ...plan.toObject(),
-      subscriberCount: subscriberCounts.find(s => s._id.equals(plan._id))?.count || 0
-    }));
-
-    // Recent subscriptions
-    const recentSubscriptions = await UserSubscription.find()
-      .populate('user', 'username displayName profilePicture')
-      .populate('plan', 'name tier')
-      .sort({ createdAt: -1 })
-      .limit(10);
-
-    // Revenue stats
-    const revenueStats = await UserSubscription.aggregate([
-      { $match: { status: 'active' } },
-      {
-        $group: {
-          _id: null,
-          totalRevenue: { $sum: '$amountPaid' },
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    res.render('admin/subscriptions', {
-      currentPage: 'subscriptions',
-      pageTitle: 'Subscription Management',
-      plans: plansWithCounts,
-      recentSubscriptions,
-      stats: revenueStats[0] || { totalRevenue: 0, count: 0 }
-    });
-  } catch (error) {
-    console.error('Subscriptions page error:', error);
     res.status(500).send('Internal Server Error');
   }
 });
