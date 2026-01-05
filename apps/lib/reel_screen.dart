@@ -289,7 +289,24 @@ class ReelScreenState extends State<ReelScreen>
     setState(() => _isLoading = true);
 
     try {
-      // Always load the feed first
+      List<Map<String, dynamic>> posts = [];
+      int initialIndex = 0;
+
+      // If initialPostId is provided, fetch that specific post first
+      if (widget.initialPostId != null) {
+        debugPrint('🎯 Fetching specific post: ${widget.initialPostId}');
+        final postResponse = await ApiService.getPost(widget.initialPostId!);
+
+        if (postResponse['success'] && postResponse['data'] != null) {
+          final specificPost = Map<String, dynamic>.from(postResponse['data']);
+          posts.add(specificPost);
+          debugPrint('✅ Loaded specific post: ${specificPost['_id']}');
+        } else {
+          debugPrint('⚠️ Could not fetch specific post, loading feed instead');
+        }
+      }
+
+      // Load the feed
       final response = await ApiService.getFeed(page: 1, limit: _postsPerPage);
       debugPrint('📺 Feed response: $response');
 
@@ -302,29 +319,45 @@ class ReelScreenState extends State<ReelScreen>
       }
 
       // Handle different response structures
-      List<Map<String, dynamic>> posts = [];
+      List<Map<String, dynamic>> feedPosts = [];
 
       if (response['data'] != null && response['data'] is List) {
-        posts = List<Map<String, dynamic>>.from(response['data']);
+        feedPosts = List<Map<String, dynamic>>.from(response['data']);
       } else if (response['posts'] != null && response['posts'] is List) {
-        posts = List<Map<String, dynamic>>.from(response['posts']);
+        feedPosts = List<Map<String, dynamic>>.from(response['posts']);
       }
 
-      debugPrint('📺 Loaded ${posts.length} posts');
+      debugPrint('📺 Loaded ${feedPosts.length} feed posts');
 
-      // If initialPostId is provided, find it in the posts
-      int initialIndex = 0;
-      if (widget.initialPostId != null) {
-        final foundIndex = posts.indexWhere(
-          (post) => post['_id'] == widget.initialPostId,
+      // If we have a specific post, add remaining feed posts (avoiding duplicates)
+      if (posts.isNotEmpty && widget.initialPostId != null) {
+        // Add feed posts that are not the initial post
+        for (final post in feedPosts) {
+          if (post['_id'] != widget.initialPostId) {
+            posts.add(post);
+          }
+        }
+        initialIndex = 0; // Initial post is always at index 0
+        debugPrint(
+          '✅ Initial post placed at index 0, total posts: ${posts.length}',
         );
-        if (foundIndex != -1) {
-          initialIndex = foundIndex;
-          debugPrint('✅ Found initial post at index: $foundIndex');
-        } else {
-          debugPrint(
-            '⚠️ Initial post not found in feed, starting from index 0',
+      } else {
+        // No specific post, use feed posts as-is
+        posts = feedPosts;
+
+        // Try to find initialPostId in feed if provided
+        if (widget.initialPostId != null) {
+          final foundIndex = posts.indexWhere(
+            (post) => post['_id'] == widget.initialPostId,
           );
+          if (foundIndex != -1) {
+            initialIndex = foundIndex;
+            debugPrint('✅ Found initial post at index: $foundIndex');
+          } else {
+            debugPrint(
+              '⚠️ Initial post not found in feed, starting from index 0',
+            );
+          }
         }
       }
 

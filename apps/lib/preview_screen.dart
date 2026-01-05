@@ -675,6 +675,13 @@ class _PreviewScreenState extends State<PreviewScreen> {
                             backgroundColor: Colors.green,
                           ),
                         );
+
+                        // Navigate back to path selection screen after successful submission
+                        // This prevents users from submitting multiple times
+                        await Future.delayed(const Duration(milliseconds: 500));
+                        if (mounted) {
+                          navigator.popUntil((route) => route.isFirst);
+                        }
                       } else {
                         throw Exception(response['message'] ?? 'Upload failed');
                       }
@@ -929,10 +936,21 @@ class _PreviewScreenState extends State<PreviewScreen> {
                       }
                     }
 
+                    // Parse error message for better UX
+                    String errorMessage = e.toString();
+                    if (errorMessage.contains('already submitted')) {
+                      errorMessage =
+                          'You have already submitted an entry for this competition. You can submit again in the next competition period.';
+                    } else if (errorMessage.contains('Upload failed')) {
+                      errorMessage =
+                          'Upload failed. Please check your internet connection and try again.';
+                    }
+
                     scaffoldMessenger.showSnackBar(
                       SnackBar(
-                        content: Text('Upload failed: $e'),
+                        content: Text('Upload failed: $errorMessage'),
                         backgroundColor: Colors.red,
+                        duration: const Duration(seconds: 4),
                       ),
                     );
                   }

@@ -198,25 +198,51 @@ class _CameraScreenState extends State<CameraScreen> {
           },
         );
         videoPath = video.path;
+        print('✅ Video recording stopped, path: $videoPath');
       } catch (stopError) {
         print('⚠️ Error during stop: $stopError');
         // Try to recover the video file from cache
         videoPath = await _recoverVideoFromCache();
+        if (videoPath == null) {
+          throw Exception(
+            'Failed to stop recording and recover video: $stopError',
+          );
+        }
       }
 
       print('✅ Video recording stopped');
 
       // If we got the video file, persist it
-      if (videoPath != null && videoPath.isNotEmpty) {
+      if (videoPath != null) {
         try {
           print('📹 Checking if video file exists: $videoPath');
-          final videoFile = File(videoPath);
+          final videoFile = File(videoPath!);
+
+          // Wait a bit for the file to be fully written
+          await Future.delayed(const Duration(milliseconds: 500));
+
           final exists = await videoFile.exists();
 
           if (!exists) {
             print('❌ Video file not found at: $videoPath');
-            throw Exception('Video file not found: $videoPath');
+            // Try recovery one more time
+            final recoveredPath = await _recoverVideoFromCache();
+            if (recoveredPath != null) {
+              videoPath = recoveredPath;
+              print('✅ Recovered video from cache: $videoPath');
+            } else {
+              throw Exception('Video file not found: $videoPath');
+            }
           }
+
+          // Verify file has content
+          final fileSize = await File(videoPath).length();
+          if (fileSize == 0) {
+            throw Exception('Video file is empty (0 bytes)');
+          }
+          print(
+            '📹 Video file size: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB',
+          );
 
           print('📹 Persisting video file...');
           final persistedVideoPath =
@@ -250,16 +276,6 @@ class _CameraScreenState extends State<CameraScreen> {
               ),
             );
           }
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Video recording timed out. Please try again.'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 3),
-            ),
-          );
         }
       }
     } catch (e) {
@@ -298,20 +314,36 @@ class _CameraScreenState extends State<CameraScreen> {
             (a, b) => b.statSync().modified.compareTo(a.statSync().modified),
           );
 
-          final latestVideo = files.first;
-          print('📹 Found latest video file: ${latestVideo.path}');
+          // Try each file starting with the most recent
+          for (final file in files) {
+            try {
+              print('📹 Checking video file: ${file.path}');
 
-          // Verify file exists and has content
-          final fileSize = await latestVideo.length();
-          if (fileSize > 0) {
-            print(
-              '✅ Video file size: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB',
-            );
-            return latestVideo.path;
-          } else {
-            print('❌ Video file is empty');
+              // Wait a bit for the file to be fully written
+              await Future.delayed(const Duration(milliseconds: 100));
+
+              final fileSize = await file.length();
+              print(
+                '📹 File size: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB',
+              );
+
+              if (fileSize > 1000) {
+                // At least 1KB
+                print('✅ Found valid video file: ${file.path}');
+                return file.path;
+              } else {
+                print('⚠️ Video file too small: $fileSize bytes');
+              }
+            } catch (e) {
+              print('⚠️ Error checking file: $e');
+              continue;
+            }
           }
+        } else {
+          print('⚠️ No MP4 files found in cache directory');
         }
+      } else {
+        print('⚠️ Cache directory does not exist');
       }
     } catch (e) {
       print('❌ Recovery failed: $e');

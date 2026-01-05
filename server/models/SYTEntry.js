@@ -103,4 +103,10 @@ sytEntrySchema.index({ user: 1, competitionPeriod: 1 });
 sytEntrySchema.index({ competitionPeriod: 1, votesCount: -1 });
 sytEntrySchema.index({ competitionType: 1, competitionPeriod: 1 });
 
+// Unique constraint: One submission per user per competition period
+sytEntrySchema.index(
+  { user: 1, competitionPeriod: 1, isActive: 1 },
+  { unique: true, sparse: true }
+);
+
 module.exports = mongoose.model('SYTEntry', sytEntrySchema);

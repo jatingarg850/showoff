@@ -21,6 +21,13 @@ class _PathSelectionScreenState extends State<PathSelectionScreen> {
     _checkSYTSubmissionStatus();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh SYT submission status when returning to this screen
+    _checkSYTSubmissionStatus();
+  }
+
   Future<void> _checkSYTSubmissionStatus() async {
     try {
       final response = await ApiService.checkUserWeeklySubmission();
