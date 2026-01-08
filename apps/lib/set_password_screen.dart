@@ -71,320 +71,327 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title
-            const Text(
-              'Set Password',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
-
-            // Underline
-            Container(
-              margin: const EdgeInsets.only(top: 8, bottom: 32),
-              height: 3,
-              width: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFF701CF5),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-
-            // Password label
-            const Text(
-              'Password',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // Password input field
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF701CF5), Color(0xFF3E98E4)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title
+              const Text(
+                'Set Password',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
                 ),
               ),
-              child: Container(
-                margin: const EdgeInsets.all(2),
+
+              // Underline
+              Container(
+                margin: const EdgeInsets.only(top: 8, bottom: 32),
+                height: 3,
+                width: 40,
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
+                  color: const Color(0xFF701CF5),
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                child: TextField(
-                  controller: _passwordController,
-                  obscureText: !_isPasswordVisible,
-                  style: const TextStyle(fontSize: 16, color: Colors.black),
-                  decoration: InputDecoration(
-                    hintText: 'Enter your password',
-                    hintStyle: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey,
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.all(16),
-                    suffixIcon: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _isPasswordVisible = !_isPasswordVisible;
-                        });
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Icon(
-                          _isPasswordVisible
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                          color: Colors.grey,
-                          size: 20,
+              ),
+
+              // Password label
+              const Text(
+                'Password',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Password input field
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF701CF5), Color(0xFF3E98E4)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Container(
+                  margin: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: TextField(
+                    controller: _passwordController,
+                    obscureText: !_isPasswordVisible,
+                    style: const TextStyle(fontSize: 16, color: Colors.black),
+                    decoration: InputDecoration(
+                      hintText: 'Enter your password',
+                      hintStyle: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.all(16),
+                      suffixIcon: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isPasswordVisible = !_isPasswordVisible;
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Icon(
+                            _isPasswordVisible
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            color: Colors.grey,
+                            size: 20,
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
 
-            // Password requirements
-            Row(
-              children: [
-                Icon(
-                  _isPasswordValid ? Icons.check_circle : Icons.circle_outlined,
-                  size: 16,
-                  color: _isPasswordValid ? Colors.green : Colors.grey[400],
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'At least 8 characters',
-                  style: TextStyle(
-                    color: _isPasswordValid ? Colors.green : Colors.grey[600],
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Confirm Password label
-            const Text(
-              'Confirm Password',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // Confirm Password input field
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF701CF5), Color(0xFF3E98E4)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Container(
-                margin: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: TextField(
-                  controller: _confirmPasswordController,
-                  obscureText: !_isConfirmPasswordVisible,
-                  style: const TextStyle(fontSize: 16, color: Colors.black),
-                  decoration: InputDecoration(
-                    hintText: 'Confirm your password',
-                    hintStyle: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey,
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.all(16),
-                    suffixIcon: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _isConfirmPasswordVisible =
-                              !_isConfirmPasswordVisible;
-                        });
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Icon(
-                          _isConfirmPasswordVisible
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                          color: Colors.grey,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            // Password match indicator
-            if (_confirmPasswordController.text.isNotEmpty)
+              // Password requirements
               Row(
                 children: [
                   Icon(
-                    _doPasswordsMatch ? Icons.check_circle : Icons.cancel,
+                    _isPasswordValid
+                        ? Icons.check_circle
+                        : Icons.circle_outlined,
                     size: 16,
-                    color: _doPasswordsMatch ? Colors.green : Colors.red,
+                    color: _isPasswordValid ? Colors.green : Colors.grey[400],
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    _doPasswordsMatch
-                        ? 'Passwords match'
-                        : 'Passwords do not match',
+                    'At least 8 characters',
                     style: TextStyle(
-                      color: _doPasswordsMatch ? Colors.green : Colors.red,
+                      color: _isPasswordValid ? Colors.green : Colors.grey[600],
                       fontSize: 14,
                     ),
                   ),
                 ],
               ),
 
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // Terms & Conditions Checkbox
-            Row(
-              children: [
-                Checkbox(
-                  value: _termsAccepted,
-                  onChanged: (value) {
-                    setState(() {
-                      _termsAccepted = value ?? false;
-                    });
-                  },
-                  activeColor: const Color(0xFF701CF5),
+              // Confirm Password label
+              const Text(
+                'Confirm Password',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
                 ),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _termsAccepted = !_termsAccepted;
-                      });
-                    },
-                    child: const Text(
-                      'I agree to the Terms & Conditions',
-                      style: TextStyle(fontSize: 14, color: Colors.black87),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Confirm Password input field
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF701CF5), Color(0xFF3E98E4)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Container(
+                  margin: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: TextField(
+                    controller: _confirmPasswordController,
+                    obscureText: !_isConfirmPasswordVisible,
+                    style: const TextStyle(fontSize: 16, color: Colors.black),
+                    decoration: InputDecoration(
+                      hintText: 'Confirm your password',
+                      hintStyle: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.all(16),
+                      suffixIcon: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isConfirmPasswordVisible =
+                                !_isConfirmPasswordVisible;
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Icon(
+                            _isConfirmPasswordVisible
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            color: Colors.grey,
+                            size: 20,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ],
-            ),
-
-            const Spacer(),
-
-            // Continue button
-            Container(
-              width: double.infinity,
-              height: 56,
-              margin: const EdgeInsets.only(bottom: 40),
-              decoration: BoxDecoration(
-                color: _canProceed ? const Color(0xFF701CF5) : Colors.grey[300],
-                borderRadius: BorderRadius.circular(28),
               ),
-              child: ElevatedButton(
-                onPressed: _canProceed
-                    ? () async {
-                        final authProvider = Provider.of<AuthProvider>(
-                          context,
-                          listen: false,
-                        );
 
-                        // Show loading dialog
-                        showDialog(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (context) => const Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Color(0xFF701CF5),
-                              ),
-                            ),
-                          ),
-                        );
+              const SizedBox(height: 8),
 
-                        // Generate temporary username and display name
-                        final timestamp = DateTime.now().millisecondsSinceEpoch;
-                        final tempUsername = 'user$timestamp';
+              // Password match indicator
+              if (_confirmPasswordController.text.isNotEmpty)
+                Row(
+                  children: [
+                    Icon(
+                      _doPasswordsMatch ? Icons.check_circle : Icons.cancel,
+                      size: 16,
+                      color: _doPasswordsMatch ? Colors.green : Colors.red,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _doPasswordsMatch
+                          ? 'Passwords match'
+                          : 'Passwords do not match',
+                      style: TextStyle(
+                        color: _doPasswordsMatch ? Colors.green : Colors.red,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
 
-                        // Register user
-                        final success = await authProvider.register(
-                          username: tempUsername,
-                          displayName: 'User',
-                          password: _passwordController.text,
-                          email: widget.email,
-                          phone: widget.phone != null
-                              ? '${widget.countryCode}${widget.phone}'
-                              : null,
-                          termsAccepted: _termsAccepted,
-                        );
+              const SizedBox(height: 24),
 
-                        if (!mounted) return;
-                        Navigator.pop(context); // Close loading dialog
+              // Terms & Conditions Checkbox
+              Row(
+                children: [
+                  Checkbox(
+                    value: _termsAccepted,
+                    onChanged: (value) {
+                      setState(() {
+                        _termsAccepted = value ?? false;
+                      });
+                    },
+                    activeColor: const Color(0xFF701CF5),
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _termsAccepted = !_termsAccepted;
+                        });
+                      },
+                      child: const Text(
+                        'I agree to the Terms & Conditions',
+                        style: TextStyle(fontSize: 14, color: Colors.black87),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
 
-                        if (success) {
-                          // Navigate to profile picture setup
-                          Navigator.pushReplacement(
+              const SizedBox(height: 24),
+
+              // Continue button
+              Container(
+                width: double.infinity,
+                height: 56,
+                margin: const EdgeInsets.only(bottom: 40),
+                decoration: BoxDecoration(
+                  color: _canProceed
+                      ? const Color(0xFF701CF5)
+                      : Colors.grey[300],
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                child: ElevatedButton(
+                  onPressed: _canProceed
+                      ? () async {
+                          final authProvider = Provider.of<AuthProvider>(
                             context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const ProfilePictureScreen(),
-                            ),
+                            listen: false,
                           );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                authProvider.error ?? 'Registration failed',
+
+                          // Show loading dialog
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (context) => const Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF701CF5),
+                                ),
                               ),
-                              backgroundColor: Colors.red,
                             ),
                           );
+
+                          // Generate temporary username and display name
+                          final timestamp =
+                              DateTime.now().millisecondsSinceEpoch;
+                          final tempUsername = 'user$timestamp';
+
+                          // Register user
+                          final success = await authProvider.register(
+                            username: tempUsername,
+                            displayName: 'User',
+                            password: _passwordController.text,
+                            email: widget.email,
+                            phone: widget.phone != null
+                                ? '${widget.countryCode}${widget.phone}'
+                                : null,
+                            termsAccepted: _termsAccepted,
+                          );
+
+                          if (!mounted) return;
+                          Navigator.pop(context); // Close loading dialog
+
+                          if (success) {
+                            // Navigate to profile picture setup
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const ProfilePictureScreen(),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  authProvider.error ?? 'Registration failed',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
                         }
-                      }
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shadowColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28),
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shadowColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                  ),
+                  child: const Text(
+                    'Continue',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                   ),
                 ),
-                child: const Text(
-                  'Continue',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

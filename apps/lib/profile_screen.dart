@@ -645,27 +645,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildReelsGrid() {
     if (_posts.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.video_library_outlined, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'No Shows yet',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey,
-                fontWeight: FontWeight.w500,
+      return SizedBox(
+        height: 100,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(Icons.video_library_outlined, size: 48, color: Colors.grey),
+              SizedBox(height: 8),
+              Text(
+                'No Shows yet',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Your Show will appear here',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
@@ -718,27 +715,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildSYTGrid() {
     if (_sytPosts.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.emoji_events_outlined, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'No SYT entries yet',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey,
-                fontWeight: FontWeight.w500,
+      return SizedBox(
+        height: 100,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(Icons.emoji_events_outlined, size: 48, color: Colors.grey),
+              SizedBox(height: 8),
+              Text(
+                'No SYT entries yet',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Your Show Your Talent entries will appear here',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
@@ -852,27 +846,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildLikesGrid() {
     if (_likedPosts.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.favorite_outline, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'No liked posts yet',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey,
-                fontWeight: FontWeight.w500,
+      return SizedBox(
+        height: 100,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(Icons.favorite_outline, size: 48, color: Colors.grey),
+              SizedBox(height: 8),
+              Text(
+                'No liked posts yet',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Posts you like will appear here',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }

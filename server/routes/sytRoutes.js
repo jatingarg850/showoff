@@ -15,6 +15,7 @@ const {
   createCompetition,
   updateCompetition,
   deleteCompetition,
+  shareSYTEntry,
 } = require('../controllers/sytController');
 const { protect, adminOnly, checkAdminSession } = require('../middleware/auth');
 const upload = require('../middleware/upload');
@@ -33,6 +34,7 @@ router.post('/submit', protect, upload.fields([
 router.post('/:id/vote', protect, voteEntry);
 router.post('/:id/like', protect, toggleLike);
 router.post('/:id/bookmark', protect, toggleBookmark);
+router.post('/:id/share', protect, shareSYTEntry);
 router.get('/:id/stats', protect, getEntryStats);
 router.get('/check-submission', protect, checkUserSubmission);
 router.get('/weekly-check', protect, checkUserWeeklySubmission); // Legacy endpoint

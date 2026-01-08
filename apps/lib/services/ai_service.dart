@@ -1,18 +1,15 @@
 import 'package:google_generative_ai/google_generative_ai.dart';
 
 class AIService {
-  static const String
-  _apiKey = 'AIzaSyCoFlnT5VNn-mMLNAVQ6CHkejWAGjIe9AA';
-  static GenerativeModel?
-  _model;
+  static const String _apiKey = 'AIzaSyB3nSUVynxjYlxHHuzlklje2D1zAEQBZEA';
+  static GenerativeModel? _model;
 
-  static GenerativeModel
-  get model {
+  static GenerativeModel get model {
     _model ??= GenerativeModel(
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.5-flash', // ✅ Verified working model
       apiKey: _apiKey,
       generationConfig: GenerationConfig(
-        temperature: 0.9,
+        temperature: 0.7,
         topK: 40,
         topP: 0.95,
         maxOutputTokens: 1024,
@@ -21,8 +18,7 @@ class AIService {
     return _model!;
   }
 
-  static const String
-  systemPrompt = '''
+  static const String systemPrompt = '''
 You are SHOWIE, the friendly AI assistant for ShowOff Life app. You are helpful, enthusiastic, and knowledgeable about the app.
 
 ShowOff Life App Overview:
@@ -70,120 +66,49 @@ Your personality:
 Always be positive, supportive, and help users make the most of ShowOff Life!
 ''';
 
-  static Future<
-    String
-  >
-  sendMessage(
+  static Future<String> sendMessage(
     String message,
-    List<
-      Map<
-        String,
-        String
-      >
-    >
-    chatHistory,
+    List<Map<String, String>> chatHistory,
   ) async {
     try {
-      print(
-        '🟢 Starting AI request for message: $message',
-      );
-
       // Simple single-turn approach with system context
       final prompt = '$systemPrompt\n\nUser: $message\n\nSHOWIE:';
 
-      print(
-        '🟢 Calling Gemini API...',
-      );
-
       final response = await model
-          .generateContent(
-            [
-              Content.text(
-                prompt,
-              ),
-            ],
-          )
+          .generateContent([Content.text(prompt)])
           .timeout(
-            const Duration(
-              seconds: 30,
-            ),
+            const Duration(seconds: 30),
             onTimeout: () {
-              throw Exception(
-                'Request timeout',
-              );
+              throw Exception('Request timeout');
             },
           );
 
-      print(
-        '🟢 Response received from Gemini',
-      );
-
-      if (response.text !=
-              null &&
-          response.text!.isNotEmpty) {
-        print(
-          '🟢 Response text: ${response.text}',
-        );
+      if (response.text != null && response.text!.isNotEmpty) {
         return response.text!;
       } else {
-        print(
-          '🔴 Empty response from API',
-        );
         return "I'm having trouble understanding. Could you rephrase that? 🤔";
       }
-    } catch (
-      e
-    ) {
-      print(
-        '🔴 AI Service Error: $e',
-      );
-      print(
-        '🔴 Error Type: ${e.runtimeType}',
-      );
-
+    } catch (e) {
       final errorString = e.toString().toLowerCase();
 
-      if (errorString.contains(
-        'timeout',
-      )) {
+      if (errorString.contains('timeout')) {
         return "Connection timeout! Please check your internet and try again. 📡";
-      } else if (errorString.contains(
-            'api',
-          ) &&
-          errorString.contains(
-            'key',
-          )) {
+      } else if (errorString.contains('api') && errorString.contains('key')) {
         return "API key issue. Please contact support. 🔧";
-      } else if (errorString.contains(
-            'quota',
-          ) ||
-          errorString.contains(
-            'limit',
-          )) {
+      } else if (errorString.contains('quota') ||
+          errorString.contains('limit')) {
         return "Service temporarily unavailable. Please try again later. ⏰";
-      } else if (errorString.contains(
-            'network',
-          ) ||
-          errorString.contains(
-            'connection',
-          )) {
+      } else if (errorString.contains('network') ||
+          errorString.contains('connection')) {
         return "Network error! Please check your internet connection. 🌐";
       }
 
-      // Return actual error for debugging
-      return "Debug Error: ${e.toString()}";
+      // Return user-friendly error message
+      return "Oops! Something went wrong. Please try again. 😅";
     }
   }
 
-  static Future<
-    String
-  >
-  getQuickResponse(
-    String query,
-  ) async {
-    return sendMessage(
-      query,
-      [],
-    );
+  static Future<String> getQuickResponse(String query) async {
+    return sendMessage(query, []);
   }
 }

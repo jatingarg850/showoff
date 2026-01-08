@@ -903,3 +903,120 @@ exports.getCurrentCompetitionInfo = async (req, res) => {
     });
   }
 };
+
+
+// @desc    Share SYT entry
+// @route   POST /api/syt/:id/share
+// @access  Private
+exports.shareSYTEntry = async (req, res) => {
+  try {
+    const entry = await SYTEntry.findById(req.params.id);
+    
+    if (!entry) {
+      return res.status(404).json({
+        success: false,
+        message: 'SYT entry not found',
+      });
+    }
+
+    const User = require('../models/User');
+    const Transaction = require('../models/Transaction');
+    const Settings = require('../models/Settings');
+    
+    // Get share reward settings from database or env
+    let shareRewardCoins = 5;
+    let maxSharesPerDay = 50;
+    
+    try {
+      const settings = await Settings.getSettings();
+      shareRewardCoins = settings.coins.shareRewardCoins || 5;
+      maxSharesPerDay = settings.coins.maxSharesPerDay || 50;
+    } catch (settingsError) {
+      // Fallback to env variables if Settings model fails
+      shareRewardCoins = parseInt(process.env.SHARE_REWARD_COINS) || 5;
+      maxSharesPerDay = parseInt(process.env.MAX_SHARES_PER_DAY) || 50;
+    }
+    
+    // Check daily share limit
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Reset daily share count if new day
+    const today = new Date().setHours(0, 0, 0, 0);
+    const lastShareDate = user.lastShareDate ? new Date(user.lastShareDate).setHours(0, 0, 0, 0) : 0;
+
+    if (today > lastShareDate) {
+      user.dailySharesCount = 0;
+    }
+
+    // Check if daily limit reached
+    if (user.dailySharesCount >= maxSharesPerDay) {
+      return res.status(400).json({
+        success: false,
+        message: `Daily share limit reached (${maxSharesPerDay} shares per day)`,
+        dailySharesCount: user.dailySharesCount,
+        maxSharesPerDay: maxSharesPerDay,
+      });
+    }
+
+    // Create share record
+    const Share = require('../models/Share');
+    await Share.create({
+      user: req.user.id,
+      sytEntry: entry._id,
+      shareType: req.body.shareType || 'link',
+    });
+
+    // Increment share count
+    entry.sharesCount = (entry.sharesCount || 0) + 1;
+    await entry.save();
+
+    // 💰 REWARD: Add coins to user's wallet for sharing
+    try {
+      // Add coins to wallet
+      user.coinBalance += shareRewardCoins;
+      user.totalCoinsEarned += shareRewardCoins;
+      user.dailySharesCount += 1;
+      user.lastShareDate = Date.now();
+      await user.save();
+
+      // Create transaction record
+      await Transaction.create({
+        user: req.user.id,
+        type: 'share_reward',
+        amount: shareRewardCoins,
+        balanceAfter: user.coinBalance,
+        description: `Share reward for SYT entry (${user.dailySharesCount}/${maxSharesPerDay} today)`,
+        relatedSYTEntry: entry._id,
+      });
+
+      console.log(`✅ SYT share reward: ${shareRewardCoins} coins added to user ${req.user.id} (${user.dailySharesCount}/${maxSharesPerDay})`);
+
+      res.status(200).json({
+        success: true,
+        message: 'SYT entry shared successfully',
+        coinsEarned: shareRewardCoins,
+        dailySharesCount: user.dailySharesCount,
+        maxSharesPerDay: maxSharesPerDay,
+        sharesCount: entry.sharesCount,
+      });
+    } catch (coinError) {
+      console.error('❌ Error awarding share coins:', coinError.message);
+      res.status(500).json({
+        success: false,
+        message: 'Share recorded but failed to award coins. Please try again.',
+        error: coinError.message,
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

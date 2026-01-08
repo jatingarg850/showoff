@@ -13,6 +13,12 @@ const userSchema = new mongoose.Schema({
     type: String,
     sparse: true,
     trim: true,
+    unique: true,
+  },
+  countryCode: {
+    type: String,
+    sparse: true,
+    trim: true,
   },
   password: {
     type: String,

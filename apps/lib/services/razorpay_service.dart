@@ -62,7 +62,7 @@ class RazorpayService {
     print('🔍 RazorpayService DEBUG - This should be in paise already');
 
     var options = {
-      'key': 'rzp_test_RKkNoqkW7sQisX', // Your Razorpay test key
+      'key': 'rzp_live_S0WAY0u3f7QBho', // Live Razorpay key - matches backend
       'amount': amount.toInt(), // Amount already in paise from backend
       'name': 'ShowOff.life',
       'order_id': orderId,

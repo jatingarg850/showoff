@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Music = require('./models/Music');
 
-const MONGODB_URI = 'mongodb+srv://showoff:jatingarg850@showofflife.tkbfv4i.mongodb.net/';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/showoff';
 
 mongoose.connect(MONGODB_URI).then(async () => {
   console.log('Connected to MongoDB Atlas');

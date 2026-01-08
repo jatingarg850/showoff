@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Music = require('./models/Music');
 
-mongoose.connect('mongodb://localhost:27017/showoff', {
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/showoff', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }).then(async () => {

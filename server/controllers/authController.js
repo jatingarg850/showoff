@@ -284,7 +284,25 @@ exports.register = async (req, res) => {
     }
 
     // Normalize phone number if provided
-    const normalizedPhone = phone ? phone.replace(/\D/g, '') : null;
+    // Extract country code and phone separately
+    let normalizedPhone = null;
+    let countryCode = null;
+    
+    if (phone) {
+      // Phone comes as: +1-9876543210 or +919876543210 or similar
+      // Extract country code (everything before the last 7-10 digits)
+      const phoneDigits = phone.replace(/\D/g, ''); // Remove all non-digits
+      
+      // Try to extract country code (usually 1-3 digits)
+      // For now, store the full phone with country code as one string
+      normalizedPhone = phoneDigits;
+      
+      // Extract country code from the original phone string
+      const countryCodeMatch = phone.match(/^\+?(\d{1,3})/);
+      if (countryCodeMatch) {
+        countryCode = countryCodeMatch[1];
+      }
+    }
 
     // Check if user exists
     if (email) {
@@ -298,8 +316,16 @@ exports.register = async (req, res) => {
     }
 
     if (normalizedPhone) {
-      const phoneExists = await User.findOne({ phone: normalizedPhone });
+      // Check if phone already exists (check both formats for backward compatibility)
+      const phoneExists = await User.findOne({ 
+        $or: [
+          { phone: normalizedPhone },
+          { phone: phone } // Check original format too
+        ]
+      });
+      
       if (phoneExists) {
+        console.log('❌ Phone already registered:', normalizedPhone);
         return res.status(400).json({
           success: false,
           message: 'Phone number already registered',
@@ -316,10 +342,11 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Create user
+    // Create user - store phone as digits only for consistency
     const user = await User.create({
       email,
       phone: normalizedPhone,
+      countryCode: countryCode,
       password,
       username: username.toLowerCase(),
       displayName,
@@ -608,8 +635,13 @@ exports.checkPhone = async (req, res) => {
       });
     }
 
-    // Check if phone exists
-    const existingUser = await User.findOne({ phone: normalizedPhone });
+    // Check if phone exists (check both formats for backward compatibility)
+    const existingUser = await User.findOne({ 
+      $or: [
+        { phone: normalizedPhone },
+        { phone: phone }
+      ]
+    });
 
     if (existingUser) {
       return res.status(200).json({
@@ -879,11 +911,19 @@ exports.signInPhoneOTP = async (req, res) => {
 
     // Normalize phone number: remove any + or spaces, just keep digits
     const normalizedPhone = phone.replace(/\D/g, '');
+    // Create full phone with country code (remove + from country code if present)
+    const fullPhone = `${countryCode.replace(/\D/g, '')}${normalizedPhone}`;
 
-    console.log('📱 Phone OTP Sign-In Request:', { phone: normalizedPhone, countryCode });
+    console.log('📱 Phone OTP Sign-In Request:', { phone: normalizedPhone, countryCode, fullPhone });
 
     // Check if user exists with this phone number
-    const user = await User.findOne({ phone: normalizedPhone });
+    // Try both: full phone (new format) and normalized phone (old format for backward compatibility)
+    let user = await User.findOne({ phone: fullPhone });
+    
+    if (!user) {
+      // Fallback: try with just normalized phone for backward compatibility
+      user = await User.findOne({ phone: normalizedPhone });
+    }
 
     if (!user) {
       // User doesn't exist - ask them to sign up
