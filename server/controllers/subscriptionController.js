@@ -437,7 +437,7 @@ exports.adminCancelSubscription = async (req, res) => {
 // @access  Private
 exports.verifySubscriptionPayment = async (req, res) => {
   try {
-    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+    const { razorpayOrderId, razorpayPaymentId, razorpaySignature, planId } = req.body;
 
     // Verify signature with Razorpay
     const crypto = require('crypto');
@@ -452,12 +452,20 @@ exports.verifySubscriptionPayment = async (req, res) => {
       });
     }
 
-    // Get the premium plan (assuming it's the only plan or has a specific ID)
-    const premiumPlan = await SubscriptionPlan.findOne({ tier: 'pro' });
-    if (!premiumPlan) {
+    // Get the subscription plan
+    let plan;
+    if (planId) {
+      // Use provided planId
+      plan = await SubscriptionPlan.findById(planId);
+    } else {
+      // Fallback to pro plan
+      plan = await SubscriptionPlan.findOne({ tier: 'pro' });
+    }
+
+    if (!plan) {
       return res.status(404).json({
         success: false,
-        message: 'Premium plan not found'
+        message: 'Subscription plan not found'
       });
     }
 
@@ -478,14 +486,14 @@ exports.verifySubscriptionPayment = async (req, res) => {
     const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
     const subscription = await UserSubscription.create({
       user: req.user.id,
-      plan: premiumPlan._id,
+      plan: plan._id,
       status: 'active',
       billingCycle: 'monthly',
       startDate: new Date(),
       endDate,
       nextBillingDate: endDate,
-      amountPaid: premiumPlan.price.monthly,
-      currency: premiumPlan.currency,
+      amountPaid: plan.price.monthly,
+      currency: plan.currency,
       paymentMethod: 'razorpay',
       transactionId: razorpayPaymentId,
       autoRenew: true
@@ -493,7 +501,7 @@ exports.verifySubscriptionPayment = async (req, res) => {
 
     // Update user subscription tier and add verified badge
     await User.findByIdAndUpdate(req.user.id, {
-      subscriptionTier: premiumPlan.tier,
+      subscriptionTier: plan.tier,
       subscriptionExpiry: endDate,
       isVerified: true // Add verified badge
     });
@@ -503,13 +511,13 @@ exports.verifySubscriptionPayment = async (req, res) => {
     await Transaction.create({
       user: req.user.id,
       type: 'subscription',
-      amount: -premiumPlan.price.monthly,
-      balanceAfter: user.coinBalance, // Add balanceAfter field
-      description: `Subscription to ${premiumPlan.name} (monthly)`,
+      amount: -plan.price.monthly,
+      balanceAfter: user.coinBalance,
+      description: `Subscription to ${plan.name} (monthly)`,
       status: 'completed',
       metadata: {
         subscriptionId: subscription._id,
-        planId: premiumPlan._id,
+        planId: plan._id,
         razorpayPaymentId
       }
     });

@@ -9,6 +9,7 @@ class RazorpayService {
 
   late Razorpay _razorpay;
   bool _isInitialized = false;
+  String? _razorpayKey;
 
   // Callbacks
   Function(String message)? onSuccess;
@@ -21,8 +22,25 @@ class RazorpayService {
   String? _currentDescription;
   String? _paymentType; // 'add_money' or 'subscription'
 
-  void initialize() {
+  Future<void> initialize() async {
     if (_isInitialized) return;
+
+    // Fetch Razorpay key from server
+    try {
+      final response = await ApiService.getRazorpayKey();
+      if (response['success'] && response['key'] != null) {
+        _razorpayKey = response['key'];
+        print('✅ Razorpay key fetched from server');
+      } else {
+        // Fallback to hardcoded key if server doesn't provide one
+        _razorpayKey = 'rzp_live_S0WAY0u3f7QBho';
+        print('⚠️ Using fallback Razorpay key');
+      }
+    } catch (e) {
+      // Fallback to hardcoded key on error
+      _razorpayKey = 'rzp_live_S0WAY0u3f7QBho';
+      print('⚠️ Error fetching Razorpay key, using fallback: $e');
+    }
 
     _razorpay = Razorpay();
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
@@ -30,7 +48,9 @@ class RazorpayService {
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
 
     _isInitialized = true;
-    print('✅ Razorpay service initialized');
+    print(
+      '✅ Razorpay service initialized with key: ${_razorpayKey?.substring(0, 12)}...',
+    );
   }
 
   void dispose() {
@@ -49,7 +69,7 @@ class RazorpayService {
     String paymentType = 'add_money', // 'add_money' or 'subscription'
   }) async {
     if (!_isInitialized) {
-      initialize();
+      await initialize();
     }
 
     _currentOrderId = orderId;
@@ -60,9 +80,12 @@ class RazorpayService {
     print('🔍 RazorpayService DEBUG - Received amount: $amount');
     print('🔍 RazorpayService DEBUG - Converting to int: ${amount.toInt()}');
     print('🔍 RazorpayService DEBUG - This should be in paise already');
+    print(
+      '🔍 RazorpayService DEBUG - Using key: ${_razorpayKey?.substring(0, 12)}...',
+    );
 
     var options = {
-      'key': 'rzp_live_S0WAY0u3f7QBho', // Live Razorpay key - matches backend
+      'key': _razorpayKey ?? 'rzp_live_S0WAY0u3f7QBho',
       'amount': amount.toInt(), // Amount already in paise from backend
       'name': 'ShowOff.life',
       'order_id': orderId,
@@ -106,19 +129,44 @@ class RazorpayService {
     print('Code: ${response.code}');
     print('Message: ${response.message}');
 
-    String errorMessage = 'Payment failed';
+    // Try to parse error message from JSON if available
+    String? parsedMessage;
     if (response.message != null && response.message!.isNotEmpty) {
-      errorMessage = response.message!;
+      try {
+        // Razorpay sometimes returns JSON error
+        final errorJson = response.message!;
+        if (errorJson.contains('description')) {
+          // Try to extract description from JSON-like string
+          final descMatch = RegExp(
+            r'"description"\s*:\s*"([^"]+)"',
+          ).firstMatch(errorJson);
+          if (descMatch != null) {
+            parsedMessage = descMatch.group(1);
+          }
+        }
+        parsedMessage ??= response.message;
+      } catch (e) {
+        parsedMessage = response.message;
+      }
+    }
+
+    String errorMessage = 'Payment failed';
+    if (parsedMessage != null &&
+        parsedMessage.isNotEmpty &&
+        parsedMessage != 'undefined') {
+      errorMessage = parsedMessage;
     } else if (response.code != null) {
       switch (response.code) {
         case Razorpay.PAYMENT_CANCELLED:
-          errorMessage = 'Payment was cancelled';
+          errorMessage = 'Payment was cancelled by user';
           break;
         case Razorpay.NETWORK_ERROR:
-          errorMessage = 'Network error occurred';
+          // Code 2 - Network error or configuration issue
+          errorMessage =
+              'Payment could not be processed. Please check your internet connection and try again.';
           break;
         default:
-          errorMessage = 'Payment failed with code: ${response.code}';
+          errorMessage = 'Payment failed (Error code: ${response.code})';
       }
     }
 

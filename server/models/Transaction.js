@@ -17,7 +17,8 @@ const transactionSchema = new mongoose.Schema({
       'referral',
       'referral_bonus',
       'spin_wheel',
-      'vote_received',
+      'vote_cast',      // Deducted when user votes on SYT entry
+      'vote_received',  // Awarded when user receives a vote
       'gift_received',
       'gift_sent',
       'competition_prize',

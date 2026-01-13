@@ -14,6 +14,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   bool _isProcessing = false;
   String? _currentPlanId;
   Map<String, dynamic>? _activePlan;
+  List<Map<String, dynamic>> _availablePlans = [];
   String _userEmail = 'user@showoff.life';
   String _userPhone = '9999999999';
 
@@ -31,14 +32,33 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Future<void> _loadData() async {
-    await Future.wait([_loadCurrentSubscription(), _loadUserInfo()]);
+    await Future.wait([
+      _loadAvailablePlans(),
+      _loadCurrentSubscription(),
+      _loadUserInfo(),
+    ]);
     if (mounted) {
       setState(() => _isLoading = false);
     }
   }
 
-  void _initializeRazorpay() {
-    RazorpayService.instance.initialize();
+  Future<void> _loadAvailablePlans() async {
+    try {
+      final response = await ApiService.getSubscriptionPlans();
+      if (response['success'] && response['data'] != null) {
+        if (mounted) {
+          setState(() {
+            _availablePlans = List<Map<String, dynamic>>.from(response['data']);
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading plans: $e');
+    }
+  }
+
+  void _initializeRazorpay() async {
+    await RazorpayService.instance.initialize();
     RazorpayService.instance.setCallbacks(
       onSuccess: (message) {
         if (mounted) setState(() => _isProcessing = false);
@@ -87,27 +107,49 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Future<void> _initiatePayment(String planId, double amount) async {
     if (mounted) setState(() => _isProcessing = true);
     try {
+      print('🔄 Creating subscription order for amount: ₹$amount');
       final orderResponse = await ApiService.createRazorpayOrderForSubscription(
         amount: amount,
       );
 
+      print('📦 Order Response: $orderResponse');
+
       if (orderResponse['success'] && orderResponse['data'] != null) {
         final orderId = orderResponse['data']['id'];
-        final amountInPaise = (amount * 100).toInt();
+        final orderAmount =
+            orderResponse['data']['amount']; // Amount from server (in paise)
+
+        print('✅ Order created - ID: $orderId, Amount: $orderAmount paise');
+
+        if (orderId == null || orderId.toString().isEmpty) {
+          if (mounted) setState(() => _isProcessing = false);
+          _showErrorDialog('Invalid order ID received from server');
+          return;
+        }
+
+        // Use the amount from the order response (already in paise)
+        final amountToUse = orderAmount != null
+            ? (orderAmount is int
+                  ? orderAmount.toDouble()
+                  : orderAmount as double)
+            : (amount * 100).toDouble();
 
         RazorpayService.instance.startPayment(
           orderId: orderId,
-          amount: amountInPaise.toDouble(),
+          amount: amountToUse,
           description: 'ShowOff Premium Subscription - ₹$amount/month',
           userEmail: _userEmail,
           userPhone: _userPhone,
-          paymentType: 'subscription', // Specify this is a subscription payment
+          paymentType: 'subscription',
         );
       } else {
         if (mounted) setState(() => _isProcessing = false);
-        _showErrorDialog(orderResponse['message'] ?? 'Failed to create order');
+        final errorMsg = orderResponse['message'] ?? 'Failed to create order';
+        print('❌ Order creation failed: $errorMsg');
+        _showErrorDialog(errorMsg);
       }
     } catch (e) {
+      print('❌ Exception during payment: $e');
       if (mounted) setState(() => _isProcessing = false);
       _showErrorDialog('Error: $e');
     }
@@ -117,14 +159,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 28),
+        title: Row(
+          children: const [
+            Icon(Icons.check_circle, color: Colors.green, size: 24),
             SizedBox(width: 8),
-            Text('Success!'),
+            Expanded(child: Text('Success!', style: TextStyle(fontSize: 18))),
           ],
         ),
-        content: Text(message),
+        content: SingleChildScrollView(child: Text(message)),
         actions: [
           TextButton(
             onPressed: () {
@@ -142,14 +184,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.error, color: Colors.red, size: 28),
+        title: Row(
+          children: const [
+            Icon(Icons.error, color: Colors.red, size: 24),
             SizedBox(width: 8),
-            Text('Error'),
+            Expanded(child: Text('Error', style: TextStyle(fontSize: 18))),
           ],
         ),
-        content: Text(message),
+        content: SingleChildScrollView(child: Text(message)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -180,7 +222,20 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     }
 
     final isSubscribed = _currentPlanId != null;
-    const planPrice = 2499.0;
+
+    // Get Pro plan from loaded plans
+    final proPlan = _availablePlans.firstWhere(
+      (plan) => plan['tier'] == 'pro',
+      orElse: () => {
+        '_id': 'pro',
+        'name': 'Pro',
+        'price': {'monthly': 2499},
+        'features': {'verifiedBadge': true, 'adFree': true, 'coinBonus': 500},
+      },
+    );
+
+    final planId = proPlan['_id'] ?? 'pro';
+    final planPrice = (proPlan['price']?['monthly'] ?? 2499).toDouble();
 
     return Scaffold(
       body: Container(
@@ -334,7 +389,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         child: ElevatedButton(
                           onPressed: isSubscribed || _isProcessing
                               ? null
-                              : () => _initiatePayment('premium', planPrice),
+                              : () => _initiatePayment(planId, planPrice),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: isSubscribed
                                 ? Colors.grey

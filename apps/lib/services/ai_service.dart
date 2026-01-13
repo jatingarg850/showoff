@@ -1,13 +1,42 @@
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'api_service.dart';
 
 class AIService {
-  static const String _apiKey = 'AIzaSyB3nSUVynxjYlxHHuzlklje2D1zAEQBZEA';
+  static String? _apiKey;
   static GenerativeModel? _model;
+  static bool _isInitialized = false;
+
+  // Initialize API key from server
+  static Future<void> initialize() async {
+    if (_isInitialized) return;
+
+    try {
+      final response = await ApiService.getGeminiKey();
+
+      if (response['success'] && response['data'] != null) {
+        _apiKey = response['data']['apiKey'];
+        _isInitialized = true;
+        print('✅ Gemini API key loaded from server');
+      } else {
+        print('❌ Failed to load Gemini API key: ${response['message']}');
+        throw Exception('Failed to load Gemini API key from server');
+      }
+    } catch (e) {
+      print('❌ Error initializing AI Service: $e');
+      throw Exception('Failed to initialize AI Service: $e');
+    }
+  }
 
   static GenerativeModel get model {
+    if (_apiKey == null) {
+      throw Exception(
+        'AI Service not initialized. Call AIService.initialize() first.',
+      );
+    }
+
     _model ??= GenerativeModel(
-      model: 'gemini-2.5-flash', // ✅ Verified working model
-      apiKey: _apiKey,
+      model: 'gemini-2.5-flash',
+      apiKey: _apiKey!,
       generationConfig: GenerationConfig(
         temperature: 0.7,
         topK: 40,

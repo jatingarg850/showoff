@@ -8,8 +8,15 @@ import 'profile_screen.dart';
 class MainScreen extends StatefulWidget {
   final int initialIndex;
   final String? initialPostId;
+  final Map<String, dynamic>?
+  initialPostData; // Add post data for faster loading
 
-  const MainScreen({super.key, this.initialIndex = 0, this.initialPostId});
+  const MainScreen({
+    super.key,
+    this.initialIndex = 0,
+    this.initialPostId,
+    this.initialPostData,
+  });
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -40,6 +47,7 @@ class _MainScreenState extends State<MainScreen> {
     _reelScreen = ReelScreen(
       key: _reelScreenKey,
       initialPostId: widget.initialPostId,
+      initialPostData: widget.initialPostData,
     );
     _talentScreen = TalentScreen(key: const ValueKey('talent_screen'));
     _pathScreen = PathSelectionScreen(key: const ValueKey('path_screen'));
@@ -59,6 +67,7 @@ class _MainScreenState extends State<MainScreen> {
       _reelScreen = ReelScreen(
         key: _reelScreenKey,
         initialPostId: widget.initialPostId,
+        initialPostData: widget.initialPostData,
       );
     }
   }

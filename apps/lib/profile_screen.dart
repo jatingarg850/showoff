@@ -679,12 +679,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final post = _posts[index];
         return GestureDetector(
           onTap: () {
-            print('🎬 show tapped: ${post['_id']}');
+            final postId = post['_id'];
+            print('🎬 Profile: Show tapped - ID: $postId');
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    MainScreen(initialIndex: 0, initialPostId: post['_id']),
+                builder: (context) => MainScreen(
+                  initialIndex: 0,
+                  initialPostId: postId,
+                  initialPostData:
+                      post, // Pass full post data for faster loading
+                ),
               ),
             );
           },

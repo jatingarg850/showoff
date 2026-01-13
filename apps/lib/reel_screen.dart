@@ -18,8 +18,10 @@ import 'config/api_config.dart';
 
 class ReelScreen extends StatefulWidget {
   final String? initialPostId;
+  final Map<String, dynamic>?
+  initialPostData; // Add post data for faster loading
 
-  const ReelScreen({super.key, this.initialPostId});
+  const ReelScreen({super.key, this.initialPostId, this.initialPostData});
 
   @override
   ReelScreenState createState() => ReelScreenState();
@@ -293,7 +295,13 @@ class ReelScreenState extends State<ReelScreen>
       int initialIndex = 0;
 
       // If initialPostId is provided, fetch that specific post first
-      if (widget.initialPostId != null) {
+      // If we have initialPostData, use it directly (faster than API call)
+      if (widget.initialPostData != null) {
+        final specificPost = Map<String, dynamic>.from(widget.initialPostData!);
+        posts.add(specificPost);
+        debugPrint('✅ Using provided post data: ${specificPost['_id']}');
+      } else if (widget.initialPostId != null) {
+        // Fetch specific post from API if data not provided
         debugPrint('🎯 Fetching specific post: ${widget.initialPostId}');
         final postResponse = await ApiService.getPost(widget.initialPostId!);
 

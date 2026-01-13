@@ -216,6 +216,34 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
+  // Get Gemini API Key from server
+  static Future<Map<String, dynamic>> getGeminiKey() async {
+    try {
+      final response = await _httpClient.get(
+        Uri.parse('$baseUrl/auth/config/gemini-key'),
+        headers: await _getHeaders(),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('❌ Error fetching Gemini key: $e');
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  // Get Razorpay Key from server
+  static Future<Map<String, dynamic>> getRazorpayKey() async {
+    try {
+      final response = await _httpClient.get(
+        Uri.parse('$baseUrl/auth/config/razorpay-key'),
+        headers: await _getHeaders(),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('❌ Error fetching Razorpay key: $e');
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
   static Future<Map<String, dynamic>> sendOTP({
     String? phone,
     String? email,

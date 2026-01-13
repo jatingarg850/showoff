@@ -36,9 +36,14 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _checkAuthAndNavigate() async {
     try {
-      // Initialize auth provider
+      // Initialize auth provider with timeout
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      await authProvider.initialize();
+      await authProvider.initialize().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          print('⚠️ Auth initialization timed out');
+        },
+      );
 
       // Initialize notification provider only if user is authenticated
       if (authProvider.isAuthenticated) {
@@ -52,36 +57,15 @@ class _SplashScreenState extends State<SplashScreen>
         });
       }
 
-      // Wait for animation
-      await Future.delayed(const Duration(seconds: 3));
+      // Wait for animation (reduced to 2 seconds)
+      await Future.delayed(const Duration(seconds: 2));
 
       if (!mounted) return;
-
-      // Check for deep link from intent
-      String? initialPostId;
-      try {
-        // Get the intent data from the platform channel
-        // This will be set by Android when the app is launched from a deep link
-        final Map<String, dynamic>? intentData =
-            WidgetsBinding.instance.window.defaultRouteName != '/'
-            ? _parseDeepLink(WidgetsBinding.instance.window.defaultRouteName)
-            : null;
-
-        if (intentData != null && intentData['postId'] != null) {
-          initialPostId = intentData['postId'];
-          print('🔗 Deep link detected: $initialPostId');
-        }
-      } catch (e) {
-        print('⚠️ Error parsing deep link: $e');
-      }
 
       // Navigate based on auth status
       if (authProvider.isAuthenticated) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) =>
-                MainScreen(initialIndex: 0, initialPostId: initialPostId),
-          ),
+          MaterialPageRoute(builder: (_) => MainScreen(initialIndex: 0)),
         );
       } else {
         Navigator.of(context).pushReplacement(

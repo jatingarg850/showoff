@@ -732,13 +732,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         final post = _userPosts[index];
         return GestureDetector(
           onTap: () {
-            print('🎬 User Show tapped: ${post['_id']}');
-            // Navigate to main screen with reel tab and specific post
+            final postId = post['_id'];
+            print('🎬 User Profile: Show tapped - ID: $postId');
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    MainScreen(initialIndex: 0, initialPostId: post['_id']),
+                builder: (context) => MainScreen(
+                  initialIndex: 0,
+                  initialPostId: postId,
+                  initialPostData:
+                      post, // Pass full post data for faster loading
+                ),
               ),
             );
           },

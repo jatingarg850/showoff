@@ -304,24 +304,28 @@ exports.voteEntry = async (req, res) => {
       });
     }
 
-    // Check if voter has enough coins (1 coin required to vote)
+    // Vote costs 5 coins and awards 5 coins to the creator
+    const VOTE_COST = 5;
+    const VOTE_REWARD = 5;
+
+    // Check if voter has enough coins
     const voter = await User.findById(req.user.id);
-    if (!voter || voter.coinBalance < 1) {
+    if (!voter || voter.coinBalance < VOTE_COST) {
       return res.status(400).json({
         success: false,
-        message: 'Insufficient coins to vote. You need at least 1 coin to vote.',
-        requiredCoins: 1,
+        message: `Insufficient coins to vote. You need at least ${VOTE_COST} coins to vote.`,
+        requiredCoins: VOTE_COST,
         currentCoins: voter ? voter.coinBalance : 0,
       });
     }
 
-    // Deduct 1 coin from voter
+    // Deduct coins from voter
     try {
       await deductCoins(
         req.user.id,
-        1,
+        VOTE_COST,
         'vote_cast',
-        'Voted for SYT entry',
+        `Voted for SYT entry (-${VOTE_COST} coins)`,
         { relatedSYTEntry: entry._id }
       );
     } catch (coinError) {
@@ -341,15 +345,15 @@ exports.voteEntry = async (req, res) => {
 
     // Update entry
     entry.votesCount += 1;
-    entry.coinsEarned += 1;
+    entry.coinsEarned += VOTE_REWARD;
     await entry.save();
 
-    // Award 1 coin to creator
+    // Award coins to creator
     await awardCoins(
       entry.user,
-      1,
+      VOTE_REWARD,
       'vote_received',
-      'Vote received on SYT entry',
+      `Vote received on SYT entry (+${VOTE_REWARD} coins)`,
       { relatedSYTEntry: entry._id }
     );
 
@@ -365,8 +369,8 @@ exports.voteEntry = async (req, res) => {
       success: true,
       message: 'Vote recorded successfully',
       votesCount: entry.votesCount,
-      coinsDeducted: 1,
-      coinsAwarded: 1,
+      coinsDeducted: VOTE_COST,
+      coinsAwarded: VOTE_REWARD,
     });
   } catch (error) {
     res.status(500).json({
