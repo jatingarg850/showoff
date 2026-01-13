@@ -755,20 +755,35 @@ class ApiService {
     }
 
     try {
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      // Use a longer timeout for large video uploads (10 minutes)
+      final client = http.Client();
+      try {
+        final streamedResponse = await client
+            .send(request)
+            .timeout(
+              const Duration(minutes: 10),
+              onTimeout: () {
+                throw Exception(
+                  'Upload timeout - video may be too large or connection is slow',
+                );
+              },
+            );
+        final response = await http.Response.fromStream(streamedResponse);
 
-      debugPrint('📤 SYT Submit Response Status: ${response.statusCode}');
+        debugPrint('📤 SYT Submit Response Status: ${response.statusCode}');
 
-      if (response.statusCode == 401) {
-        debugPrint('❌ Unauthorized (401): Token may be expired or invalid');
-        debugPrint('📡 Response: ${response.body}');
-      } else if (response.statusCode == 403) {
-        debugPrint('❌ Forbidden (403): Access denied');
-        debugPrint('📡 Response: ${response.body}');
+        if (response.statusCode == 401) {
+          debugPrint('❌ Unauthorized (401): Token may be expired or invalid');
+          debugPrint('📡 Response: ${response.body}');
+        } else if (response.statusCode == 403) {
+          debugPrint('❌ Forbidden (403): Access denied');
+          debugPrint('📡 Response: ${response.body}');
+        }
+
+        return jsonDecode(response.body);
+      } finally {
+        client.close();
       }
-
-      return jsonDecode(response.body);
     } catch (e) {
       debugPrint('❌ Error submitting SYT entry: $e');
       return {'success': false, 'message': 'Error: $e'};

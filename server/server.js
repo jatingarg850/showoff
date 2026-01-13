@@ -65,8 +65,19 @@ app.use(cors({
   credentials: true
 }));
 app.use(compression());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Increase body parser limits for large file uploads (300MB)
+app.use(express.json({ limit: '300mb' }));
+app.use(express.urlencoded({ extended: true, limit: '300mb' }));
+
+// Increase request timeout for large uploads (10 minutes)
+app.use((req, res, next) => {
+  // Set timeout to 10 minutes for upload routes
+  if (req.path.includes('/upload') || req.path.includes('/submit') || req.path.includes('/posts')) {
+    req.setTimeout(600000); // 10 minutes
+    res.setTimeout(600000);
+  }
+  next();
+});
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static('uploads'));
@@ -466,6 +477,11 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
+// Set server timeout for large uploads (10 minutes)
+server.timeout = 600000; // 10 minutes
+server.keepAliveTimeout = 620000; // Slightly longer than timeout
+server.headersTimeout = 630000; // Slightly longer than keepAliveTimeout
+
 server.listen(PORT, async () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
@@ -475,6 +491,8 @@ server.listen(PORT, async () => {
 ║   Server running on port ${PORT}                          ║  
 ║   Environment: ${process.env.NODE_ENV || 'development'}   ║       
 ║   WebSocket: ✅ Enabled                                   ║
+║   Upload Timeout: 10 minutes                              ║
+║   Max File Size: 300MB                                    ║
 ║                                                           ║
 ║   API Documentation: http://localhost:${PORT}/            ║  
 ║   Health Check: http://localhost:${PORT}/health           ║ 
