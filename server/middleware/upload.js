@@ -146,7 +146,8 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE),
+    // 500MB limit - use env var or default to 500MB
+    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 500 * 1024 * 1024,
   },
 });
 

@@ -65,9 +65,9 @@ app.use(cors({
   credentials: true
 }));
 app.use(compression());
-// Increase body parser limits for large file uploads (300MB)
-app.use(express.json({ limit: '300mb' }));
-app.use(express.urlencoded({ extended: true, limit: '300mb' }));
+// Increase body parser limits for large file uploads (500MB)
+app.use(express.json({ limit: '500mb' }));
+app.use(express.urlencoded({ extended: true, limit: '500mb' }));
 
 // Increase request timeout for large uploads (10 minutes)
 app.use((req, res, next) => {

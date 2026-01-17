@@ -485,11 +485,13 @@ class _SYTReelScreenState extends State<SYTReelScreen>
         HapticFeedback.mediumImpact();
 
         // Show success message with coin deduction info
-        final coinsDeducted = response['coinsDeducted'] ?? 5;
+        final coinsDeducted = response['coinsDeducted'] ?? 1;
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('✅ Vote recorded! -$coinsDeducted coins deducted'),
+              content: Text(
+                '✅ Vote recorded! -$coinsDeducted coin${coinsDeducted > 1 ? 's' : ''} deducted',
+              ),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 2),
             ),
