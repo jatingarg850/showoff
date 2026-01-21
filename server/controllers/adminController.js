@@ -1735,16 +1735,23 @@ exports.resetAdStats = async (req, res) => {
 exports.getAdsForApp = async (req, res) => {
   try {
     const RewardedAd = require('../models/RewardedAd');
+    const { type } = req.query; // 'watch-ads', 'spin-wheel', 'interstitial'
+    
+    // Build filter
+    const filter = { isActive: true };
+    if (type) {
+      filter.adType = type;
+    }
     
     // Get active ads sorted by rotation order
-    const ads = await RewardedAd.find({ isActive: true })
+    const ads = await RewardedAd.find(filter)
       .sort({ rotationOrder: 1, adNumber: 1 });
     
     if (ads.length === 0) {
       return res.status(200).json({
         success: true,
         data: [],
-        message: 'No active ads available'
+        message: `No active ${type ? type + ' ' : ''}ads available`
       });
     }
     
@@ -1768,6 +1775,7 @@ exports.getAdsForApp = async (req, res) => {
       adProvider: ad.adProvider,
       rewardCoins: ad.rewardCoins,
       isActive: ad.isActive,
+      adType: ad.adType,
       // Include provider-specific configuration
       providerConfig: ad.providerConfig
     }));

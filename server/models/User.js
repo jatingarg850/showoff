@@ -193,6 +193,10 @@ const userSchema = new mongoose.Schema({
   lastSpinDate: {
     type: Date,
   },
+  bonusSpins: {
+    type: Number,
+    default: 0,
+  },
   
   // Social Stats
   followersCount: {

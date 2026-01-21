@@ -56,6 +56,13 @@ const rewardedAdSchema = new mongoose.Schema({
     max: 10000,
   },
   
+  // Ad Type - Determines where ad is used
+  adType: {
+    type: String,
+    enum: ['watch-ads', 'spin-wheel', 'interstitial'],
+    default: 'watch-ads',
+  },
+  
   // Status
   isActive: {
     type: Boolean,
@@ -99,5 +106,7 @@ const rewardedAdSchema = new mongoose.Schema({
 
 // Index for faster queries (adNumber already has unique index from field definition)
 rewardedAdSchema.index({ isActive: 1 });
+rewardedAdSchema.index({ adType: 1 });
+rewardedAdSchema.index({ adType: 1, isActive: 1 });
 
 module.exports = mongoose.model('RewardedAd', rewardedAdSchema);

@@ -35,6 +35,13 @@ const videoAdSchema = new mongoose.Schema({
     max: 10000,
   },
   
+  // Usage Type - Determines where video ad is used
+  usage: {
+    type: String,
+    enum: ['watch-ads', 'spin-wheel'],
+    default: 'watch-ads',
+  },
+  
   // Display Configuration
   icon: {
     type: String,
@@ -93,10 +100,10 @@ const videoAdSchema = new mongoose.Schema({
     default: 0,
   },
   
-  // Metadata
   uploadedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
+    default: null,
   },
   
   fileSize: {
@@ -116,5 +123,7 @@ const videoAdSchema = new mongoose.Schema({
 videoAdSchema.index({ isActive: 1 });
 videoAdSchema.index({ createdAt: -1 });
 videoAdSchema.index({ rotationOrder: 1 });
+videoAdSchema.index({ usage: 1 });
+videoAdSchema.index({ usage: 1, isActive: 1 });
 
 module.exports = mongoose.model('VideoAd', videoAdSchema);

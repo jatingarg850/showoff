@@ -7,14 +7,22 @@ const Transaction = require('../models/Transaction');
 // @access  Public
 exports.getVideoAdsForApp = async (req, res) => {
   try {
-    const videoAds = await VideoAd.find({ isActive: true })
+    const { usage } = req.query; // 'watch-ads', 'spin-wheel'
+    
+    // Build filter
+    const filter = { isActive: true };
+    if (usage) {
+      filter.usage = usage;
+    }
+    
+    const videoAds = await VideoAd.find(filter)
       .sort({ rotationOrder: 1, createdAt: -1 });
     
     if (videoAds.length === 0) {
       return res.status(200).json({
         success: true,
         data: [],
-        message: 'No active video ads available'
+        message: `No active ${usage ? usage + ' ' : ''}video ads available`
       });
     }
     
@@ -38,6 +46,7 @@ exports.getVideoAdsForApp = async (req, res) => {
       icon: ad.icon,
       color: ad.color,
       isActive: ad.isActive,
+      usage: ad.usage,
       adType: 'video',
     }));
     
@@ -92,6 +101,12 @@ exports.createVideoAd = async (req, res) => {
       });
     }
     
+    // Only set uploadedBy if req.user.id is a valid ObjectId
+    let uploadedBy = null;
+    if (req.user?.id && req.user.id.match(/^[0-9a-fA-F]{24}$/)) {
+      uploadedBy = req.user.id;
+    }
+    
     const videoAd = await VideoAd.create({
       title,
       description: description || 'Watch this video to earn coins',
@@ -102,7 +117,7 @@ exports.createVideoAd = async (req, res) => {
       icon: icon || 'video',
       color: color || '#667eea',
       rotationOrder: rotationOrder || 0,
-      uploadedBy: req.user.id,
+      uploadedBy: uploadedBy,
     });
     
     res.status(201).json({
@@ -235,7 +250,7 @@ exports.trackVideoAdCompletion = async (req, res) => {
     videoAd.clicks += 1;
     await videoAd.save();
     
-    // Award coins to user
+    // Get user
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({
@@ -244,6 +259,27 @@ exports.trackVideoAdCompletion = async (req, res) => {
       });
     }
     
+    // Check if this is a spin-wheel video ad
+    // If so, add a bonus spin instead of coins
+    if (videoAd.usage === 'spin-wheel') {
+      videoAd.conversions += 1;
+      await videoAd.save();
+      
+      // Add bonus spin to user
+      user.bonusSpins = (user.bonusSpins || 0) + 1;
+      await user.save();
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Video ad completed - bonus spin awarded',
+        coinsEarned: 0,
+        newBalance: user.coinBalance,
+        bonusSpinAwarded: true,
+        bonusSpinsTotal: user.bonusSpins
+      });
+    }
+    
+    // For watch-ads usage, award coins to user
     const coinsToAward = videoAd.rewardCoins;
     user.coinBalance += coinsToAward;
     await user.save();

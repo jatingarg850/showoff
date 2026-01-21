@@ -17,34 +17,54 @@ const checkAdminWeb = async (req, res, next) => {
   // Simple session check - in production, use proper session management
   if (req.session && req.session.isAdmin) {
     try {
-      // Get admin user from database
-      const adminUser = await User.findOne({ email: req.session.adminEmail || 'admin@showofflife.com' });
+      // Get admin user from database by email
+      let adminUser = await User.findOne({ email: req.session.adminEmail || 'admin@showofflife.com' });
+      
+      // If admin user not found by email, try to find any user with admin email
+      if (!adminUser) {
+        console.log('⚠️ Admin user not found by email, searching by ID...');
+        if (req.session.adminUserId) {
+          adminUser = await User.findById(req.session.adminUserId);
+        }
+      }
       
       if (adminUser) {
         // Create a req.user object with the actual admin user ID
         req.user = {
-          id: adminUser._id,
+          id: adminUser._id.toString(),
           email: adminUser.email,
-          role: 'admin'
+          username: adminUser.username,
         };
+        console.log('✅ Admin user found:', req.user.id);
+        next();
       } else {
-        // Fallback if admin user not found
-        req.user = {
-          id: req.session.adminUserId || 'admin_web_user',
-          email: req.session.adminEmail || 'admin@showofflife.com',
-          role: 'admin'
-        };
+        console.warn('⚠️ Admin user not found in database');
+        console.log('   Searching email:', req.session.adminEmail || 'admin@showofflife.com');
+        console.log('   Searching ID:', req.session.adminUserId);
+        
+        // For development, allow access even if user not found
+        if (process.env.NODE_ENV === 'development') {
+          console.log('⚠️ Development mode: allowing access without user');
+          req.user = {
+            id: req.session.adminUserId || 'admin_session',
+            email: req.session.adminEmail || 'admin@showofflife.com',
+            username: 'admin',
+          };
+          next();
+        } else {
+          return res.status(401).json({
+            success: false,
+            message: 'Admin user not found'
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching admin user:', error);
-      // Fallback if database query fails
-      req.user = {
-        id: req.session.adminUserId || 'admin_web_user',
-        email: req.session.adminEmail || 'admin@showofflife.com',
-        role: 'admin'
-      };
+      return res.status(500).json({
+        success: false,
+        message: 'Error authenticating admin'
+      });
     }
-    next();
   } else {
     console.log('❌ Admin auth failed, redirecting to login');
     res.redirect('/admin/login');
@@ -839,6 +859,171 @@ router.get('/rewarded-ads', checkAdminWeb, async (req, res) => {
   }
 });
 
+// Create Rewarded Ad (API endpoint for AJAX)
+router.post('/rewarded-ads/create', checkAdminWeb, async (req, res) => {
+  try {
+    console.log('📝 Rewarded ad creation request:', req.body);
+    
+    const { adNumber, title, description, adLink, adProvider, rewardCoins, icon, color, adType, rotationOrder, isActive } = req.body;
+    
+    if (!adNumber || !title || !adLink) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ad number, title, and ad link are required'
+      });
+    }
+    
+    const RewardedAd = require('../models/RewardedAd');
+    
+    // Check if ad number already exists
+    const existingAd = await RewardedAd.findOne({ adNumber: parseInt(adNumber) });
+    if (existingAd) {
+      return res.status(400).json({
+        success: false,
+        message: `Ad number ${adNumber} already exists`
+      });
+    }
+    
+    const rewardedAd = await RewardedAd.create({
+      adNumber: parseInt(adNumber),
+      title,
+      description: description || 'Rewarded Ad',
+      adLink,
+      adProvider: adProvider || 'admob',
+      rewardCoins: parseInt(rewardCoins) || 10,
+      icon: icon || 'gift',
+      color: color || '#667eea',
+      adType: adType || 'watch-ads',
+      rotationOrder: parseInt(rotationOrder) || 0,
+      isActive: isActive === 'true' || isActive === true,
+    });
+    
+    console.log('✅ Rewarded ad created:', rewardedAd._id);
+    
+    res.json({
+      success: true,
+      message: 'Rewarded ad created successfully',
+      data: rewardedAd
+    });
+  } catch (error) {
+    console.error('❌ Error creating rewarded ad:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// Update Rewarded Ad (API endpoint for AJAX)
+router.post('/rewarded-ads/:id/update', checkAdminWeb, async (req, res) => {
+  try {
+    console.log('📝 Rewarded ad update request:', req.body);
+    
+    const { title, description, adLink, adProvider, rewardCoins, icon, color, adType, rotationOrder, isActive } = req.body;
+    
+    const RewardedAd = require('../models/RewardedAd');
+    let rewardedAd = await RewardedAd.findById(req.params.id);
+    
+    if (!rewardedAd) {
+      return res.status(404).json({
+        success: false,
+        message: 'Rewarded ad not found'
+      });
+    }
+    
+    // Update fields
+    if (title) rewardedAd.title = title;
+    if (description) rewardedAd.description = description;
+    if (adLink) rewardedAd.adLink = adLink;
+    if (adProvider) rewardedAd.adProvider = adProvider;
+    if (rewardCoins) rewardedAd.rewardCoins = parseInt(rewardCoins);
+    if (icon) rewardedAd.icon = icon;
+    if (color) rewardedAd.color = color;
+    if (adType) rewardedAd.adType = adType;
+    if (rotationOrder !== undefined) rewardedAd.rotationOrder = parseInt(rotationOrder);
+    if (isActive !== undefined) rewardedAd.isActive = isActive === 'true' || isActive === true;
+    
+    await rewardedAd.save();
+    
+    console.log('✅ Rewarded ad updated:', rewardedAd._id);
+    
+    res.json({
+      success: true,
+      message: 'Rewarded ad updated successfully',
+      data: rewardedAd
+    });
+  } catch (error) {
+    console.error('❌ Error updating rewarded ad:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// Delete Rewarded Ad (API endpoint for AJAX)
+router.post('/rewarded-ads/:id/delete', checkAdminWeb, async (req, res) => {
+  try {
+    const RewardedAd = require('../models/RewardedAd');
+    const rewardedAd = await RewardedAd.findByIdAndDelete(req.params.id);
+    
+    if (!rewardedAd) {
+      return res.status(404).json({
+        success: false,
+        message: 'Rewarded ad not found'
+      });
+    }
+    
+    console.log('✅ Rewarded ad deleted:', req.params.id);
+    
+    res.json({
+      success: true,
+      message: 'Rewarded ad deleted successfully'
+    });
+  } catch (error) {
+    console.error('❌ Error deleting rewarded ad:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// Reset Rewarded Ad Stats (API endpoint for AJAX)
+router.post('/rewarded-ads/:id/reset-stats', checkAdminWeb, async (req, res) => {
+  try {
+    const RewardedAd = require('../models/RewardedAd');
+    const rewardedAd = await RewardedAd.findById(req.params.id);
+    
+    if (!rewardedAd) {
+      return res.status(404).json({
+        success: false,
+        message: 'Rewarded ad not found'
+      });
+    }
+    
+    rewardedAd.impressions = 0;
+    rewardedAd.clicks = 0;
+    rewardedAd.conversions = 0;
+    rewardedAd.servedCount = 0;
+    await rewardedAd.save();
+    
+    console.log('✅ Rewarded ad stats reset:', req.params.id);
+    
+    res.json({
+      success: true,
+      message: 'Rewarded ad statistics reset',
+      data: rewardedAd
+    });
+  } catch (error) {
+    console.error('❌ Error resetting rewarded ad stats:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
 // Terms & Conditions Management
 router.get('/terms-and-conditions', checkAdminWeb, async (req, res) => {
   try {
@@ -980,9 +1165,6 @@ router.put('/music/:id', checkAdminWeb, musicController.updateMusic);
 // Delete Music
 router.delete('/music/:id', checkAdminWeb, musicController.deleteMusic);
 
-module.exports = router;
-
-
 // Video Ads Management
 router.get('/video-ads', checkAdminWeb, async (req, res) => {
   try {
@@ -1029,34 +1211,74 @@ router.post('/video-ads/create', checkAdminWeb, upload.fields([
   { name: 'thumbnail', maxCount: 1 }
 ]), async (req, res) => {
   try {
-    const { title, description, duration, rewardCoins, icon, color, rotationOrder, isActive } = req.body;
+    console.log('📤 Video ad creation request received');
+    console.log('   Files:', req.files ? Object.keys(req.files) : 'none');
+    console.log('   Body:', req.body);
     
-    if (!title || !req.files?.video) {
+    const { title, description, duration, rewardCoins, icon, color, rotationOrder, isActive, usage } = req.body;
+    
+    if (!title) {
       return res.status(400).json({
         success: false,
-        message: 'Title and video file are required'
+        message: 'Title is required'
+      });
+    }
+    
+    if (!req.files?.video || req.files.video.length === 0) {
+      console.log('❌ No video file provided');
+      return res.status(400).json({
+        success: false,
+        message: 'Video file is required'
       });
     }
     
     const videoFile = req.files.video[0];
     const thumbnailFile = req.files.thumbnail?.[0];
     
-    console.log('📹 Video file:', videoFile.filename);
-    if (thumbnailFile) console.log('🖼️ Thumbnail file:', thumbnailFile.filename);
+    console.log('📹 Video file details:');
+    console.log('   Filename:', videoFile.filename);
+    console.log('   Path:', videoFile.path);
+    console.log('   Size:', videoFile.size);
+    console.log('   Mimetype:', videoFile.mimetype);
+    
+    if (thumbnailFile) {
+      console.log('🖼️ Thumbnail file details:');
+      console.log('   Filename:', thumbnailFile.filename);
+      console.log('   Path:', thumbnailFile.path);
+      console.log('   Size:', thumbnailFile.size);
+      console.log('   Mimetype:', thumbnailFile.mimetype);
+    }
+    
+    // Determine file URLs
+    const videoUrl = videoFile.path || videoFile.location || videoFile.filename;
+    const thumbnailUrl = thumbnailFile?.path || thumbnailFile?.location || thumbnailFile?.filename || null;
+    
+    console.log('📝 File URLs:');
+    console.log('   Video URL:', videoUrl);
+    console.log('   Thumbnail URL:', thumbnailUrl);
+    
+    if (!videoUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'Video file upload failed - no URL generated'
+      });
+    }
     
     const VideoAd = require('../models/VideoAd');
     const videoAd = await VideoAd.create({
       title,
       description: description || 'Watch this video to earn coins',
-      videoUrl: videoFile.path || videoFile.filename,
-      thumbnailUrl: thumbnailFile?.path || thumbnailFile?.filename || null,
-      duration: duration || 30,
-      rewardCoins: rewardCoins || 10,
+      videoUrl: videoUrl,
+      thumbnailUrl: thumbnailUrl || null,  // Allow null thumbnails
+      duration: parseInt(duration) || 30,
+      rewardCoins: parseInt(rewardCoins) || 10,
       icon: icon || 'video',
       color: color || '#667eea',
-      rotationOrder: rotationOrder || 0,
+      rotationOrder: parseInt(rotationOrder) || 0,
       isActive: isActive === 'true' || isActive === true,
-      uploadedBy: req.user?.id,
+      usage: usage || 'watch-ads',
+      // Only set uploadedBy if it's a valid ObjectId
+      ...(req.user?.id && req.user.id.length === 24 ? { uploadedBy: req.user.id } : {}),
     });
     
     console.log('✅ Video ad created:', videoAd._id);
@@ -1081,7 +1303,7 @@ router.post('/video-ads/:id/update', checkAdminWeb, upload.fields([
   { name: 'thumbnail', maxCount: 1 }
 ]), async (req, res) => {
   try {
-    const { title, description, duration, rewardCoins, icon, color, isActive, rotationOrder } = req.body;
+    const { title, description, duration, rewardCoins, icon, color, isActive, rotationOrder, usage } = req.body;
     
     const VideoAd = require('../models/VideoAd');
     let videoAd = await VideoAd.findById(req.params.id);
@@ -1109,6 +1331,7 @@ router.post('/video-ads/:id/update', checkAdminWeb, upload.fields([
     if (color) videoAd.color = color;
     if (isActive !== undefined) videoAd.isActive = isActive === 'true' || isActive === true;
     if (rotationOrder !== undefined) videoAd.rotationOrder = rotationOrder;
+    if (usage) videoAd.usage = usage;
     
     await videoAd.save();
     
@@ -1187,3 +1410,5 @@ router.post('/video-ads/:id/reset-stats', checkAdminWeb, async (req, res) => {
     });
   }
 });
+
+module.exports = router;

@@ -21,12 +21,16 @@ exports.getSpinStatus = async (req, res) => {
     const lastSpin = user.lastSpinDate ? new Date(user.lastSpinDate) : null;
     const canSpin = !lastSpin || lastSpin < today;
 
+    // Calculate total spins available: 1 daily spin + any bonus spins from ads
+    const totalSpins = (canSpin ? 1 : 0) + (user.bonusSpins || 0);
+
     res.status(200).json({
       success: true,
       data: {
-        canSpin,
+        canSpin: totalSpins > 0,
         lastSpinDate: user.lastSpinDate,
-        spinsRemaining: canSpin ? 1 : 0,
+        spinsRemaining: totalSpins,
+        bonusSpins: user.bonusSpins || 0,
       },
     });
   } catch (error) {
@@ -57,13 +61,19 @@ exports.spinWheel = async (req, res) => {
     today.setHours(0, 0, 0, 0);
 
     const lastSpin = user.lastSpinDate ? new Date(user.lastSpinDate) : null;
-    
-    if (lastSpin && lastSpin >= today) {
+    const canSpinDaily = !lastSpin || lastSpin < today;
+    const bonusSpins = user.bonusSpins || 0;
+
+    // Check if user has any spins available (daily or bonus)
+    if (!canSpinDaily && bonusSpins <= 0) {
       return res.status(400).json({
         success: false,
         message: 'You have already spun the wheel today. Come back tomorrow!',
       });
     }
+
+    // Determine which spin to use (daily first, then bonus)
+    const isUsingBonus = !canSpinDaily && bonusSpins > 0;
 
     // Possible rewards (matching wheel UI: 50, 5, 50, 5, 10, 5, 20, 10)
     const rewards = [
@@ -90,10 +100,19 @@ exports.spinWheel = async (req, res) => {
 
     const coinsWon = selectedReward.coins;
 
-    // Update user coins and last spin date
+    // Update user coins
     user.coinBalance += coinsWon;
     user.totalCoinsEarned += coinsWon;
-    user.lastSpinDate = new Date();
+
+    // Update spin tracking
+    if (isUsingBonus) {
+      // Using a bonus spin from ads
+      user.bonusSpins = Math.max(0, bonusSpins - 1);
+    } else {
+      // Using daily spin
+      user.lastSpinDate = new Date();
+    }
+
     await user.save();
 
     // Create transaction record
@@ -101,7 +120,7 @@ exports.spinWheel = async (req, res) => {
       user: user._id,
       type: 'spin_wheel',
       amount: coinsWon,
-      description: `Won ${coinsWon} coins from spin wheel`,
+      description: `Won ${coinsWon} coins from spin wheel${isUsingBonus ? ' (bonus spin)' : ''}`,
       balanceAfter: user.coinBalance,
     });
 

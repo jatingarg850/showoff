@@ -194,6 +194,12 @@ exports.uploadMusic = async (req, res) => {
 
     const audioUrl = `/uploads/music/${req.file.filename}`;
 
+    // Only set uploadedBy if req.user.id is a valid ObjectId
+    let uploadedBy = null;
+    if (req.user?.id && req.user.id.match(/^[0-9a-fA-F]{24}$/)) {
+      uploadedBy = req.user.id;
+    }
+
     const music = new Music({
       title: title.trim(),
       artist: artist.trim(),
@@ -201,7 +207,7 @@ exports.uploadMusic = async (req, res) => {
       duration: parseInt(duration) || 0,
       genre: genre || 'other',
       mood: mood || 'other',
-      uploadedBy: req.user?.id || null,
+      uploadedBy: uploadedBy,
       isApproved: false,
       isActive: true
     });
