@@ -14,6 +14,7 @@ const transactionSchema = new mongoose.Schema({
       'upload_reward',
       'view_reward',
       'ad_watch',
+      'video_ad_reward',  // Video ad completion reward
       'referral',
       'referral_bonus',
       'spin_wheel',
@@ -70,6 +71,12 @@ const transactionSchema = new mongoose.Schema({
     type: String,
     enum: ['pending', 'completed', 'failed', 'cancelled'],
     default: 'completed',
+  },
+
+  // Metadata for additional info
+  metadata: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {},
   },
   
 }, {

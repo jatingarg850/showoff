@@ -82,7 +82,7 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
 
       // Track ad impression
       if (adType == 'video') {
-        // Track video ad view
+        // Track video ad view (but don't complete yet)
         await _trackVideoAdView(ad['id']);
       } else {
         // Track rewarded ad click
@@ -124,19 +124,16 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
         return;
       }
 
-      // Track conversion
-      if (adType == 'video') {
-        // Track video ad completion
-        await _trackVideoAdCompletion(ad['id']);
-      } else {
-        // Track rewarded ad conversion
-        await RewardedAdService.trackAdConversion(adNumber);
-      }
-
       // Call backend to award coins (flexible reward)
+      // For video ads, this endpoint handles both tracking and coin awarding
       final response = adType == 'video'
           ? await _watchVideoAd(ad['id'])
           : await ApiService.watchAd(adNumber: adNumber);
+
+      // Track conversion for rewarded ads only (video ads already tracked in _watchVideoAd)
+      if (adType != 'video') {
+        await RewardedAdService.trackAdConversion(adNumber);
+      }
 
       if (mounted) {
         setState(() => _isLoading = false);
@@ -294,21 +291,6 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
       );
     } catch (e) {
       debugPrint('Error tracking video ad view: $e');
-    }
-  }
-
-  Future<void> _trackVideoAdCompletion(String videoAdId) async {
-    try {
-      final token = await StorageService.getToken();
-      await http.post(
-        Uri.parse('${ApiService.baseUrl}/video-ads/$videoAdId/complete'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
-    } catch (e) {
-      debugPrint('Error tracking video ad completion: $e');
     }
   }
 

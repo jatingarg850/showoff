@@ -607,7 +607,7 @@
                 <button class="close-btn" onclick="closeModal()">&times;</button>
             </div>
 
-            <form id="videoAdForm" onsubmit="handleFormSubmit(event)">
+            <form id="videoAdForm" onsubmit="handleFormSubmit(event)" enctype="multipart/form-data">
                 <div class="form-group">
                     <label for="title">Title *</label>
                     <input type="text" id="title" name="title" required placeholder="e.g., Premium Offer">
@@ -619,13 +619,15 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="videoUrl">Video URL *</label>
-                    <input type="url" id="videoUrl" name="videoUrl" required placeholder="https://s3.ap-southeast-1.wasabisys.com/...">
+                    <label for="videoFile">Video File * <span style="font-size: 0.85rem; color: #999;">(MP4, WebM, Ogg - Max 100MB)</span></label>
+                    <input type="file" id="videoFile" name="videoFile" accept="video/mp4,video/webm,video/ogg" required>
+                    <div id="videoFileHelp" style="font-size: 0.85rem; color: #666; margin-top: 5px;"></div>
                 </div>
 
                 <div class="form-group">
-                    <label for="thumbnailUrl">Thumbnail URL</label>
-                    <input type="url" id="thumbnailUrl" name="thumbnailUrl" placeholder="https://...">
+                    <label for="thumbnailFile">Thumbnail Image <span style="font-size: 0.85rem; color: #999;">(JPG, PNG - Max 5MB)</span></label>
+                    <input type="file" id="thumbnailFile" name="thumbnailFile" accept="image/jpeg,image/png">
+                    <div id="thumbnailFileHelp" style="font-size: 0.85rem; color: #666; margin-top: 5px;"></div>
                 </div>
 
                 <div class="form-row">
@@ -674,7 +676,7 @@
 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Video Ad</button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">Save Video Ad</button>
                 </div>
             </form>
         </div>
@@ -724,18 +726,46 @@
         function handleFormSubmit(event) {
             event.preventDefault();
 
-            const formData = {
-                title: document.getElementById('title').value,
-                description: document.getElementById('description').value,
-                videoUrl: document.getElementById('videoUrl').value,
-                thumbnailUrl: document.getElementById('thumbnailUrl').value,
-                duration: parseInt(document.getElementById('duration').value),
-                rewardCoins: parseInt(document.getElementById('rewardCoins').value),
-                icon: document.getElementById('icon').value,
-                color: document.getElementById('color').value,
-                rotationOrder: parseInt(document.getElementById('rotationOrder').value),
-                isActive: document.getElementById('isActive').checked
-            };
+            const videoFile = document.getElementById('videoFile').files[0];
+            const thumbnailFile = document.getElementById('thumbnailFile').files[0];
+
+            if (!videoFile) {
+                showAlert('Please select a video file', 'error');
+                return;
+            }
+
+            // Validate file sizes
+            const maxVideoSize = 100 * 1024 * 1024; // 100MB
+            const maxThumbnailSize = 5 * 1024 * 1024; // 5MB
+
+            if (videoFile.size > maxVideoSize) {
+                showAlert('Video file is too large. Maximum size is 100MB', 'error');
+                return;
+            }
+
+            if (thumbnailFile && thumbnailFile.size > maxThumbnailSize) {
+                showAlert('Thumbnail file is too large. Maximum size is 5MB', 'error');
+                return;
+            }
+
+            // Create FormData for multipart upload
+            const formData = new FormData();
+            formData.append('title', document.getElementById('title').value);
+            formData.append('description', document.getElementById('description').value);
+            formData.append('video', videoFile);
+            if (thumbnailFile) {
+                formData.append('thumbnail', thumbnailFile);
+            }
+            formData.append('duration', parseInt(document.getElementById('duration').value));
+            formData.append('rewardCoins', parseInt(document.getElementById('rewardCoins').value));
+            formData.append('icon', document.getElementById('icon').value);
+            formData.append('color', document.getElementById('color').value);
+            formData.append('rotationOrder', parseInt(document.getElementById('rotationOrder').value));
+            formData.append('isActive', document.getElementById('isActive').checked);
+
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Uploading...';
 
             const url = currentEditId 
                 ? `/admin/video-ads/${currentEditId}/update`
@@ -743,10 +773,7 @@
 
             fetch(url, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(formData)
+                body: formData
             })
             .then(res => res.json())
             .then(data => {
@@ -756,10 +783,35 @@
                     setTimeout(() => location.reload(), 1500);
                 } else {
                     showAlert(data.message, 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Save Video Ad';
                 }
             })
-            .catch(err => showAlert('Error saving video ad', 'error'));
+            .catch(err => {
+                showAlert('Error saving video ad: ' + err.message, 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Save Video Ad';
+            });
         }
+
+        // File input change handlers to show file names
+        document.getElementById('videoFile')?.addEventListener('change', function() {
+            const help = document.getElementById('videoFileHelp');
+            if (this.files[0]) {
+                const sizeMB = (this.files[0].size / (1024 * 1024)).toFixed(2);
+                help.textContent = `✓ ${this.files[0].name} (${sizeMB}MB)`;
+                help.style.color = '#10b981';
+            }
+        });
+
+        document.getElementById('thumbnailFile')?.addEventListener('change', function() {
+            const help = document.getElementById('thumbnailFileHelp');
+            if (this.files[0]) {
+                const sizeMB = (this.files[0].size / (1024 * 1024)).toFixed(2);
+                help.textContent = `✓ ${this.files[0].name} (${sizeMB}MB)`;
+                help.style.color = '#10b981';
+            }
+        });
 
         function deleteVideoAd(id) {
             if (confirm('Are you sure you want to delete this video ad?')) {

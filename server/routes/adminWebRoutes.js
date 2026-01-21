@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Post = require('../models/Post');
 const Product = require('../models/Product');
 const Transaction = require('../models/Transaction');
+const upload = require('../middleware/upload');
 
 // Middleware to check if user is admin (simplified for web interface)
 const checkAdminWeb = async (req, res, next) => {
@@ -1023,30 +1024,42 @@ router.get('/video-ads', checkAdminWeb, async (req, res) => {
 });
 
 // Create Video Ad (API endpoint for AJAX)
-router.post('/video-ads/create', checkAdminWeb, async (req, res) => {
+router.post('/video-ads/create', checkAdminWeb, upload.fields([
+  { name: 'video', maxCount: 1 },
+  { name: 'thumbnail', maxCount: 1 }
+]), async (req, res) => {
   try {
-    const { title, description, videoUrl, thumbnailUrl, duration, rewardCoins, icon, color, rotationOrder } = req.body;
+    const { title, description, duration, rewardCoins, icon, color, rotationOrder, isActive } = req.body;
     
-    if (!title || !videoUrl) {
+    if (!title || !req.files?.video) {
       return res.status(400).json({
         success: false,
-        message: 'Title and video URL are required'
+        message: 'Title and video file are required'
       });
     }
+    
+    const videoFile = req.files.video[0];
+    const thumbnailFile = req.files.thumbnail?.[0];
+    
+    console.log('📹 Video file:', videoFile.filename);
+    if (thumbnailFile) console.log('🖼️ Thumbnail file:', thumbnailFile.filename);
     
     const VideoAd = require('../models/VideoAd');
     const videoAd = await VideoAd.create({
       title,
       description: description || 'Watch this video to earn coins',
-      videoUrl,
-      thumbnailUrl,
+      videoUrl: videoFile.path || videoFile.filename,
+      thumbnailUrl: thumbnailFile?.path || thumbnailFile?.filename || null,
       duration: duration || 30,
       rewardCoins: rewardCoins || 10,
       icon: icon || 'video',
       color: color || '#667eea',
       rotationOrder: rotationOrder || 0,
-      uploadedBy: req.user.id,
+      isActive: isActive === 'true' || isActive === true,
+      uploadedBy: req.user?.id,
     });
+    
+    console.log('✅ Video ad created:', videoAd._id);
     
     res.json({
       success: true,
@@ -1054,7 +1067,7 @@ router.post('/video-ads/create', checkAdminWeb, async (req, res) => {
       data: videoAd
     });
   } catch (error) {
-    console.error('Error creating video ad:', error);
+    console.error('❌ Error creating video ad:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -1063,9 +1076,12 @@ router.post('/video-ads/create', checkAdminWeb, async (req, res) => {
 });
 
 // Update Video Ad (API endpoint for AJAX)
-router.post('/video-ads/:id/update', checkAdminWeb, async (req, res) => {
+router.post('/video-ads/:id/update', checkAdminWeb, upload.fields([
+  { name: 'video', maxCount: 1 },
+  { name: 'thumbnail', maxCount: 1 }
+]), async (req, res) => {
   try {
-    const { title, description, videoUrl, thumbnailUrl, duration, rewardCoins, icon, color, isActive, rotationOrder } = req.body;
+    const { title, description, duration, rewardCoins, icon, color, isActive, rotationOrder } = req.body;
     
     const VideoAd = require('../models/VideoAd');
     let videoAd = await VideoAd.findById(req.params.id);
@@ -1079,16 +1095,24 @@ router.post('/video-ads/:id/update', checkAdminWeb, async (req, res) => {
     // Update fields
     if (title) videoAd.title = title;
     if (description) videoAd.description = description;
-    if (videoUrl) videoAd.videoUrl = videoUrl;
-    if (thumbnailUrl) videoAd.thumbnailUrl = thumbnailUrl;
+    if (req.files?.video) {
+      videoAd.videoUrl = req.files.video[0].path || req.files.video[0].filename;
+      console.log('📹 Updated video:', videoAd.videoUrl);
+    }
+    if (req.files?.thumbnail) {
+      videoAd.thumbnailUrl = req.files.thumbnail[0].path || req.files.thumbnail[0].filename;
+      console.log('🖼️ Updated thumbnail:', videoAd.thumbnailUrl);
+    }
     if (duration) videoAd.duration = duration;
     if (rewardCoins) videoAd.rewardCoins = rewardCoins;
     if (icon) videoAd.icon = icon;
     if (color) videoAd.color = color;
-    if (isActive !== undefined) videoAd.isActive = isActive;
+    if (isActive !== undefined) videoAd.isActive = isActive === 'true' || isActive === true;
     if (rotationOrder !== undefined) videoAd.rotationOrder = rotationOrder;
     
     await videoAd.save();
+    
+    console.log('✅ Video ad updated:', videoAd._id);
     
     res.json({
       success: true,
@@ -1096,7 +1120,7 @@ router.post('/video-ads/:id/update', checkAdminWeb, async (req, res) => {
       data: videoAd
     });
   } catch (error) {
-    console.error('Error updating video ad:', error);
+    console.error('❌ Error updating video ad:', error);
     res.status(500).json({
       success: false,
       message: error.message
