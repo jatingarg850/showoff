@@ -15,7 +15,8 @@ class UserProfileScreen extends StatefulWidget {
   State<UserProfileScreen> createState() => _UserProfileScreenState();
 }
 
-class _UserProfileScreenState extends State<UserProfileScreen> {
+class _UserProfileScreenState extends State<UserProfileScreen>
+    with WidgetsBindingObserver {
   bool isFollowing = false;
   bool _isFollowLoading = false;
   String selectedTab = 'Reels';
@@ -37,7 +38,48 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadUserProfile();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Refresh liked posts when app comes to foreground
+    if (state == AppLifecycleState.resumed) {
+      _refreshUserLikedPosts();
+    }
+  }
+
+  Future<void> _refreshUserLikedPosts() async {
+    final userId = _userData?['_id'] ?? _userData?['id'];
+
+    if (userId != null && userId.isNotEmpty) {
+      try {
+        final likedResponse = await ApiService.getUserLikedPosts(userId);
+        if (likedResponse['success']) {
+          final likedPosts = List<Map<String, dynamic>>.from(
+            likedResponse['data'] ?? [],
+          );
+
+          if (mounted) {
+            setState(() {
+              _userLikedPosts = likedPosts;
+            });
+            print(
+              '✅ Refreshed ${likedPosts.length} liked posts for user $userId',
+            );
+          }
+        }
+      } catch (e) {
+        print('Error refreshing user liked posts: $e');
+      }
+    }
   }
 
   Future<void> _loadUserProfile() async {
@@ -54,7 +96,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
         // Load user posts
         final userId = _userData!['_id'] ?? _userData!['id'];
-        final postsResponse = await ApiService.getUserPosts(userId);
+
+        // Load posts, SYT posts, and liked posts in parallel
+        final results = await Future.wait([
+          ApiService.getUserPosts(userId),
+          ApiService.getSYTEntries(),
+          ApiService.getUserLikedPosts(userId),
+        ]);
+
+        final postsResponse = results[0];
+        final sytResponse = results[1];
+        final likedResponse = results[2];
 
         if (postsResponse['success']) {
           setState(() {
@@ -65,8 +117,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         }
 
         // Load user SYT posts - get all entries and filter by user
-        final sytResponse = await ApiService.getSYTEntries();
-
         if (sytResponse['success']) {
           final allSYTEntries = List<Map<String, dynamic>>.from(
             sytResponse['data'] ?? [],
@@ -82,11 +132,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           });
         }
 
-        // Load user liked posts - for other users, we can't easily determine their likes
-        // This would require server-side support to get another user's liked posts
-        setState(() {
-          _userLikedPosts = [];
-        });
+        // Load user liked posts using dedicated endpoint
+        if (likedResponse['success']) {
+          setState(() {
+            _userLikedPosts = List<Map<String, dynamic>>.from(
+              likedResponse['data'] ?? [],
+            );
+          });
+          print(
+            '✅ Loaded ${_userLikedPosts.length} liked posts for user $userId',
+          );
+        }
 
         // Check if following (optional - may fail if not implemented)
         try {

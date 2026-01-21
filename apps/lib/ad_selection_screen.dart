@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'services/admob_service.dart';
 import 'services/api_service.dart';
 import 'services/rewarded_ad_service.dart';
+import 'services/storage_service.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class AdSelectionScreen extends StatefulWidget {
   const AdSelectionScreen({super.key});
@@ -19,17 +22,39 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
   void initState() {
     super.initState();
     _loadAds();
+    // Preload ads in background
+    _preloadAllAds();
+  }
+
+  Future<void> _preloadAllAds() async {
+    // Preload all 5 ads in background
+    for (int i = 1; i <= 5; i++) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      AdMobService.preloadRewardedAd(adNumber: i);
+    }
   }
 
   Future<void> _loadAds() async {
     try {
-      // Force refresh ads to get latest rewards from server
-      final ads = await RewardedAdService.refreshAds();
+      // First try to get default ads (always available)
+      _adOptions = RewardedAdService.getDefaultAds();
+
       if (mounted) {
         setState(() {
-          _adOptions = ads;
           _adsLoaded = true;
         });
+      }
+
+      // Then try to refresh from server in background (both rewarded and video ads)
+      try {
+        final ads = await RewardedAdService.fetchAllAds();
+        if (ads.isNotEmpty && mounted) {
+          setState(() {
+            _adOptions = ads;
+          });
+        }
+      } catch (e) {
+        debugPrint('Background refresh failed, using defaults: $e');
       }
     } catch (e) {
       debugPrint('Error loading ads: $e');
@@ -46,34 +71,44 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final adType = ad['adType'] ?? 'rewarded';
       final adNumber = ad['adNumber'] ?? 1;
       final provider = ad['adProvider'] ?? 'admob';
       final reward = RewardedAdService.getRewardCoins(ad);
 
       debugPrint(
-        '🎬 Watching ad: $adNumber (Provider: $provider, Reward: $reward coins)',
+        '🎬 Watching ad: Type=$adType, Number=$adNumber (Provider: $provider, Reward: $reward coins)',
       );
 
       // Track ad impression
-      await RewardedAdService.trackAdClick(adNumber);
+      if (adType == 'video') {
+        // Track video ad view
+        await _trackVideoAdView(ad['id']);
+      } else {
+        // Track rewarded ad click
+        await RewardedAdService.trackAdClick(adNumber);
+      }
 
       // Show provider-specific ad
       bool adWatched = false;
 
-      if (provider == 'admob') {
-        // Show AdMob rewarded ad
-        adWatched = await AdMobService.showRewardedAd();
+      if (adType == 'video') {
+        // Show video ad
+        adWatched = await _showVideoAd(ad);
+      } else if (provider == 'admob') {
+        // Show AdMob rewarded ad with specific ad number
+        adWatched = await AdMobService.showRewardedAd(adNumber: adNumber);
       } else if (provider == 'meta') {
         // For Meta, show AdMob as fallback (Meta SDK integration would go here)
         debugPrint('📱 Meta provider - using AdMob fallback');
-        adWatched = await AdMobService.showRewardedAd();
+        adWatched = await AdMobService.showRewardedAd(adNumber: adNumber);
       } else if (provider == 'custom' || provider == 'third-party') {
         // For custom providers, show AdMob as fallback
         debugPrint('🔧 Custom provider - using AdMob fallback');
-        adWatched = await AdMobService.showRewardedAd();
+        adWatched = await AdMobService.showRewardedAd(adNumber: adNumber);
       } else {
         // Default to AdMob
-        adWatched = await AdMobService.showRewardedAd();
+        adWatched = await AdMobService.showRewardedAd(adNumber: adNumber);
       }
 
       if (!adWatched) {
@@ -90,10 +125,18 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
       }
 
       // Track conversion
-      await RewardedAdService.trackAdConversion(adNumber);
+      if (adType == 'video') {
+        // Track video ad completion
+        await _trackVideoAdCompletion(ad['id']);
+      } else {
+        // Track rewarded ad conversion
+        await RewardedAdService.trackAdConversion(adNumber);
+      }
 
       // Call backend to award coins (flexible reward)
-      final response = await ApiService.watchAd(adNumber: adNumber);
+      final response = adType == 'video'
+          ? await _watchVideoAd(ad['id'])
+          : await ApiService.watchAd(adNumber: adNumber);
 
       if (mounted) {
         setState(() => _isLoading = false);
@@ -118,6 +161,154 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
+    }
+  }
+
+  Future<bool> _showVideoAd(Map<String, dynamic> ad) async {
+    try {
+      final videoUrl = ad['videoUrl'] as String?;
+      if (videoUrl == null || videoUrl.isEmpty) {
+        return false;
+      }
+
+      bool completed = false;
+
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Dialog(
+          insetPadding: const EdgeInsets.all(0),
+          child: Stack(
+            children: [
+              // Video player
+              Container(
+                color: Colors.black,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.video_library,
+                        size: 64,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        ad['title'] ?? 'Video Ad',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Duration: ${ad['duration']}s',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Playing video...',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Close button
+              Positioned(
+                top: 16,
+                right: 16,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // Simulate video watching (in real app, use video_player package)
+      await Future.delayed(Duration(seconds: ad['duration'] ?? 30));
+      completed = true;
+
+      return completed;
+    } catch (e) {
+      debugPrint('Error showing video ad: $e');
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> _watchVideoAd(String videoAdId) async {
+    try {
+      final token = await StorageService.getToken();
+      final response = await http.post(
+        Uri.parse('${ApiService.baseUrl}/video-ads/$videoAdId/complete'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+
+      return {'success': false, 'message': 'Failed to complete video ad'};
+    } catch (e) {
+      debugPrint('Error completing video ad: $e');
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  Future<void> _trackVideoAdView(String videoAdId) async {
+    try {
+      final token = await StorageService.getToken();
+      await http.post(
+        Uri.parse('${ApiService.baseUrl}/video-ads/$videoAdId/view'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+    } catch (e) {
+      debugPrint('Error tracking video ad view: $e');
+    }
+  }
+
+  Future<void> _trackVideoAdCompletion(String videoAdId) async {
+    try {
+      final token = await StorageService.getToken();
+      await http.post(
+        Uri.parse('${ApiService.baseUrl}/video-ads/$videoAdId/complete'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+    } catch (e) {
+      debugPrint('Error tracking video ad completion: $e');
     }
   }
 
@@ -310,6 +501,7 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
     final String description = ad['description'] ?? 'Watch this ad';
     final int reward = RewardedAdService.getRewardCoins(ad);
     final String provider = ad['adProvider'] ?? 'admob';
+    final String adType = ad['adType'] ?? 'rewarded';
     final bool isActive = ad['isActive'] ?? true;
 
     return InkWell(
@@ -409,29 +601,56 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
               ],
             ),
 
-            // Provider badge (NEW)
-            if (provider != 'admob')
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: cardColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'Provider: ${provider.toUpperCase()}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: cardColor,
-                      fontWeight: FontWeight.w600,
+            // Ad type and provider badges
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Row(
+                children: [
+                  // Ad type badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: adType == 'video'
+                          ? Colors.blue.withValues(alpha: 0.15)
+                          : Colors.purple.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      adType == 'video' ? '🎬 Video Ad' : '📺 Rewarded Ad',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: adType == 'video' ? Colors.blue : Colors.purple,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  // Provider badge (only for rewarded ads)
+                  if (adType != 'video' && provider != 'admob')
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: cardColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Provider: ${provider.toUpperCase()}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cardColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                ],
               ),
+            ),
           ],
         ),
       ),

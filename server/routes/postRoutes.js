@@ -5,6 +5,7 @@ const {
   createPostWithUrl,
   getFeed,
   getUserPosts,
+  getUserLikedPosts,
   toggleLike,
   addComment,
   getComments,
@@ -28,6 +29,7 @@ router.post('/', protect, upload.fields([
 ]), createPost);
 router.get('/feed', getFeed);
 router.get('/user/:userId', getUserPosts);
+router.get('/user/:userId/liked', getUserLikedPosts);
 router.post('/:id/like', protect, toggleLike);
 router.post('/:id/comment', protect, addComment);
 router.get('/:id/comments', getComments);

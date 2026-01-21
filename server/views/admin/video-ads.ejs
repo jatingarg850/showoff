@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Ads Management - ShowOff Admin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 250px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+        }
+
+        .menu-item {
+            margin-bottom: 10px;
+        }
+
+        .menu-item a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .menu-item a:hover,
+        .menu-item a.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .main-content {
+            margin-left: 250px;
+            flex: 1;
+            padding: 30px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: #333;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background-color: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background-color: #e0e7ff;
+            color: #667eea;
+        }
+
+        .btn-secondary:hover {
+            background-color: #c7d2fd;
+        }
+
+        .btn-danger {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+
+        .btn-success {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #059669;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        th {
+            padding: 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #495057;
+            font-size: 14px;
+        }
+
+        td {
+            padding: 16px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .video-thumbnail {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            object-fit: cover;
+            background-color: #e9ecef;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-active {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-inactive {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            color: #333;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .alert-error {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .color-picker {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .color-option {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .color-option:hover,
+        .color-option.selected {
+            border-color: #333;
+            transform: scale(1.1);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 200px;
+            }
+
+            .main-content {
+                margin-left: 200px;
+                padding: 20px;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                align-items: flex-start;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <%- include('partials/admin-sidebar') %>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="header">
+                <h1>Video Ads Management</h1>
+                <button class="btn btn-primary" onclick="openCreateModal()">
+                    <i class="fas fa-plus"></i> Add Video Ad
+                </button>
+            </div>
+
+            <!-- Alert Messages -->
+            <div id="alertMessage" class="alert"></div>
+
+            <!-- Statistics -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Impressions</h3>
+                    <div class="value"><%= stats.totalImpressions %></div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Clicks</h3>
+                    <div class="value"><%= stats.totalClicks %></div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Views</h3>
+                    <div class="value"><%= stats.totalViews %></div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Completions</h3>
+                    <div class="value"><%= stats.totalCompletions %></div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Conversions</h3>
+                    <div class="value"><%= stats.totalConversions %></div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Served</h3>
+                    <div class="value"><%= stats.totalServed %></div>
+                </div>
+            </div>
+
+            <!-- Video Ads Table -->
+            <div class="table-container">
+                <% if (videoAds.length === 0) { %>
+                    <div class="empty-state">
+                        <i class="fas fa-film"></i>
+                        <p>No video ads yet. Create your first video ad to get started!</p>
+                        <button class="btn btn-primary" onclick="openCreateModal()">
+                            <i class="fas fa-plus"></i> Create Video Ad
+                        </button>
+                    </div>
+                <% } else { %>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Thumbnail</th>
+                                <th>Title</th>
+                                <th>Reward</th>
+                                <th>Duration</th>
+                                <th>Status</th>
+                                <th>Views</th>
+                                <th>Completions</th>
+                                <th>CTR</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% videoAds.forEach(ad => { %>
+                                <tr>
+                                    <td>
+                                        <% if (ad.thumbnailUrl) { %>
+                                            <img src="<%= ad.thumbnailUrl %>" alt="<%= ad.title %>" class="video-thumbnail">
+                                        <% } else { %>
+                                            <div class="video-thumbnail" style="display: flex; align-items: center; justify-content: center; background-color: #e9ecef;">
+                                                <i class="fas fa-video" style="color: #999;"></i>
+                                            </div>
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <strong><%= ad.title %></strong>
+                                        <br>
+                                        <small style="color: #999;"><%= ad.description.substring(0, 50) %>...</small>
+                                    </td>
+                                    <td>
+                                        <strong><%= ad.rewardCoins %> coins</strong>
+                                    </td>
+                                    <td><%= ad.duration %>s</td>
+                                    <td>
+                                        <span class="badge <%= ad.isActive ? 'badge-active' : 'badge-inactive' %>">
+                                            <%= ad.isActive ? 'Active' : 'Inactive' %>
+                                        </span>
+                                    </td>
+                                    <td><%= ad.views %></td>
+                                    <td><%= ad.completions %></td>
+                                    <td><%= ad.ctr %>%</td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn btn-secondary btn-sm" onclick="openEditModal('<%= ad._id %>')">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </button>
+                                            <button class="btn btn-danger btn-sm" onclick="deleteVideoAd('<%= ad._id %>')">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                <% } %>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div id="videoAdModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add Video Ad</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+
+            <form id="videoAdForm" onsubmit="handleFormSubmit(event)">
+                <div class="form-group">
+                    <label for="title">Title *</label>
+                    <input type="text" id="title" name="title" required placeholder="e.g., Premium Offer">
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" placeholder="Describe the video ad..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="videoUrl">Video URL *</label>
+                    <input type="url" id="videoUrl" name="videoUrl" required placeholder="https://s3.ap-southeast-1.wasabisys.com/...">
+                </div>
+
+                <div class="form-group">
+                    <label for="thumbnailUrl">Thumbnail URL</label>
+                    <input type="url" id="thumbnailUrl" name="thumbnailUrl" placeholder="https://...">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="duration">Duration (seconds)</label>
+                        <input type="number" id="duration" name="duration" value="30" min="1" max="300">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rewardCoins">Reward Coins</label>
+                        <input type="number" id="rewardCoins" name="rewardCoins" value="10" min="1" max="10000">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="icon">Icon</label>
+                        <select id="icon" name="icon">
+                            <option value="video">Video</option>
+                            <option value="play-circle">Play Circle</option>
+                            <option value="film">Film</option>
+                            <option value="gift">Gift</option>
+                            <option value="star">Star</option>
+                            <option value="trophy">Trophy</option>
+                            <option value="zap">Zap</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="color">Color</label>
+                        <input type="color" id="color" name="color" value="#667eea">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="rotationOrder">Rotation Order</label>
+                    <input type="number" id="rotationOrder" name="rotationOrder" value="0" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="isActive" name="isActive" checked>
+                        Active
+                    </label>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Video Ad</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentEditId = null;
+
+        function openCreateModal() {
+            currentEditId = null;
+            document.getElementById('modalTitle').textContent = 'Add Video Ad';
+            document.getElementById('videoAdForm').reset();
+            document.getElementById('videoAdModal').classList.add('show');
+        }
+
+        function openEditModal(id) {
+            currentEditId = id;
+            document.getElementById('modalTitle').textContent = 'Edit Video Ad';
+            
+            // Fetch video ad data
+            fetch(`/admin/video-ads/${id}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        const ad = data.data;
+                        document.getElementById('title').value = ad.title;
+                        document.getElementById('description').value = ad.description;
+                        document.getElementById('videoUrl').value = ad.videoUrl;
+                        document.getElementById('thumbnailUrl').value = ad.thumbnailUrl || '';
+                        document.getElementById('duration').value = ad.duration;
+                        document.getElementById('rewardCoins').value = ad.rewardCoins;
+                        document.getElementById('icon').value = ad.icon;
+                        document.getElementById('color').value = ad.color;
+                        document.getElementById('rotationOrder').value = ad.rotationOrder;
+                        document.getElementById('isActive').checked = ad.isActive;
+                        document.getElementById('videoAdModal').classList.add('show');
+                    }
+                })
+                .catch(err => showAlert('Error loading video ad', 'error'));
+        }
+
+        function closeModal() {
+            document.getElementById('videoAdModal').classList.remove('show');
+            currentEditId = null;
+        }
+
+        function handleFormSubmit(event) {
+            event.preventDefault();
+
+            const formData = {
+                title: document.getElementById('title').value,
+                description: document.getElementById('description').value,
+                videoUrl: document.getElementById('videoUrl').value,
+                thumbnailUrl: document.getElementById('thumbnailUrl').value,
+                duration: parseInt(document.getElementById('duration').value),
+                rewardCoins: parseInt(document.getElementById('rewardCoins').value),
+                icon: document.getElementById('icon').value,
+                color: document.getElementById('color').value,
+                rotationOrder: parseInt(document.getElementById('rotationOrder').value),
+                isActive: document.getElementById('isActive').checked
+            };
+
+            const url = currentEditId 
+                ? `/admin/video-ads/${currentEditId}/update`
+                : '/admin/video-ads/create';
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert(data.message, 'success');
+                    closeModal();
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            })
+            .catch(err => showAlert('Error saving video ad', 'error'));
+        }
+
+        function deleteVideoAd(id) {
+            if (confirm('Are you sure you want to delete this video ad?')) {
+                fetch(`/admin/video-ads/${id}/delete`, {
+                    method: 'POST'
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert(data.message, 'success');
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        showAlert(data.message, 'error');
+                    }
+                })
+                .catch(err => showAlert('Error deleting video ad', 'error'));
+            }
+        }
+
+        function showAlert(message, type) {
+            const alert = document.getElementById('alertMessage');
+            alert.textContent = message;
+            alert.className = `alert show alert-${type}`;
+            setTimeout(() => alert.classList.remove('show'), 5000);
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('videoAdModal').addEventListener('click', function(event) {
+            if (event.target === this) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>

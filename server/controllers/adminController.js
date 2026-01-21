@@ -202,6 +202,39 @@ exports.getPosts = async (req, res) => {
   }
 };
 
+// @desc    Get single post details
+// @route   GET /api/admin/posts/:id
+// @access  Private (Admin only)
+exports.getPostDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('📝 Fetching post details for ID:', id);
+    
+    const post = await Post.findById(id)
+      .populate('user', 'username displayName profilePicture email phone');
+
+    if (!post) {
+      console.log('❌ Post not found:', id);
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
+    console.log('✅ Post found:', post._id);
+    res.status(200).json({
+      success: true,
+      data: post
+    });
+  } catch (error) {
+    console.error('❌ Error fetching post details:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 // @desc    Get financial overview
 // @route   GET /api/admin/financial
 // @access  Private (Admin only)
@@ -669,39 +702,76 @@ exports.updateUserCoins = async (req, res) => {
   try {
     const { amount, type, reason } = req.body; // type: 'add' or 'subtract'
     
+    // Validate input
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid amount. Must be greater than 0.'
+      });
+    }
+
+    if (!type || (type !== 'add' && type !== 'subtract')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid type. Must be "add" or "subtract".'
+      });
+    }
+    
     const user = await User.findById(req.params.id);
     if (!user) {
+      console.log('❌ User not found:', req.params.id);
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
 
+    console.log(`📊 Current balance: ${user.coinBalance}, Action: ${type}, Amount: ${amount}`);
+
     if (type === 'add') {
       user.coinBalance += amount;
       user.totalCoinsEarned += amount;
+      console.log(`✅ Added ${amount} coins. New balance: ${user.coinBalance}`);
     } else if (type === 'subtract') {
-      user.coinBalance = Math.max(0, user.coinBalance - amount);
+      const newBalance = user.coinBalance - amount;
+      if (newBalance < 0) {
+        console.log(`⚠️ Insufficient balance. Current: ${user.coinBalance}, Requested: ${amount}`);
+        user.coinBalance = 0;
+      } else {
+        user.coinBalance = newBalance;
+      }
+      console.log(`✅ Subtracted ${amount} coins. New balance: ${user.coinBalance}`);
     }
 
     await user.save();
+    console.log('✅ User saved successfully');
 
     // Create transaction record
     const Transaction = require('../models/Transaction');
-    await Transaction.create({
+    const transaction = await Transaction.create({
       user: user._id,
       type: type === 'add' ? 'admin_credit' : 'admin_debit',
       amount: type === 'add' ? amount : -amount,
+      balanceAfter: user.coinBalance,
       description: reason || `Admin ${type} coins`,
       status: 'completed'
     });
+    console.log('✅ Transaction created:', transaction._id);
 
     res.status(200).json({
       success: true,
       message: `${amount} coins ${type === 'add' ? 'added to' : 'removed from'} user account`,
-      data: user
+      data: {
+        _id: user._id,
+        username: user.username,
+        displayName: user.displayName,
+        coinBalance: user.coinBalance,
+        totalCoinsEarned: user.totalCoinsEarned,
+        transaction: transaction._id
+      }
     });
   } catch (error) {
+    console.error('❌ Error updating user coins:', error);
     res.status(500).json({
       success: false,
       message: error.message

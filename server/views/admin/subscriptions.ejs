@@ -7,6 +7,159 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <%- include('partials/admin-styles') %>
+    <style>
+        .subscription-hero {
+            background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+            color: white;
+            padding: 3rem 2rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .subscription-hero h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0 0 1rem 0;
+        }
+
+        .subscription-hero p {
+            font-size: 1.1rem;
+            opacity: 0.95;
+            margin: 0;
+        }
+
+        .plan-showcase {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .plan-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+        }
+
+        .plan-badge {
+            width: 70px;
+            height: 70px;
+            border: 3px solid #8B5CF6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #8B5CF6;
+            font-size: 12px;
+        }
+
+        .plan-status {
+            background: #8B5CF6;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .plan-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0 0 0.5rem 0;
+        }
+
+        .plan-subtitle {
+            font-size: 0.9rem;
+            color: #64748b;
+            margin: 0;
+        }
+
+        .plan-price {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #8B5CF6;
+            margin: 1.5rem 0 0.5rem 0;
+        }
+
+        .plan-price-period {
+            font-size: 1rem;
+            color: #64748b;
+            font-weight: 400;
+        }
+
+        .plan-benefits {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: #f8fafc;
+            border-radius: 12px;
+        }
+
+        .benefit-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+            color: #1e293b;
+        }
+
+        .benefit-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .benefit-icon {
+            color: #10B981;
+            margin-right: 0.75rem;
+            font-size: 1.2rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-mini-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-mini-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #8B5CF6;
+            margin: 0.5rem 0;
+        }
+
+        .stat-mini-label {
+            font-size: 0.85rem;
+            color: #64748b;
+            margin: 0;
+        }
+
+        .subscriptions-table {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .table-title {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+    </style>
 </head>
 <body>
     <div class="admin-container">
@@ -16,118 +169,189 @@
             <%- include('partials/admin-header', { pageTitle: 'Subscription Management' }) %>
 
             <div class="content-area">
-                <!-- Stats Cards -->
+                <!-- Hero Section -->
+                <div class="subscription-hero">
+                    <h2>Subscription Overview</h2>
+                    <p>Monitor your subscription plans and user engagement</p>
+                </div>
+
+                <!-- Quick Stats -->
                 <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
-                            <i class="fas fa-users"></i>
-                        </div>
-                        <div class="stat-value"><%= stats.count || 0 %></div>
-                        <div class="stat-label">Active Subscribers</div>
+                    <div class="stat-mini-card">
+                        <i class="fas fa-users" style="font-size: 1.5rem; color: #8B5CF6;"></i>
+                        <div class="stat-mini-value"><%= stats.count || 0 %></div>
+                        <p class="stat-mini-label">Active Subscribers</p>
                     </div>
                     
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
-                            <i class="fas fa-dollar-sign"></i>
-                        </div>
-                        <div class="stat-value">₹<%= ((stats.totalRevenue || 0) / 100).toLocaleString() %></div>
-                        <div class="stat-label">Total Revenue</div>
+                    <div class="stat-mini-card">
+                        <i class="fas fa-dollar-sign" style="font-size: 1.5rem; color: #10B981;"></i>
+                        <div class="stat-mini-value">₹<%= ((stats.totalRevenue || 0) / 100).toLocaleString() %></div>
+                        <p class="stat-mini-label">Total Revenue</p>
                     </div>
                     
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
-                            <i class="fas fa-layer-group"></i>
-                        </div>
-                        <div class="stat-value"><%= plans.length %></div>
-                        <div class="stat-label">Subscription Plans</div>
+                    <div class="stat-mini-card">
+                        <i class="fas fa-layer-group" style="font-size: 1.5rem; color: #F59E0B;"></i>
+                        <div class="stat-mini-value"><%= plans.length %></div>
+                        <p class="stat-mini-label">Available Plans</p>
                     </div>
                     
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
-                            <i class="fas fa-chart-line"></i>
-                        </div>
-                        <div class="stat-value">₹<%= plans.length > 0 ? ((stats.totalRevenue || 0) / stats.count / 100).toFixed(0) : 0 %></div>
-                        <div class="stat-label">Avg Revenue/User</div>
+                    <div class="stat-mini-card">
+                        <i class="fas fa-chart-line" style="font-size: 1.5rem; color: #3B82F6;"></i>
+                        <div class="stat-mini-value">₹<%= stats.count > 0 ? ((stats.totalRevenue || 0) / stats.count / 100).toFixed(0) : 0 %></div>
+                        <p class="stat-mini-label">Avg Revenue/User</p>
                     </div>
                 </div>
 
-                <!-- Subscription Plans -->
-                <div class="table-container">
-                    <div class="table-header">
-                        <h3>Subscription Plans</h3>
-                        <button class="btn btn-primary" onclick="createPlan()">
-                            <i class="fas fa-plus"></i> Create Plan
-                        </button>
-                    </div>
-                    
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; padding: 1.5rem;">
-                        <% if (plans && plans.length > 0) { %>
-                            <% plans.forEach(plan => { %>
-                                <div class="plan-card" style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 2px solid <%= plan.tier === 'premium' ? '#f59e0b' : plan.tier === 'vip' ? '#8b5cf6' : '#3b82f6' %>;">
-                                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
-                                        <div>
-                                            <h3 style="margin: 0; color: #1e293b; font-size: 1.25rem;"><%= plan.name %></h3>
-                                            <span class="badge" style="background: <%= plan.tier === 'premium' ? '#f59e0b' : plan.tier === 'vip' ? '#8b5cf6' : '#3b82f6' %>; color: white; margin-top: 0.5rem;">
-                                                <%= plan.tier.toUpperCase() %>
-                                            </span>
-                                        </div>
-                                        <div style="display: flex; gap: 0.25rem;">
-                                            <button class="btn btn-sm btn-primary" onclick="editPlan('<%= plan._id %>')" title="Edit">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-danger" onclick="deletePlan('<%= plan._id %>')" title="Delete">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    
-                                    <div style="margin: 1.5rem 0;">
-                                        <div style="font-size: 2rem; font-weight: 700; color: #1e293b;">
-                                            ₹<%= (plan.price / 100).toLocaleString() %>
-                                            <span style="font-size: 1rem; font-weight: 400; color: #64748b;">/<%= plan.duration %> days</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div style="margin: 1rem 0; padding: 1rem; background: #f8fafc; border-radius: 8px;">
-                                        <div style="font-size: 0.875rem; color: #64748b; margin-bottom: 0.5rem;">Features:</div>
-                                        <ul style="margin: 0; padding-left: 1.25rem; color: #475569;">
-                                            <% plan.features.forEach(feature => { %>
-                                                <li style="margin: 0.25rem 0;"><%= feature %></li>
-                                            <% }) %>
-                                        </ul>
-                                    </div>
-                                    
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0;">
-                                        <div>
-                                            <div style="font-size: 0.75rem; color: #64748b;">Subscribers</div>
-                                            <div style="font-size: 1.25rem; font-weight: 600; color: #1e293b;">
-                                                <i class="fas fa-users"></i> <%= plan.subscriberCount || 0 %>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <span class="status-badge status-<%= plan.isActive ? 'active' : 'inactive' %>">
-                                                <%= plan.isActive ? 'ACTIVE' : 'INACTIVE' %>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            <% }) %>
-                        <% } else { %>
-                            <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; color: #64748b;">
-                                <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                                <p>No subscription plans found</p>
-                                <button class="btn btn-primary" onclick="createPlan()" style="margin-top: 1rem;">
-                                    <i class="fas fa-plus"></i> Create Your First Plan
-                                </button>
+                <!-- Main Subscription Plan (Pro Plan) -->
+                <% 
+                    const proPlan = plans && plans.find(p => p.tier === 'pro');
+                    const otherPlans = plans && plans.filter(p => p.tier !== 'pro');
+                %>
+                
+                <% if (proPlan) { %>
+                    <div class="plan-showcase" style="border: 3px solid #8B5CF6; position: relative;">
+                        <div style="position: absolute; top: -12px; right: 20px; background: linear-gradient(135deg, #8B5CF6, #7C3AED); color: white; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">
+                            ⭐ Featured Plan
+                        </div>
+
+                        <div class="plan-header">
+                            <div>
+                                <div class="plan-badge"><%= proPlan.tier.toUpperCase().substring(0, 3) %></div>
                             </div>
-                        <% } %>
-                    </div>
-                </div>
+                            <% if (proPlan.subscriberCount > 0) { %>
+                                <div class="plan-status">
+                                    <i class="fas fa-check-circle"></i> <%= proPlan.subscriberCount %> Active
+                                </div>
+                            <% } %>
+                        </div>
 
-                <!-- Recent Subscriptions -->
-                <div class="table-container" style="margin-top: 2rem;">
-                    <div class="table-header">
-                        <h3>Recent Subscriptions</h3>
+                        <div style="margin-bottom: 1rem;">
+                            <h3 class="plan-title"><%= proPlan.name %></h3>
+                            <p class="plan-subtitle"><%= proPlan.description || 'Premium subscription plan' %></p>
+                        </div>
+
+                        <div style="margin: 1.5rem 0;">
+                            <div class="plan-price">
+                                ₹<%= (proPlan.price ? (proPlan.price / 100).toLocaleString() : '0') %>
+                                <span class="plan-price-period">/<%= proPlan.duration || 30 %> days</span>
+                            </div>
+                        </div>
+
+                        <div class="plan-benefits">
+                            <% if (proPlan.features && proPlan.features.length > 0) { %>
+                                <% proPlan.features.forEach(feature => { %>
+                                    <div class="benefit-item">
+                                        <i class="fas fa-check benefit-icon"></i>
+                                        <span><%= feature %></span>
+                                    </div>
+                                <% }) %>
+                            <% } else if (proPlan.highlightedFeatures && proPlan.highlightedFeatures.length > 0) { %>
+                                <% proPlan.highlightedFeatures.forEach(feature => { %>
+                                    <div class="benefit-item">
+                                        <i class="fas fa-check benefit-icon"></i>
+                                        <span><%= feature %></span>
+                                    </div>
+                                <% }) %>
+                            <% } %>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.5rem; font-weight: 700; color: #8B5CF6;"><%= proPlan.subscriberCount || 0 %></div>
+                                <div style="font-size: 0.85rem; color: #64748b;">Subscribers</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.5rem; font-weight: 700; color: #10B981;">₹<%= proPlan.subscriberCount > 0 ? ((proPlan.subscriberCount * proPlan.price) / 100).toLocaleString() : 0 %></div>
+                                <div style="font-size: 0.85rem; color: #64748b;">Plan Revenue</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.5rem; font-weight: 700; color: #F59E0B;"><%= proPlan.isActive ? 'Active' : 'Inactive' %></div>
+                                <div style="font-size: 0.85rem; color: #64748b;">Status</div>
+                            </div>
+                        </div>
+                    </div>
+                <% } %>
+
+                <!-- Other Subscription Plans Display (Like Mobile) -->
+                <% if (otherPlans && otherPlans.length > 0) { %>
+                    <div style="margin-top: 2rem; margin-bottom: 1rem;">
+                        <h3 style="color: #1e293b; font-size: 1.2rem; font-weight: 600;">Other Plans</h3>
+                    </div>
+                    <% otherPlans.forEach(plan => { %>
+                        <div class="plan-showcase">
+                            <div class="plan-header">
+                                <div>
+                                    <div class="plan-badge"><%= plan.tier.toUpperCase().substring(0, 3) %></div>
+                                </div>
+                                <% if (plan.subscriberCount > 0) { %>
+                                    <div class="plan-status">
+                                        <i class="fas fa-check-circle"></i> <%= plan.subscriberCount %> Active
+                                    </div>
+                                <% } %>
+                            </div>
+
+                            <div style="margin-bottom: 1rem;">
+                                <h3 class="plan-title"><%= plan.name %></h3>
+                                <p class="plan-subtitle"><%= plan.description || 'Premium subscription plan' %></p>
+                            </div>
+
+                            <div style="margin: 1.5rem 0;">
+                                <div class="plan-price">
+                                    ₹<%= (plan.price ? (plan.price / 100).toLocaleString() : '0') %>
+                                    <span class="plan-price-period">/<%= plan.duration || 30 %> days</span>
+                                </div>
+                            </div>
+                                    <span class="plan-price-period">/<%= plan.duration %> days</span>
+                                </div>
+                            </div>
+
+                            <div class="plan-benefits">
+                                <% if (plan.features && plan.features.length > 0) { %>
+                                    <% plan.features.forEach(feature => { %>
+                                        <div class="benefit-item">
+                                            <i class="fas fa-check benefit-icon"></i>
+                                            <span><%= feature %></span>
+                                        </div>
+                                    <% }) %>
+                                <% } else if (plan.highlightedFeatures && plan.highlightedFeatures.length > 0) { %>
+                                    <% plan.highlightedFeatures.forEach(feature => { %>
+                                        <div class="benefit-item">
+                                            <i class="fas fa-check benefit-icon"></i>
+                                            <span><%= feature %></span>
+                                        </div>
+                                    <% }) %>
+                                <% } %>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0;">
+                                <div style="text-align: center;">
+                                    <div style="font-size: 1.5rem; font-weight: 700; color: #8B5CF6;"><%= plan.subscriberCount || 0 %></div>
+                                    <div style="font-size: 0.85rem; color: #64748b;">Subscribers</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="font-size: 1.5rem; font-weight: 700; color: #10B981;">₹<%= plan.subscriberCount > 0 ? ((plan.subscriberCount * plan.price) / 100).toLocaleString() : 0 %></div>
+                                    <div style="font-size: 0.85rem; color: #64748b;">Plan Revenue</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="font-size: 1.5rem; font-weight: 700; color: #F59E0B;"><%= plan.isActive ? 'Active' : 'Inactive' %></div>
+                                    <div style="font-size: 0.85rem; color: #64748b;">Status</div>
+                                </div>
+                            </div>
+                        </div>
+                    <% }) %>
+                <% } %>
+
+                <% if (!plans || plans.length === 0) { %>
+                    <div class="plan-showcase" style="text-align: center; padding: 3rem;">
+                        <i class="fas fa-inbox" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem;"></i>
+                        <p style="color: #64748b; margin: 0;">No subscription plans found</p>
+                    </div>
+                <% } %>
+
+                <!-- Recent Subscriptions Table -->
+                <div class="subscriptions-table" style="margin-top: 2rem;">
+                    <div class="table-title">
+                        <i class="fas fa-history"></i> Recent Subscriptions
                     </div>
                     <table class="data-table">
                         <thead>
@@ -138,12 +362,17 @@
                                 <th>Start Date</th>
                                 <th>End Date</th>
                                 <th>Status</th>
-                                <th>Actions</th>
+                                <th>Days Left</th>
                             </tr>
                         </thead>
                         <tbody>
                             <% if (recentSubscriptions && recentSubscriptions.length > 0) { %>
                                 <% recentSubscriptions.forEach(sub => { %>
+                                    <% 
+                                        const endDate = new Date(sub.endDate);
+                                        const today = new Date();
+                                        const daysLeft = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+                                    %>
                                     <tr>
                                         <td>
                                             <div class="user-profile">
@@ -177,15 +406,8 @@
                                             </span>
                                         </td>
                                         <td>
-                                            <div style="display: flex; gap: 0.25rem;">
-                                                <button class="btn btn-sm btn-primary" onclick="viewSubscription('<%= sub._id %>')" title="View">
-                                                    <i class="fas fa-eye"></i>
-                                                </button>
-                                                <% if (sub.status === 'active') { %>
-                                                    <button class="btn btn-sm btn-danger" onclick="cancelSubscription('<%= sub._id %>')" title="Cancel">
-                                                        <i class="fas fa-ban"></i>
-                                                    </button>
-                                                <% } %>
+                                            <div style="font-weight: 600; <%= daysLeft <= 7 ? 'color: #ef4444;' : 'color: #10b981;' %>">
+                                                <%= daysLeft > 0 ? daysLeft + ' days' : 'Expired' %>
                                             </div>
                                         </td>
                                     </tr>
@@ -204,180 +426,5 @@
             </div>
         </main>
     </div>
-
-    <!-- Plan Modal -->
-    <div id="planModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="planModalTitle">Create Subscription Plan</h3>
-                <button onclick="closeModal()" class="close-btn">&times;</button>
-            </div>
-            <div id="planModalContent" class="modal-body">
-                <form id="planForm" onsubmit="savePlan(event)">
-                    <input type="hidden" id="planId" name="planId">
-                    
-                    <div class="form-group">
-                        <label>Plan Name *</label>
-                        <input type="text" id="planName" name="name" required class="form-control">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Tier *</label>
-                        <select id="planTier" name="tier" required class="form-control">
-                            <option value="basic">Basic</option>
-                            <option value="premium">Premium</option>
-                            <option value="vip">VIP</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Price (₹) *</label>
-                        <input type="number" id="planPrice" name="price" required class="form-control" min="0" step="0.01">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Duration (days) *</label>
-                        <input type="number" id="planDuration" name="duration" required class="form-control" min="1">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Features (one per line) *</label>
-                        <textarea id="planFeatures" name="features" required class="form-control" rows="5" placeholder="Feature 1&#10;Feature 2&#10;Feature 3"></textarea>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="planActive" name="isActive" checked>
-                            Active
-                        </label>
-                    </div>
-                    
-                    <div style="display: flex; gap: 1rem; margin-top: 2rem;">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Save Plan
-                        </button>
-                        <button type="button" class="btn" onclick="closeModal()">Cancel</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        function createPlan() {
-            document.getElementById('planModalTitle').textContent = 'Create Subscription Plan';
-            document.getElementById('planForm').reset();
-            document.getElementById('planId').value = '';
-            document.getElementById('planModal').style.display = 'flex';
-        }
-
-        function editPlan(planId) {
-            document.getElementById('planModalTitle').textContent = 'Edit Subscription Plan';
-            document.getElementById('planModal').style.display = 'flex';
-            
-            fetch(`/api/subscription/admin/plans/${planId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const plan = data.data;
-                        document.getElementById('planId').value = plan._id;
-                        document.getElementById('planName').value = plan.name;
-                        document.getElementById('planTier').value = plan.tier;
-                        document.getElementById('planPrice').value = plan.price / 100;
-                        document.getElementById('planDuration').value = plan.duration;
-                        document.getElementById('planFeatures').value = plan.features.join('\n');
-                        document.getElementById('planActive').checked = plan.isActive;
-                    }
-                })
-                .catch(error => {
-                    alert('Error loading plan: ' + error.message);
-                });
-        }
-
-        function savePlan(event) {
-            event.preventDefault();
-            
-            const planId = document.getElementById('planId').value;
-            const formData = {
-                name: document.getElementById('planName').value,
-                tier: document.getElementById('planTier').value,
-                price: Math.round(parseFloat(document.getElementById('planPrice').value) * 100),
-                duration: parseInt(document.getElementById('planDuration').value),
-                features: document.getElementById('planFeatures').value.split('\n').filter(f => f.trim()),
-                isActive: document.getElementById('planActive').checked
-            };
-            
-            const url = planId ? `/api/subscription/admin/plans/${planId}` : '/api/subscription/admin/plans';
-            const method = planId ? 'PUT' : 'POST';
-            
-            fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(formData)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(planId ? 'Plan updated successfully' : 'Plan created successfully');
-                    window.location.reload();
-                } else {
-                    alert('Error: ' + data.message);
-                }
-            })
-            .catch(error => {
-                alert('Error: ' + error.message);
-            });
-        }
-
-        function deletePlan(planId) {
-            if (confirm('Are you sure you want to delete this plan? This action cannot be undone.')) {
-                fetch(`/api/subscription/admin/plans/${planId}`, {
-                    method: 'DELETE'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Plan deleted successfully');
-                        window.location.reload();
-                    } else {
-                        alert('Error: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    alert('Error: ' + error.message);
-                });
-            }
-        }
-
-        function viewSubscription(subId) {
-            alert('View subscription details: ' + subId);
-        }
-
-        function cancelSubscription(subId) {
-            if (confirm('Are you sure you want to cancel this subscription?')) {
-                fetch(`/api/subscription/admin/subscriptions/${subId}/cancel`, {
-                    method: 'PUT'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Subscription cancelled successfully');
-                        window.location.reload();
-                    } else {
-                        alert('Error: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    alert('Error: ' + error.message);
-                });
-            }
-        }
-
-        function closeModal() {
-            document.getElementById('planModal').style.display = 'none';
-        }
-    </script>
 </body>
 </html>

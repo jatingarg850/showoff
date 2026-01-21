@@ -27,9 +27,61 @@ class RewardedAdService {
     }
   }
 
-  /// Get ads - always fetches fresh from server
+  /// Fetch video ads from backend
+  static Future<List<Map<String, dynamic>>> fetchVideoAds() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiService.baseUrl}/video-ads'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] && data['data'] != null) {
+          // Convert video ads to compatible format
+          return List<Map<String, dynamic>>.from(
+            (data['data'] as List).map(
+              (ad) => {
+                'id': ad['id'],
+                'title': ad['title'],
+                'description': ad['description'],
+                'rewardCoins': ad['rewardCoins'],
+                'icon': ad['icon'],
+                'color': ad['color'],
+                'isActive': ad['isActive'],
+                'adType': 'video',
+                'videoUrl': ad['videoUrl'],
+                'thumbnailUrl': ad['thumbnailUrl'],
+                'duration': ad['duration'],
+              },
+            ),
+          );
+        }
+      }
+
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching video ads: $e');
+      return [];
+    }
+  }
+
+  /// Fetch all ads (both rewarded and video)
+  static Future<List<Map<String, dynamic>>> fetchAllAds() async {
+    try {
+      final rewardedAds = await fetchRewardedAds();
+      final videoAds = await fetchVideoAds();
+
+      // Combine both lists
+      return [...rewardedAds, ...videoAds];
+    } catch (e) {
+      debugPrint('Error fetching all ads: $e');
+      return getDefaultAds();
+    }
+  }
+
+  /// Get ads - always fetches fresh from server (both rewarded and video)
   static Future<List<Map<String, dynamic>>> getAds() async {
-    return await fetchRewardedAds();
+    return await fetchAllAds();
   }
 
   /// Get default ads (fallback) - PUBLIC METHOD
@@ -38,9 +90,9 @@ class RewardedAdService {
       {
         'id': '1',
         'adNumber': 1,
-        'title': 'Watch & Earn',
-        'description': 'Watch video ad to earn coins',
-        'rewardCoins': 10,
+        'title': 'Quick Video Ad',
+        'description': 'Watch a 15-30 second video ad',
+        'rewardCoins': 5,
         'icon': 'play-circle',
         'color': '#701CF5',
         'adProvider': 'admob',
@@ -49,8 +101,8 @@ class RewardedAdService {
       {
         'id': '2',
         'adNumber': 2,
-        'title': 'Sponsored Content',
-        'description': 'Watch sponsored content',
+        'title': 'Product Demo',
+        'description': 'Watch product demonstration video',
         'rewardCoins': 10,
         'icon': 'video',
         'color': '#FF6B35',
@@ -60,9 +112,9 @@ class RewardedAdService {
       {
         'id': '3',
         'adNumber': 3,
-        'title': 'Interactive Ad',
-        'description': 'Interactive ad experience',
-        'rewardCoins': 10,
+        'title': 'Interactive Quiz',
+        'description': 'Answer quick questions & earn',
+        'rewardCoins': 15,
         'icon': 'hand-pointer',
         'color': '#4FACFE',
         'adProvider': 'meta',
@@ -71,9 +123,9 @@ class RewardedAdService {
       {
         'id': '4',
         'adNumber': 4,
-        'title': 'Quick Survey',
+        'title': 'Survey Rewards',
         'description': 'Complete a quick survey',
-        'rewardCoins': 15,
+        'rewardCoins': 20,
         'icon': 'clipboard',
         'color': '#43E97B',
         'adProvider': 'custom',
@@ -83,8 +135,8 @@ class RewardedAdService {
         'id': '5',
         'adNumber': 5,
         'title': 'Premium Offer',
-        'description': 'Exclusive premium offer',
-        'rewardCoins': 20,
+        'description': 'Exclusive premium content',
+        'rewardCoins': 25,
         'icon': 'star',
         'color': '#FBBF24',
         'adProvider': 'third-party',

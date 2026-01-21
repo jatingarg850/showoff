@@ -27,23 +27,14 @@ async function seedSubscriptionPlans() {
     const premiumPlan = await SubscriptionPlan.create({
       name: 'Premium',
       tier: 'pro',
-      price: {
-        monthly: 2499,
-        yearly: 24990
-      },
+      price: 249900, // 2499 in paise (₹2,499)
       currency: 'INR',
-      features: {
-        maxUploadsPerDay: 100,
-        maxStorageGB: 100,
-        canParticipateInSYT: true,
-        prioritySupport: true,
-        verifiedBadge: true,
-        adFree: true,
-        customProfile: true,
-        analyticsAccess: true,
-        coinBonus: 500,
-        uploadRewardMultiplier: 2
-      },
+      duration: 30,
+      features: [
+        'Verified profile (Blue tick)',
+        '100% ad-free',
+        'Payment allowed via earned coins'
+      ],
       isActive: true,
       description: 'Premium subscription with all features',
       highlightedFeatures: [

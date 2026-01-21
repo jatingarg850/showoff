@@ -32,13 +32,13 @@ const seedAds = async () => {
     const initialAds = [
       {
         adNumber: 1,
-        title: 'Watch & Earn',
-        description: 'Watch video ad to earn coins',
+        title: 'Quick Video Ad',
+        description: 'Watch a 15-30 second video ad',
         icon: 'play-circle',
-        color: '#667eea',
+        color: '#701CF5',
         adLink: 'https://example.com/ad1',
         adProvider: 'admob',
-        rewardCoins: 10,
+        rewardCoins: 5,
         isActive: true,
         rotationOrder: 1,
         providerConfig: {
@@ -50,8 +50,8 @@ const seedAds = async () => {
       },
       {
         adNumber: 2,
-        title: 'Sponsored Content',
-        description: 'Watch sponsored content',
+        title: 'Product Demo',
+        description: 'Watch product demonstration video',
         icon: 'video',
         color: '#FF6B35',
         adLink: 'https://example.com/ad2',
@@ -68,8 +68,8 @@ const seedAds = async () => {
       },
       {
         adNumber: 3,
-        title: 'Interactive Ad',
-        description: 'Interactive ad experience',
+        title: 'Interactive Quiz',
+        description: 'Answer quick questions & earn',
         icon: 'hand-pointer',
         color: '#4FACFE',
         adLink: 'https://example.com/ad3',
@@ -87,7 +87,7 @@ const seedAds = async () => {
       },
       {
         adNumber: 4,
-        title: 'Quick Survey',
+        title: 'Survey Rewards',
         description: 'Complete a quick survey',
         icon: 'clipboard',
         color: '#43E97B',
@@ -107,7 +107,7 @@ const seedAds = async () => {
       {
         adNumber: 5,
         title: 'Premium Offer',
-        description: 'Exclusive premium offer',
+        description: 'Exclusive premium content',
         icon: 'star',
         color: '#FBBF24',
         adLink: 'https://example.com/ad5',

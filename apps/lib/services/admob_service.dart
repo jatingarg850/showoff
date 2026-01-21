@@ -3,25 +3,25 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter/foundation.dart';
 
 class AdMobService {
-  static String? _rewardedAdUnitId;
-  static RewardedAd? _rewardedAd;
-  static bool _isAdLoading = false;
+  static final Map<int, RewardedAd?> _rewardedAds = {};
+  static final Map<int, bool> _isAdLoading = {};
 
-  static String get rewardedAdUnitId {
-    if (_rewardedAdUnitId != null) {
-      return _rewardedAdUnitId!;
-    }
+  // Test Ad Unit IDs (Google's official test ads)
+  static const String _androidTestAdUnitId =
+      'ca-app-pub-3940256099942544/5224354917';
+  static const String _iosTestAdUnitId =
+      'ca-app-pub-3940256099942544/1712485313';
 
+  /// Get ad unit ID for a specific ad number
+  static String getRewardedAdUnitId(int adNumber) {
     // Use test Ad Unit IDs for development
     // Replace with production IDs when deploying to Play Store
     if (Platform.isAndroid) {
-      _rewardedAdUnitId = 'ca-app-pub-3940256099942544/5224354917'; // Test ID
+      return _androidTestAdUnitId;
     } else if (Platform.isIOS) {
-      _rewardedAdUnitId = 'ca-app-pub-3940256099942544/1712485313'; // Test ID
-    } else {
-      _rewardedAdUnitId = '';
+      return _iosTestAdUnitId;
     }
-    return _rewardedAdUnitId!;
+    return _androidTestAdUnitId;
   }
 
   /// Initialize AdMob
@@ -34,77 +34,86 @@ class AdMobService {
     }
   }
 
-  /// Load rewarded ad in background
-  static Future<void> preloadRewardedAd() async {
-    if (_isAdLoading || _rewardedAd != null) {
+  /// Load rewarded ad in background for a specific ad number
+  static Future<void> preloadRewardedAd({int adNumber = 1}) async {
+    if (_isAdLoading[adNumber] == true || _rewardedAds[adNumber] != null) {
+      debugPrint('⏭️ Ad $adNumber already loading or loaded');
       return;
     }
 
-    _isAdLoading = true;
+    _isAdLoading[adNumber] = true;
     try {
+      final adUnitId = getRewardedAdUnitId(adNumber);
+      debugPrint('📥 Preloading ad $adNumber with unit: $adUnitId');
+
       await RewardedAd.load(
-        adUnitId: rewardedAdUnitId,
+        adUnitId: adUnitId,
         request: const AdRequest(),
         rewardedAdLoadCallback: RewardedAdLoadCallback(
           onAdLoaded: (ad) {
-            _rewardedAd = ad;
-            _isAdLoading = false;
-            debugPrint('✅ Rewarded ad preloaded successfully');
+            _rewardedAds[adNumber] = ad;
+            _isAdLoading[adNumber] = false;
+            debugPrint('✅ Rewarded ad $adNumber preloaded successfully');
           },
           onAdFailedToLoad: (error) {
-            _isAdLoading = false;
-            debugPrint('❌ Rewarded ad failed to load: $error');
+            _isAdLoading[adNumber] = false;
+            debugPrint('❌ Rewarded ad $adNumber failed to load: $error');
           },
         ),
       );
     } catch (e) {
-      _isAdLoading = false;
-      debugPrint('❌ Error preloading rewarded ad: $e');
+      _isAdLoading[adNumber] = false;
+      debugPrint('❌ Error preloading rewarded ad $adNumber: $e');
     }
   }
 
-  /// Show rewarded ad with proper callback handling
-  static Future<bool> showRewardedAd() async {
+  /// Show rewarded ad with proper callback handling for a specific ad number
+  static Future<bool> showRewardedAd({int adNumber = 1}) async {
     try {
+      debugPrint('🎬 Attempting to show ad $adNumber');
+
       // If no preloaded ad, load one now
-      if (_rewardedAd == null) {
-        debugPrint('📺 No preloaded ad, loading now...');
-        await _loadAndShowRewardedAd();
+      if (_rewardedAds[adNumber] == null) {
+        debugPrint('📺 No preloaded ad $adNumber, loading now...');
+        await _loadAndShowRewardedAd(adNumber);
       } else {
-        debugPrint('📺 Showing preloaded ad...');
-        await _showAd(_rewardedAd!);
+        debugPrint('📺 Showing preloaded ad $adNumber...');
+        await _showAd(_rewardedAds[adNumber]!, adNumber);
       }
 
       // Preload next ad for future use
       Future.delayed(const Duration(seconds: 1), () {
-        preloadRewardedAd();
+        preloadRewardedAd(adNumber: adNumber);
       });
 
       return true;
     } catch (e) {
-      debugPrint('❌ Error showing rewarded ad: $e');
+      debugPrint('❌ Error showing rewarded ad $adNumber: $e');
       return false;
     }
   }
 
-  /// Load and show rewarded ad
-  static Future<void> _loadAndShowRewardedAd() async {
+  /// Load and show rewarded ad for a specific ad number
+  static Future<void> _loadAndShowRewardedAd(int adNumber) async {
     try {
       RewardedAd? rewardedAd;
       bool adLoaded = false;
 
+      final adUnitId = getRewardedAdUnitId(adNumber);
+      debugPrint('📥 Loading ad $adNumber with unit: $adUnitId');
+
       await RewardedAd.load(
-        adUnitId: rewardedAdUnitId,
+        adUnitId: adUnitId,
         request: const AdRequest(),
         rewardedAdLoadCallback: RewardedAdLoadCallback(
           onAdLoaded: (ad) {
             rewardedAd = ad;
             adLoaded = true;
-            debugPrint('✅ Rewarded ad loaded');
+            debugPrint('✅ Rewarded ad $adNumber loaded');
           },
           onAdFailedToLoad: (error) {
             adLoaded = true; // Mark as done even if failed
-            debugPrint('❌ Rewarded ad failed to load: $error');
+            debugPrint('❌ Rewarded ad $adNumber failed to load: $error');
           },
         ),
       );
@@ -117,44 +126,47 @@ class AdMobService {
       }
 
       if (rewardedAd != null) {
-        await _showAd(rewardedAd!);
+        debugPrint('📺 Showing loaded ad $adNumber');
+        await _showAd(rewardedAd!, adNumber);
       } else {
-        debugPrint('⚠️ Ad failed to load within timeout');
+        debugPrint('⚠️ Ad $adNumber failed to load within timeout');
       }
     } catch (e) {
-      debugPrint('❌ Error in _loadAndShowRewardedAd: $e');
+      debugPrint('❌ Error in _loadAndShowRewardedAd for ad $adNumber: $e');
     }
   }
 
-  /// Show ad with proper callbacks
-  static Future<void> _showAd(RewardedAd ad) async {
+  /// Show ad with proper callbacks for a specific ad number
+  static Future<void> _showAd(RewardedAd ad, int adNumber) async {
     try {
       bool adCompleted = false;
 
       ad.fullScreenContentCallback = FullScreenContentCallback(
         onAdShowedFullScreenContent: (ad) {
-          debugPrint('📺 Ad shown');
+          debugPrint('📺 Ad $adNumber shown');
         },
         onAdDismissedFullScreenContent: (ad) {
-          debugPrint('📺 Ad dismissed');
+          debugPrint('📺 Ad $adNumber dismissed');
           ad.dispose();
-          _rewardedAd = null;
+          _rewardedAds[adNumber] = null;
           adCompleted = true;
         },
         onAdFailedToShowFullScreenContent: (ad, error) {
-          debugPrint('❌ Ad failed to show: $error');
+          debugPrint('❌ Ad $adNumber failed to show: $error');
           ad.dispose();
-          _rewardedAd = null;
+          _rewardedAds[adNumber] = null;
           adCompleted = true;
         },
         onAdImpression: (ad) {
-          debugPrint('👁️ Ad impression');
+          debugPrint('👁️ Ad $adNumber impression');
         },
       );
 
       await ad.show(
         onUserEarnedReward: (ad, reward) {
-          debugPrint('🎁 User earned reward: ${reward.amount} ${reward.type}');
+          debugPrint(
+            '🎁 User earned reward from ad $adNumber: ${reward.amount} ${reward.type}',
+          );
         },
       );
 
@@ -166,18 +178,22 @@ class AdMobService {
       }
 
       if (waitTime >= 120) {
-        debugPrint('⚠️ Ad completion timeout');
+        debugPrint('⚠️ Ad $adNumber completion timeout');
         ad.dispose();
-        _rewardedAd = null;
+        _rewardedAds[adNumber] = null;
       }
     } catch (e) {
-      debugPrint('❌ Error showing ad: $e');
+      debugPrint('❌ Error showing ad $adNumber: $e');
     }
   }
 
   /// Dispose of any loaded ads
   static void dispose() {
-    _rewardedAd?.dispose();
-    _rewardedAd = null;
+    for (var ad in _rewardedAds.values) {
+      ad?.dispose();
+    }
+    _rewardedAds.clear();
+    _isAdLoading.clear();
+    debugPrint('🧹 AdMob ads disposed');
   }
 }

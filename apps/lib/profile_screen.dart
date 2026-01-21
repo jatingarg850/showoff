@@ -19,7 +19,8 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen>
+    with WidgetsBindingObserver {
   List<Map<String, dynamic>> _posts = [];
   List<Map<String, dynamic>> _sytPosts = [];
   List<Map<String, dynamic>> _likedPosts = [];
@@ -36,7 +37,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadUserData();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Refresh liked posts when app comes to foreground
+    if (state == AppLifecycleState.resumed) {
+      _refreshLikedPosts();
+    }
+  }
+
+  Future<void> _refreshLikedPosts() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userId = authProvider.user?['_id'] ?? authProvider.user?['id'];
+
+    if (userId != null && userId.isNotEmpty) {
+      try {
+        final likedResponse = await ApiService.getUserLikedPosts(userId);
+        if (likedResponse['success']) {
+          final likedPosts = List<Map<String, dynamic>>.from(
+            likedResponse['data'] ?? [],
+          );
+
+          if (mounted) {
+            setState(() {
+              _likedPosts = likedPosts;
+            });
+            print('✅ Refreshed ${likedPosts.length} liked posts');
+          }
+        }
+      } catch (e) {
+        print('Error refreshing liked posts: $e');
+      }
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -63,12 +104,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final results = await Future.wait([
             ApiService.getUserPosts(userId),
             ApiService.getSYTEntries(),
-            ApiService.getFeed(page: 1, limit: 20),
+            ApiService.getUserLikedPosts(userId),
           ]);
 
           final response = results[0];
           final sytResponse = results[1];
-          final feedResponse = results[2];
+          final likedResponse = results[2];
 
           // Process regular posts
           if (response['success']) {
@@ -92,21 +133,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             });
           }
 
-          // Process liked posts
-          if (feedResponse['success']) {
-            final posts = List<Map<String, dynamic>>.from(
-              feedResponse['data'] ?? [],
+          // Process liked posts - now using dedicated endpoint
+          if (likedResponse['success']) {
+            final likedPosts = List<Map<String, dynamic>>.from(
+              likedResponse['data'] ?? [],
             );
-            final likedPosts = posts
-                .where((post) => post['isLiked'] == true)
-                .toList();
 
             setState(() {
               _likedPosts = likedPosts;
             });
 
             print(
-              '✅ Loaded ${likedPosts.length} liked posts (1 API call instead of 105)',
+              '✅ Loaded ${likedPosts.length} liked posts from dedicated endpoint',
             );
           }
 

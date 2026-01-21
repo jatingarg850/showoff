@@ -826,14 +826,30 @@
 
     function manageCoins(userId, userName) {
         const action = prompt(`Manage coins for ${userName}:\nEnter 'add' or 'subtract':`);
-        if (!action || (action !== 'add' && action !== 'subtract')) return;
+        if (!action || (action.toLowerCase() !== 'add' && action.toLowerCase() !== 'subtract')) {
+            alert('Invalid action. Please enter "add" or "subtract".');
+            return;
+        }
         
-        const amount = parseInt(prompt(`Enter amount to ${action}:`));
-        if (!amount || amount <= 0) return;
+        const amountStr = prompt(`Enter amount to ${action}:`);
+        const amount = parseInt(amountStr);
+        if (!amountStr || isNaN(amount) || amount <= 0) {
+            alert('Invalid amount. Please enter a positive number.');
+            return;
+        }
         
         const reason = prompt('Enter reason (optional):') || `Admin ${action} coins`;
         
-        if (confirmAction(`${action === 'add' ? 'Add' : 'Subtract'} ${amount} coins ${action === 'add' ? 'to' : 'from'} ${userName}?`)) {
+        const confirmMsg = `${action.toLowerCase() === 'add' ? 'Add' : 'Subtract'} ${amount} coins ${action.toLowerCase() === 'add' ? 'to' : 'from'} ${userName}?\n\nReason: ${reason}`;
+        
+        if (confirmAction(confirmMsg)) {
+            console.log('📝 Sending coin update request:', {
+                userId,
+                amount,
+                type: action.toLowerCase(),
+                reason
+            });
+            
             fetch(`/api/admin/users/${userId}/coins`, {
                 method: 'PUT',
                 headers: {
@@ -842,21 +858,26 @@
                 credentials: 'include',
                 body: JSON.stringify({
                     amount: amount,
-                    type: action,
+                    type: action.toLowerCase(),
                     reason: reason
                 })
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('📊 Response status:', response.status);
+                return response.json();
+            })
             .then(data => {
+                console.log('✅ Response data:', data);
                 if (data.success) {
-                    alert(`Coins ${action === 'add' ? 'added' : 'removed'} successfully`);
+                    alert(`✅ Coins ${action.toLowerCase() === 'add' ? 'added' : 'removed'} successfully!\n\nNew Balance: ${data.data.coinBalance} coins`);
                     window.location.reload();
                 } else {
-                    alert('Error: ' + data.message);
+                    alert('❌ Error: ' + (data.message || 'Unknown error'));
                 }
             })
             .catch(error => {
-                alert('Error: ' + error.message);
+                console.error('❌ Fetch error:', error);
+                alert('❌ Error: ' + error.message);
             });
         }
     }

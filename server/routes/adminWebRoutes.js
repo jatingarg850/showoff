@@ -851,6 +851,91 @@ router.get('/terms-and-conditions', checkAdminWeb, async (req, res) => {
   }
 });
 
+// Subscriptions Management
+router.get('/subscriptions', checkAdminWeb, async (req, res) => {
+  try {
+    const { SubscriptionPlan, UserSubscription } = require('../models/Subscription');
+    
+    // Get all subscription plans
+    const plans = await SubscriptionPlan.find().sort({ displayOrder: 1 });
+    
+    console.log('📊 Subscription Plans Found:', plans.length);
+    plans.forEach(p => {
+      console.log(`  - ${p.name} (${p.tier}): price=${p.price}, legacyPrice=${JSON.stringify(p.legacyPrice)}`);
+    });
+    
+    // Get subscriber counts for each plan
+    const subscriberCounts = await UserSubscription.aggregate([
+      { $match: { status: 'active' } },
+      { $group: { _id: '$plan', count: { $sum: 1 } } }
+    ]);
+    
+    const plansWithCounts = plans.map(plan => {
+      const planObj = plan.toObject();
+      
+      // Handle price - support both old (object) and new (number) formats
+      let price = planObj.price;
+      if (typeof price === 'object' && price !== null) {
+        // Old format: { monthly: 2499, yearly: 24990 }
+        price = price.monthly || 249900; // Default to monthly or convert yearly
+      }
+      
+      // Handle features - support both old (object) and new (array) formats
+      let features = planObj.features || [];
+      if (typeof features === 'object' && !Array.isArray(features)) {
+        // Old format: convert object to array
+        features = Object.entries(features)
+          .filter(([key, value]) => value === true || typeof value === 'number')
+          .map(([key, value]) => {
+            // Convert camelCase to readable text
+            return key.replace(/([A-Z])/g, ' $1').trim();
+          });
+      }
+      
+      return {
+        ...planObj,
+        price: price,
+        features: features || planObj.highlightedFeatures || [],
+        subscriberCount: subscriberCounts.find(s => s._id.equals(plan._id))?.count || 0
+      };
+    });
+    
+    console.log('✅ Plans with counts:', plansWithCounts.map(p => ({ name: p.name, price: p.price, subscribers: p.subscriberCount })));
+    
+    // Get recent subscriptions
+    const recentSubscriptions = await UserSubscription.find()
+      .populate('user', 'username displayName email profilePicture')
+      .populate('plan', 'name tier')
+      .sort({ createdAt: -1 })
+      .limit(10);
+    
+    // Get revenue stats
+    const revenueStats = await UserSubscription.aggregate([
+      { $match: { status: 'active' } },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: '$amountPaid' },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    console.log('💰 Revenue Stats:', revenueStats[0] || { totalRevenue: 0, count: 0 });
+    
+    res.render('admin/subscriptions', {
+      currentPage: 'subscriptions',
+      pageTitle: 'Subscription Management',
+      plans: plansWithCounts,
+      recentSubscriptions: recentSubscriptions,
+      stats: revenueStats[0] || { totalRevenue: 0, count: 0 }
+    });
+  } catch (error) {
+    console.error('❌ Subscriptions page error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
 // Music Management
 const musicController = require('../controllers/musicController');
 
@@ -895,3 +980,186 @@ router.put('/music/:id', checkAdminWeb, musicController.updateMusic);
 router.delete('/music/:id', checkAdminWeb, musicController.deleteMusic);
 
 module.exports = router;
+
+
+// Video Ads Management
+router.get('/video-ads', checkAdminWeb, async (req, res) => {
+  try {
+    const VideoAd = require('../models/VideoAd');
+    
+    // Get all video ads
+    const videoAds = await VideoAd.find()
+      .populate('uploadedBy', 'username email')
+      .sort({ createdAt: -1 });
+    
+    // Calculate stats for each ad
+    const adsWithStats = videoAds.map(ad => ({
+      ...ad.toObject(),
+      ctr: ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) : 0,
+      conversionRate: ad.clicks > 0 ? ((ad.conversions / ad.clicks) * 100).toFixed(2) : 0,
+      completionRate: ad.views > 0 ? ((ad.completions / ad.views) * 100).toFixed(2) : 0
+    }));
+    
+    // Get total stats
+    const totalStats = {
+      totalImpressions: videoAds.reduce((sum, ad) => sum + ad.impressions, 0),
+      totalClicks: videoAds.reduce((sum, ad) => sum + ad.clicks, 0),
+      totalConversions: videoAds.reduce((sum, ad) => sum + ad.conversions, 0),
+      totalViews: videoAds.reduce((sum, ad) => sum + ad.views, 0),
+      totalCompletions: videoAds.reduce((sum, ad) => sum + ad.completions, 0),
+      totalServed: videoAds.reduce((sum, ad) => sum + ad.servedCount, 0)
+    };
+    
+    res.render('admin/video-ads', {
+      currentPage: 'video-ads',
+      pageTitle: 'Video Ads Management',
+      videoAds: adsWithStats,
+      stats: totalStats
+    });
+  } catch (error) {
+    console.error('Video ads page error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// Create Video Ad (API endpoint for AJAX)
+router.post('/video-ads/create', checkAdminWeb, async (req, res) => {
+  try {
+    const { title, description, videoUrl, thumbnailUrl, duration, rewardCoins, icon, color, rotationOrder } = req.body;
+    
+    if (!title || !videoUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title and video URL are required'
+      });
+    }
+    
+    const VideoAd = require('../models/VideoAd');
+    const videoAd = await VideoAd.create({
+      title,
+      description: description || 'Watch this video to earn coins',
+      videoUrl,
+      thumbnailUrl,
+      duration: duration || 30,
+      rewardCoins: rewardCoins || 10,
+      icon: icon || 'video',
+      color: color || '#667eea',
+      rotationOrder: rotationOrder || 0,
+      uploadedBy: req.user.id,
+    });
+    
+    res.json({
+      success: true,
+      message: 'Video ad created successfully',
+      data: videoAd
+    });
+  } catch (error) {
+    console.error('Error creating video ad:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// Update Video Ad (API endpoint for AJAX)
+router.post('/video-ads/:id/update', checkAdminWeb, async (req, res) => {
+  try {
+    const { title, description, videoUrl, thumbnailUrl, duration, rewardCoins, icon, color, isActive, rotationOrder } = req.body;
+    
+    const VideoAd = require('../models/VideoAd');
+    let videoAd = await VideoAd.findById(req.params.id);
+    if (!videoAd) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video ad not found'
+      });
+    }
+    
+    // Update fields
+    if (title) videoAd.title = title;
+    if (description) videoAd.description = description;
+    if (videoUrl) videoAd.videoUrl = videoUrl;
+    if (thumbnailUrl) videoAd.thumbnailUrl = thumbnailUrl;
+    if (duration) videoAd.duration = duration;
+    if (rewardCoins) videoAd.rewardCoins = rewardCoins;
+    if (icon) videoAd.icon = icon;
+    if (color) videoAd.color = color;
+    if (isActive !== undefined) videoAd.isActive = isActive;
+    if (rotationOrder !== undefined) videoAd.rotationOrder = rotationOrder;
+    
+    await videoAd.save();
+    
+    res.json({
+      success: true,
+      message: 'Video ad updated successfully',
+      data: videoAd
+    });
+  } catch (error) {
+    console.error('Error updating video ad:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// Delete Video Ad (API endpoint for AJAX)
+router.post('/video-ads/:id/delete', checkAdminWeb, async (req, res) => {
+  try {
+    const VideoAd = require('../models/VideoAd');
+    const videoAd = await VideoAd.findByIdAndDelete(req.params.id);
+    
+    if (!videoAd) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video ad not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Video ad deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting video ad:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// Reset Video Ad Stats (API endpoint for AJAX)
+router.post('/video-ads/:id/reset-stats', checkAdminWeb, async (req, res) => {
+  try {
+    const VideoAd = require('../models/VideoAd');
+    const videoAd = await VideoAd.findById(req.params.id);
+    if (!videoAd) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video ad not found'
+      });
+    }
+    
+    videoAd.impressions = 0;
+    videoAd.clicks = 0;
+    videoAd.conversions = 0;
+    videoAd.views = 0;
+    videoAd.completions = 0;
+    videoAd.servedCount = 0;
+    await videoAd.save();
+    
+    res.json({
+      success: true,
+      message: 'Video ad statistics reset',
+      data: videoAd
+    });
+  } catch (error) {
+    console.error('Error resetting stats:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});

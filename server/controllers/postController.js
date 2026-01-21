@@ -399,6 +399,42 @@ exports.getUserPosts = async (req, res) => {
   }
 };
 
+// @desc    Get user's liked posts
+// @route   GET /api/posts/user/:userId/liked
+// @access  Public
+exports.getUserLikedPosts = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    
+    // Get all likes by this user
+    const likes = await Like.find({ user: userId })
+      .populate({
+        path: 'post',
+        match: { isActive: true },
+        populate: [
+          { path: 'user', select: 'username displayName profilePicture isVerified' },
+          { path: 'backgroundMusic', select: 'title artist audioUrl duration genre mood' }
+        ]
+      })
+      .sort({ createdAt: -1 });
+
+    // Filter out null posts (deleted or inactive)
+    const likedPosts = likes
+      .map(like => like.post)
+      .filter(post => post !== null);
+
+    res.status(200).json({
+      success: true,
+      data: likedPosts,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 // @desc    Like/Unlike post
 // @route   POST /api/posts/:id/like
 // @access  Private

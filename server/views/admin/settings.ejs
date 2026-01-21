@@ -336,6 +336,16 @@
                                 <input type="number" id="referralReward" value="50" min="0">
                             </div>
                             <div class="form-group">
+                                <label for="voteCost">Vote Cost (coins deducted from voter)</label>
+                                <input type="number" id="voteCost" value="1" min="0">
+                                <small style="color: #64748b; display: block; margin-top: 0.25rem;">Cost for voting on SYT entries</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="voteReward">Vote Reward (coins awarded to creator)</label>
+                                <input type="number" id="voteReward" value="1" min="0">
+                                <small style="color: #64748b; display: block; margin-top: 0.25rem;">Reward for receiving a vote on SYT entry</small>
+                            </div>
+                            <div class="form-group">
                                 <label for="dailyAdLimit">Daily Ad Limit</label>
                                 <input type="number" id="dailyAdLimit" value="10" min="1">
                             </div>
@@ -532,6 +542,8 @@
                 uploadReward: parseInt(document.getElementById('uploadReward').value),
                 adWatchReward: parseInt(document.getElementById('adWatchReward').value),
                 referralReward: parseInt(document.getElementById('referralReward').value),
+                voteCost: parseInt(document.getElementById('voteCost').value),
+                voteReward: parseInt(document.getElementById('voteReward').value),
                 dailyAdLimit: parseInt(document.getElementById('dailyAdLimit').value),
                 minWithdrawal: parseInt(document.getElementById('minWithdrawal').value)
             });

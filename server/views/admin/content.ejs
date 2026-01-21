@@ -351,6 +351,171 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* Post Detail Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            padding: 2rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #1e293b;
+            font-size: 1.5rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #64748b;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: #1e293b;
+        }
+
+        .modal-body {
+            padding: 2rem;
+        }
+
+        .post-detail-section {
+            margin-bottom: 2rem;
+        }
+
+        .post-detail-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 1rem;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .detail-item {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+        }
+
+        .detail-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .detail-value {
+            font-size: 1rem;
+            color: #1e293b;
+            font-weight: 500;
+            word-break: break-word;
+        }
+
+        .media-preview {
+            width: 100%;
+            max-height: 400px;
+            border-radius: 8px;
+            object-fit: cover;
+            margin-bottom: 1rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .user-details h4 {
+            margin: 0;
+            color: #1e293b;
+            font-size: 0.95rem;
+        }
+
+        .user-details p {
+            margin: 0.25rem 0 0 0;
+            color: #64748b;
+            font-size: 0.85rem;
+        }
+
+        .badge-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: #e0e7ff;
+            color: #4f46e5;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge.active {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .badge.reported {
+            background: #fee2e2;
+            color: #dc2626;
+        }
     </style>
 </head>
 <body>
@@ -584,7 +749,7 @@
             headers: {
                 'Content-Type': 'application/json'
             },
-            credentials: 'include' // Include session cookies
+            credentials: 'include'
         })
         .then(response => {
             if (!response.ok) {
@@ -594,8 +759,7 @@
         })
         .then(data => {
             if (data.success) {
-                // Show detailed modal with content info
-                alert('Content details:\n' + JSON.stringify(data.data, null, 2));
+                displayPostModal(data.data);
             } else {
                 alert('Error: ' + (data.message || 'Failed to load content details'));
             }
@@ -605,6 +769,135 @@
             alert('Error: ' + error.message);
         });
     }
+
+    function displayPostModal(post) {
+        const modal = document.getElementById('postDetailModal');
+        const modalBody = document.getElementById('modalBody');
+        
+        const userAvatar = post.user?.profilePicture || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22%3E%3Crect fill=%22%23ddd%22 width=%2250%22 height=%2250%22/%3E%3C/svg%3E';
+        
+        const html = `
+            <div class="post-detail-section">
+                <div class="section-title">Media</div>
+                ${post.mediaUrl ? `<${post.type === 'video' || post.type === 'reel' ? 'video' : 'img'} src="${post.mediaUrl}" class="media-preview" ${post.type === 'video' || post.type === 'reel' ? 'controls' : ''} />` : '<p style="color: #64748b;">No media available</p>'}
+            </div>
+
+            <div class="post-detail-section">
+                <div class="section-title">Creator</div>
+                <div class="user-info">
+                    <img src="${userAvatar}" alt="${post.user?.displayName}" class="user-avatar" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2250%22%3E%3Crect fill=%22%23ddd%22 width=%2250%22 height=%2250%22/%3E%3C/svg%3E'">
+                    <div class="user-details">
+                        <h4>${post.user?.displayName || 'Unknown'}</h4>
+                        <p>@${post.user?.username || 'N/A'}</p>
+                        <p>${post.user?.email || 'N/A'}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="post-detail-section">
+                <div class="section-title">Content Details</div>
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <div class="detail-label">Type</div>
+                        <div class="detail-value">${post.type?.toUpperCase() || 'N/A'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Visibility</div>
+                        <div class="detail-value">${post.visibility?.toUpperCase() || 'PUBLIC'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Posted</div>
+                        <div class="detail-value">${new Date(post.createdAt).toLocaleDateString()}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Status</div>
+                        <div class="detail-value">
+                            <span class="badge ${post.isActive ? 'active' : ''}">
+                                ${post.isActive ? '✓ Active' : '✗ Inactive'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            ${post.caption ? `
+            <div class="post-detail-section">
+                <div class="section-title">Caption</div>
+                <div class="detail-item">
+                    <div class="detail-value">${post.caption}</div>
+                </div>
+            </div>
+            ` : ''}
+
+            ${post.hashtags && post.hashtags.length > 0 ? `
+            <div class="post-detail-section">
+                <div class="section-title">Hashtags</div>
+                <div class="badge-group">
+                    ${post.hashtags.map(tag => `<span class="badge">#${tag}</span>`).join('')}
+                </div>
+            </div>
+            ` : ''}
+
+            <div class="post-detail-section">
+                <div class="section-title">Engagement</div>
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <div class="detail-label">Likes</div>
+                        <div class="detail-value"><i class="fas fa-heart" style="color: #ef4444;"></i> ${post.likesCount || 0}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Comments</div>
+                        <div class="detail-value"><i class="fas fa-comment" style="color: #3b82f6;"></i> ${post.commentsCount || 0}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Shares</div>
+                        <div class="detail-value"><i class="fas fa-share" style="color: #10b981;"></i> ${post.sharesCount || 0}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Views</div>
+                        <div class="detail-value"><i class="fas fa-eye" style="color: #8b5cf6;"></i> ${post.viewsCount || 0}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="post-detail-section">
+                <div class="section-title">Monetization</div>
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <div class="detail-label">Coins Earned</div>
+                        <div class="detail-value" style="color: #f59e0b; font-weight: 700;">₹${post.coinsEarned || 0}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Report Status</div>
+                        <div class="detail-value">
+                            <span class="badge ${post.isReported ? 'reported' : ''}">
+                                ${post.isReported ? '⚠️ Reported' : '✓ Clear'}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Report Count</div>
+                        <div class="detail-value">${post.reportCount || 0}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        modalBody.innerHTML = html;
+        modal.classList.add('active');
+    }
+
+    function closePostModal() {
+        const modal = document.getElementById('postDetailModal');
+        modal.classList.remove('active');
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('postDetailModal')?.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closePostModal();
+        }
+    });
 
     // Filter functionality
     document.getElementById('type-filter').addEventListener('change', function() {
@@ -627,6 +920,21 @@
 </script>
             </div>
         </main>
+    </div>
+
+    <!-- Post Detail Modal -->
+    <div id="postDetailModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Post Details</h2>
+                <button class="modal-close" onclick="closePostModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Content will be inserted here -->
+            </div>
+        </div>
     </div>
 </body>
 </html>

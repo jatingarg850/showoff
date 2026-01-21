@@ -4,6 +4,7 @@ const {
   getDashboardStats,
   getUsers,
   getPosts,
+  getPostDetail,
   getFinancialOverview,
   updateUserStatus
 } = require('../controllers/adminController');
@@ -111,6 +112,7 @@ router.delete('/users/:id', require('../controllers/adminController').deleteUser
 
 // Content Moderation
 router.get('/posts', getPosts);
+router.get('/posts/:id', getPostDetail);
 router.put('/posts/:id/status', require('../controllers/adminController').updatePostStatus);
 router.delete('/posts/:id', require('../controllers/adminController').deletePost);
 

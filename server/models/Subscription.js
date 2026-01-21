@@ -8,68 +8,49 @@ const subscriptionPlanSchema = new mongoose.Schema({
   },
   tier: {
     type: String,
-    enum: ['free', 'basic', 'pro', 'vip'],
+    enum: ['free', 'basic', 'premium', 'pro', 'vip'],
     required: true,
     unique: true
   },
   
-  // Pricing
+  // Pricing - Support both formats for backward compatibility
   price: {
-    monthly: {
-      type: Number,
-      required: true
-    },
-    yearly: {
-      type: Number
-    }
+    type: Number,
+    required: true
+  },
+  // Legacy pricing format (kept for backward compatibility)
+  legacyPrice: {
+    monthly: Number,
+    yearly: Number
   },
   currency: {
     type: String,
     default: 'INR'
   },
   
-  // Features
+  // Duration in days
+  duration: {
+    type: Number,
+    default: 30
+  },
+  
+  // Features - Array of strings for admin panel
   features: {
-    maxUploadsPerDay: {
-      type: Number,
-      default: 10
-    },
-    maxStorageGB: {
-      type: Number,
-      default: 5
-    },
-    canParticipateInSYT: {
-      type: Boolean,
-      default: true
-    },
-    prioritySupport: {
-      type: Boolean,
-      default: false
-    },
-    verifiedBadge: {
-      type: Boolean,
-      default: false
-    },
-    adFree: {
-      type: Boolean,
-      default: false
-    },
-    customProfile: {
-      type: Boolean,
-      default: false
-    },
-    analyticsAccess: {
-      type: Boolean,
-      default: false
-    },
-    coinBonus: {
-      type: Number,
-      default: 0
-    },
-    uploadRewardMultiplier: {
-      type: Number,
-      default: 1
-    }
+    type: [String],
+    default: []
+  },
+  // Legacy features object (kept for backward compatibility)
+  legacyFeatures: {
+    maxUploadsPerDay: Number,
+    maxStorageGB: Number,
+    canParticipateInSYT: Boolean,
+    prioritySupport: Boolean,
+    verifiedBadge: Boolean,
+    adFree: Boolean,
+    customProfile: Boolean,
+    analyticsAccess: Boolean,
+    coinBonus: Number,
+    uploadRewardMultiplier: Number
   },
   
   // Status

@@ -27,12 +27,20 @@ exports.getPlans = async (req, res) => {
 // @access  Private
 exports.createSubscriptionOrder = async (req, res) => {
   try {
-    const { amount } = req.body;
+    const { planId } = req.body;
 
-    if (!amount || amount <= 0) {
+    if (!planId) {
       return res.status(400).json({
         success: false,
-        message: 'Valid amount is required'
+        message: 'Plan ID is required'
+      });
+    }
+
+    const plan = await SubscriptionPlan.findById(planId);
+    if (!plan || !plan.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Plan not found or inactive'
       });
     }
 
@@ -57,13 +65,13 @@ exports.createSubscriptionOrder = async (req, res) => {
     const receipt = `s_${userIdShort}_${timestamp}`; // s_ prefix for subscription
 
     const options = {
-      amount: Math.round(amount * 100), // Convert to paise
+      amount: Math.round(plan.price * 100), // Convert to paise
       currency: 'INR',
       receipt: receipt,
       notes: {
         userId: req.user.id,
         type: 'subscription',
-        planTier: 'pro',
+        planId: plan._id,
       },
     };
 
@@ -87,7 +95,7 @@ exports.createSubscriptionOrder = async (req, res) => {
 // @access  Private
 exports.subscribe = async (req, res) => {
   try {
-    const { planId, billingCycle, paymentMethod, transactionId } = req.body;
+    const { planId, paymentMethod, transactionId } = req.body;
 
     const plan = await SubscriptionPlan.findById(planId);
     if (!plan || !plan.isActive) {
@@ -111,8 +119,8 @@ exports.subscribe = async (req, res) => {
     }
 
     // Calculate amount and end date
-    const amount = billingCycle === 'yearly' ? plan.price.yearly : plan.price.monthly;
-    const duration = billingCycle === 'yearly' ? 365 : 30;
+    const amount = plan.price;
+    const duration = plan.duration || 30;
     const endDate = new Date(Date.now() + duration * 24 * 60 * 60 * 1000);
     const nextBillingDate = new Date(endDate);
 
@@ -121,7 +129,7 @@ exports.subscribe = async (req, res) => {
       user: req.user.id,
       plan: planId,
       status: 'active',
-      billingCycle,
+      billingCycle: 'monthly',
       startDate: new Date(),
       endDate,
       nextBillingDate,
@@ -143,7 +151,7 @@ exports.subscribe = async (req, res) => {
       user: req.user.id,
       type: 'subscription',
       amount: -amount,
-      description: `Subscription to ${plan.name} (${billingCycle})`,
+      description: `Subscription to ${plan.name}`,
       status: 'completed',
       metadata: {
         subscriptionId: subscription._id,
@@ -453,15 +461,7 @@ exports.verifySubscriptionPayment = async (req, res) => {
     }
 
     // Get the subscription plan
-    let plan;
-    if (planId) {
-      // Use provided planId
-      plan = await SubscriptionPlan.findById(planId);
-    } else {
-      // Fallback to pro plan
-      plan = await SubscriptionPlan.findOne({ tier: 'pro' });
-    }
-
+    const plan = await SubscriptionPlan.findById(planId);
     if (!plan) {
       return res.status(404).json({
         success: false,
@@ -483,7 +483,8 @@ exports.verifySubscriptionPayment = async (req, res) => {
     }
 
     // Create subscription
-    const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    const duration = plan.duration || 30;
+    const endDate = new Date(Date.now() + duration * 24 * 60 * 60 * 1000);
     const subscription = await UserSubscription.create({
       user: req.user.id,
       plan: plan._id,
@@ -492,7 +493,7 @@ exports.verifySubscriptionPayment = async (req, res) => {
       startDate: new Date(),
       endDate,
       nextBillingDate: endDate,
-      amountPaid: plan.price.monthly,
+      amountPaid: plan.price,
       currency: plan.currency,
       paymentMethod: 'razorpay',
       transactionId: razorpayPaymentId,
@@ -511,9 +512,9 @@ exports.verifySubscriptionPayment = async (req, res) => {
     await Transaction.create({
       user: req.user.id,
       type: 'subscription',
-      amount: -plan.price.monthly,
+      amount: -plan.price,
       balanceAfter: user.coinBalance,
-      description: `Subscription to ${plan.name} (monthly)`,
+      description: `Subscription to ${plan.name}`,
       status: 'completed',
       metadata: {
         subscriptionId: subscription._id,

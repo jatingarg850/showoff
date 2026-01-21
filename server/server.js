@@ -234,6 +234,7 @@ app.use('/api/fraud', require('./routes/fraudRoutes'));
 app.use('/api/subscriptions', require('./routes/subscriptionRoutes'));
 app.use('/api/videos', require('./routes/videoRoutes'));
 app.use('/api/terms', require('./routes/termsRoutes'));
+app.use('/api', require('./routes/videoAdRoutes'));
 
 // Deep linking routes for mobile app
 app.get('/reel/:postId', async (req, res) => {
