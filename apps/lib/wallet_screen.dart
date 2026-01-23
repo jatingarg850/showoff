@@ -369,7 +369,9 @@ class _WalletScreenState extends State<WalletScreen>
                             final result = await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const AdSelectionScreen(),
+                                builder: (context) => const AdSelectionScreen(
+                                  adType: 'watch-ads',
+                                ),
                               ),
                             );
                             // Refresh balance if ad was watched

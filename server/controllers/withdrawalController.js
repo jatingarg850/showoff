@@ -42,6 +42,10 @@ exports.requestWithdrawal = async (req, res) => {
     const coinToInrRate = parseInt(process.env.COIN_TO_INR_RATE) || 1;
     const inrAmount = coinAmount / coinToInrRate;
     
+    // Convert INR to USD (1 USD ≈ 83 INR)
+    const inrToUsdRate = 1 / 83;
+    const usdAmount = inrAmount * inrToUsdRate;
+    
     // Local currency is INR
     const exchangeRates = {
       INR: 1,
@@ -96,6 +100,7 @@ exports.requestWithdrawal = async (req, res) => {
       user: user._id,
       coinAmount,
       inrAmount,
+      usdAmount,
       localAmount,
       currency: user.currency || 'INR',
       method,

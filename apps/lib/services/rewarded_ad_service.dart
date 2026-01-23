@@ -4,13 +4,17 @@ import 'package:http/http.dart' as http;
 import 'api_service.dart';
 
 class RewardedAdService {
-  /// Fetch rewarded ads from backend (NO CACHING - always fresh from server)
-  static Future<List<Map<String, dynamic>>> fetchRewardedAds() async {
+  /// Fetch rewarded ads from backend with optional type filter
+  static Future<List<Map<String, dynamic>>> fetchRewardedAds({
+    String? type,
+  }) async {
     try {
-      // Always fetch fresh data from server
-      final response = await http.get(
-        Uri.parse('${ApiService.baseUrl}/rewarded-ads'),
-      );
+      String url = '${ApiService.baseUrl}/rewarded-ads';
+      if (type != null) {
+        url += '?type=$type';
+      }
+
+      final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -21,18 +25,22 @@ class RewardedAdService {
 
       return [];
     } catch (e) {
-      debugPrint('Error fetching ads: $e');
-      // Return default ads if fetch fails
-      return getDefaultAds();
+      debugPrint('Error fetching rewarded ads: $e');
+      return [];
     }
   }
 
-  /// Fetch video ads from backend
-  static Future<List<Map<String, dynamic>>> fetchVideoAds() async {
+  /// Fetch video ads from backend with optional usage filter
+  static Future<List<Map<String, dynamic>>> fetchVideoAds({
+    String? usage,
+  }) async {
     try {
-      final response = await http.get(
-        Uri.parse('${ApiService.baseUrl}/video-ads'),
-      );
+      String url = '${ApiService.baseUrl}/video-ads';
+      if (usage != null) {
+        url += '?usage=$usage';
+      }
+
+      final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -50,7 +58,8 @@ class RewardedAdService {
                 'isActive': ad['isActive'],
                 'adType': 'video',
                 'videoUrl': ad['videoUrl'],
-                'thumbnailUrl': ad['thumbnailUrl'],
+                'thumbnailUrl':
+                    ad['thumbnailUrl'] ?? '', // Use empty string if null
                 'duration': ad['duration'],
               },
             ),
@@ -65,7 +74,7 @@ class RewardedAdService {
     }
   }
 
-  /// Fetch all ads (both rewarded and video)
+  /// Fetch all ads (both rewarded and video) - for backward compatibility
   static Future<List<Map<String, dynamic>>> fetchAllAds() async {
     try {
       final rewardedAds = await fetchRewardedAds();
@@ -96,6 +105,7 @@ class RewardedAdService {
         'icon': 'play-circle',
         'color': '#701CF5',
         'adProvider': 'admob',
+        'adType': 'rewarded',
         'isActive': true,
       },
       {
@@ -107,6 +117,7 @@ class RewardedAdService {
         'icon': 'video',
         'color': '#FF6B35',
         'adProvider': 'admob',
+        'adType': 'rewarded',
         'isActive': true,
       },
       {
@@ -118,6 +129,7 @@ class RewardedAdService {
         'icon': 'hand-pointer',
         'color': '#4FACFE',
         'adProvider': 'meta',
+        'adType': 'rewarded',
         'isActive': true,
       },
       {
@@ -129,6 +141,7 @@ class RewardedAdService {
         'icon': 'clipboard',
         'color': '#43E97B',
         'adProvider': 'custom',
+        'adType': 'rewarded',
         'isActive': true,
       },
       {
@@ -140,6 +153,7 @@ class RewardedAdService {
         'icon': 'star',
         'color': '#FBBF24',
         'adProvider': 'third-party',
+        'adType': 'rewarded',
         'isActive': true,
       },
     ];

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
+import 'dart:async';
 import 'services/admob_service.dart';
 import 'services/api_service.dart';
 import 'services/rewarded_ad_service.dart';
@@ -7,7 +9,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class AdSelectionScreen extends StatefulWidget {
-  const AdSelectionScreen({super.key});
+  final String adType; // 'watch-ads' or 'spin-wheel'
+
+  const AdSelectionScreen({super.key, this.adType = 'watch-ads'});
 
   @override
   State<AdSelectionScreen> createState() => _AdSelectionScreenState();
@@ -17,6 +21,8 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
   bool _isLoading = false;
   List<Map<String, dynamic>> _adOptions = [];
   bool _adsLoaded = false;
+  VideoPlayerController? _videoController;
+  bool _videoInitialized = false;
 
   @override
   void initState() {
@@ -26,11 +32,19 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
     _preloadAllAds();
   }
 
+  @override
+  void dispose() {
+    _videoController?.dispose();
+    super.dispose();
+  }
+
   Future<void> _preloadAllAds() async {
-    // Preload all 5 ads in background
-    for (int i = 1; i <= 5; i++) {
-      await Future.delayed(const Duration(milliseconds: 500));
-      AdMobService.preloadRewardedAd(adNumber: i);
+    // Preload all 5 ads in background (only for watch-ads)
+    if (widget.adType == 'watch-ads') {
+      for (int i = 1; i <= 5; i++) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        AdMobService.preloadRewardedAd(adNumber: i);
+      }
     }
   }
 
@@ -45,9 +59,28 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
         });
       }
 
-      // Then try to refresh from server in background (both rewarded and video ads)
+      // Then try to refresh from server in background
       try {
-        final ads = await RewardedAdService.fetchAllAds();
+        List<Map<String, dynamic>> ads = [];
+
+        if (widget.adType == 'watch-ads') {
+          // For watch ads, fetch ONLY AdMob rewarded ads (type=watch-ads)
+          // Do NOT include video ads - they are separate
+          final rewardedAds = await RewardedAdService.fetchRewardedAds(
+            type: 'watch-ads',
+          );
+          ads = rewardedAds;
+        } else if (widget.adType == 'spin-wheel') {
+          // For spin wheel, fetch BOTH rewarded ads AND video ads with spin-wheel type
+          final rewardedAds = await RewardedAdService.fetchRewardedAds(
+            type: 'spin-wheel',
+          );
+          final videoAds = await RewardedAdService.fetchVideoAds(
+            usage: 'spin-wheel',
+          );
+          ads = [...rewardedAds, ...videoAds];
+        }
+
         if (ads.isNotEmpty && mounted) {
           setState(() {
             _adOptions = ads;
@@ -139,9 +172,14 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
         setState(() => _isLoading = false);
 
         if (response['success']) {
-          // Show success dialog with actual reward earned
-          final coinsEarned = response['coinsEarned'] ?? reward;
-          _showSuccessDialog(coinsEarned, ad['title'] ?? 'Ad');
+          // For spin-wheel type, show success dialog with spin reward
+          if (widget.adType == 'spin-wheel') {
+            _showSpinRewardDialog();
+          } else {
+            // For watch-ads type, show success dialog with coins earned
+            final coinsEarned = response['coinsEarned'] ?? reward;
+            _showSuccessDialog(coinsEarned, ad['title'] ?? 'Ad');
+          }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -165,31 +203,159 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
     try {
       final videoUrl = ad['videoUrl'] as String?;
       if (videoUrl == null || videoUrl.isEmpty) {
+        debugPrint('❌ Video URL is empty');
         return false;
       }
 
-      bool completed = false;
+      debugPrint('🎬 Loading video ad: $videoUrl');
 
+      // Dispose previous controller if any
+      _videoController?.dispose();
+      _videoInitialized = false;
+
+      // Create video controller
+      _videoController = VideoPlayerController.networkUrl(
+        Uri.parse(videoUrl),
+        videoPlayerOptions: VideoPlayerOptions(
+          mixWithOthers: true,
+          allowBackgroundPlayback: false,
+        ),
+      );
+
+      // Initialize controller
+      await _videoController!.initialize();
+
+      if (!mounted) return false;
+
+      setState(() {
+        _videoInitialized = true;
+      });
+
+      // Set video properties
+      _videoController!.setLooping(false);
+      _videoController!.setVolume(1.0);
+
+      bool completed = false;
+      Completer<bool> completionCompleter = Completer<bool>();
+
+      // Add listener to detect video completion
+      void onVideoStateChanged() {
+        if (_videoController != null &&
+            _videoController!.value.isInitialized &&
+            _videoController!.value.position >=
+                _videoController!.value.duration &&
+            !completionCompleter.isCompleted) {
+          debugPrint('✅ Video completed via listener');
+          completed = true;
+          completionCompleter.complete(true);
+          // Auto-close dialog after video completes
+          if (mounted) {
+            Navigator.pop(context);
+          }
+        }
+      }
+
+      _videoController!.addListener(onVideoStateChanged);
+
+      // Show video player dialog
       await showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => Dialog(
           insetPadding: const EdgeInsets.all(0),
+          backgroundColor: Colors.black,
           child: Stack(
             children: [
-              // Video player
-              Container(
-                color: Colors.black,
-                child: Center(
+              // Video player - full screen
+              if (_videoInitialized)
+                SizedBox.expand(
+                  child: AspectRatio(
+                    aspectRatio: _videoController!.value.aspectRatio,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        VideoPlayer(_videoController!),
+                        // Play button overlay (shows until video starts)
+                        if (!_videoController!.value.isPlaying)
+                          Container(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            child: Center(
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.play_circle_filled,
+                                  color: Colors.white,
+                                  size: 80,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _videoController!.play();
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                        // Progress bar at bottom
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: VideoProgressIndicator(
+                            _videoController!,
+                            allowScrubbing: false,
+                            colors: VideoProgressColors(
+                              playedColor: Colors.red,
+                              bufferedColor: Colors.grey.withValues(alpha: 0.5),
+                              backgroundColor: Colors.grey.withValues(
+                                alpha: 0.3,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                // Loading state
+                Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.video_library,
-                        size: 64,
-                        color: Colors.white.withValues(alpha: 0.5),
+                      const CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                       const SizedBox(height: 16),
+                      Text(
+                        'Loading ${ad['title'] ?? 'video'}...',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              // Video info overlay at bottom
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.9),
+                        Colors.black.withValues(alpha: 0.7),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
                         ad['title'] ?? 'Video Ad',
                         style: const TextStyle(
@@ -200,44 +366,13 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Duration: ${ad['duration']}s',
+                        ad['description'] ?? 'Watch this video to earn rewards',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.7),
+                          color: Colors.white.withValues(alpha: 0.8),
                           fontSize: 14,
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      const CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Playing video...',
-                        style: TextStyle(color: Colors.white, fontSize: 14),
-                      ),
                     ],
-                  ),
-                ),
-              ),
-              // Close button
-              Positioned(
-                top: 16,
-                right: 16,
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 24,
-                    ),
                   ),
                 ),
               ),
@@ -246,13 +381,32 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
         ),
       );
 
-      // Simulate video watching (in real app, use video_player package)
-      await Future.delayed(Duration(seconds: ad['duration'] ?? 30));
-      completed = true;
+      // Start playing video
+      if (_videoController != null && _videoInitialized) {
+        _videoController!.play();
+        debugPrint('▶️ Video started playing');
+
+        // Wait for completion or timeout
+        try {
+          await Future.any([
+            completionCompleter.future,
+            Future.delayed(
+              Duration(seconds: (ad['duration'] ?? 30) + 5),
+            ), // Add 5 second buffer
+          ]);
+        } catch (e) {
+          debugPrint('⚠️ Completion wait error: $e');
+        }
+
+        completed = true;
+      }
+
+      // Remove listener
+      _videoController?.removeListener(onVideoStateChanged);
 
       return completed;
     } catch (e) {
-      debugPrint('Error showing video ad: $e');
+      debugPrint('❌ Error showing video ad: $e');
       return false;
     }
   }
@@ -348,6 +502,73 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
                   ),
                   child: const Text(
                     'Awesome!',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSpinRewardDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(30),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.purple.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.casino,
+                  color: Colors.purple.shade600,
+                  size: 60,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Congratulations!',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'You earned 1 free spin!',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 30),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context); // Close dialog
+                    Navigator.pop(context, true); // Close ad selection screen
+                    // Spin wheel screen will handle the spin refill
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8B5CF6),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Spin Now!',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -548,38 +769,72 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
                   ),
                 ),
 
-                // Reward badge
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isActive
-                        ? const Color(0xFFFBBF24)
-                        : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.monetization_on,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '+$reward',
-                        style: TextStyle(
-                          color: isActive ? Colors.white : Colors.grey.shade600,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
+                // Reward badge - only show for watch-ads, not for spin-wheel
+                if (widget.adType != 'spin-wheel')
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? const Color(0xFFFBBF24)
+                          : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.monetization_on,
+                          color: Colors.white,
+                          size: 16,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 4),
+                        Text(
+                          '+$reward',
+                          style: TextStyle(
+                            color: isActive
+                                ? Colors.white
+                                : Colors.grey.shade600,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  // For spin-wheel, show spin icon instead
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? const Color(0xFF8B5CF6)
+                          : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.casino, color: Colors.white, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Free Spin',
+                          style: TextStyle(
+                            color: isActive
+                                ? Colors.white
+                                : Colors.grey.shade600,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
               ],
             ),
 

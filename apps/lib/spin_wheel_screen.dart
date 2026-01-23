@@ -268,7 +268,6 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
                 const SizedBox(height: 40),
 
                 // 900 coins button
-                
                 const SizedBox(height: 16),
 
                 // Watch ads button
@@ -277,18 +276,30 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
                   child: ElevatedButton(
                     onPressed: () async {
                       Navigator.of(context).pop();
-                      // Navigate to ad selection screen
+                      // Navigate to ad selection screen with spin-wheel type
                       final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const AdSelectionScreen(),
+                          builder: (context) =>
+                              const AdSelectionScreen(adType: 'spin-wheel'),
                         ),
                       );
                       // If user watched ads successfully, refresh spins
                       if (result == true && mounted) {
-                        setState(() {
-                          _spinsLeft = 5; // Reset spins after watching ads
-                        });
+                        // Refresh spin status from backend instead of just incrementing
+                        final statusResponse =
+                            await ApiService.getSpinWheelStatus();
+                        if (statusResponse['success']) {
+                          setState(() {
+                            _spinsLeft =
+                                statusResponse['data']['spinsRemaining'] ?? 1;
+                          });
+                        } else {
+                          // Fallback: add 1 spin locally
+                          setState(() {
+                            _spinsLeft += 1;
+                          });
+                        }
                       }
                     },
                     style: ElevatedButton.styleFrom(
