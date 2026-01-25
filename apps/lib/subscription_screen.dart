@@ -17,6 +17,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   List<Map<String, dynamic>> _availablePlans = [];
   String _userEmail = 'user@showoff.life';
   String _userPhone = '9999999999';
+  int _userCoinBalance = 0;
+  String _selectedPaymentMethod = 'razorpay'; // 'razorpay' or 'coins'
 
   @override
   void initState() {
@@ -80,6 +82,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           setState(() {
             _userEmail = response['data']['email'] ?? 'user@showoff.life';
             _userPhone = response['data']['phone'] ?? '9999999999';
+            _userCoinBalance = response['data']['coinBalance'] ?? 0;
           });
         }
       }
@@ -106,6 +109,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   Future<void> _initiatePayment(String planId, double amount) async {
     if (mounted) setState(() => _isProcessing = true);
+
+    // If coin payment is selected, use coin payment
+    if (_selectedPaymentMethod == 'coins') {
+      await _processCoinPayment(planId);
+      return;
+    }
+
+    // Otherwise, use Razorpay
     try {
       print('🔄 Creating subscription order for amount: ₹$amount');
       final orderResponse = await ApiService.createRazorpayOrderForSubscription(
@@ -150,6 +161,32 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       }
     } catch (e) {
       print('❌ Exception during payment: $e');
+      if (mounted) setState(() => _isProcessing = false);
+      _showErrorDialog('Error: $e');
+    }
+  }
+
+  Future<void> _processCoinPayment(String planId) async {
+    try {
+      print('💰 Processing coin payment for plan: $planId');
+
+      final response = await ApiService.subscribeWithCoins(planId: planId);
+
+      if (response['success']) {
+        if (mounted) setState(() => _isProcessing = false);
+        _showSuccessDialog(
+          'Subscription activated successfully!\n\nYou spent ${response['coinsSpent']} coins.\nRemaining coins: ${response['remainingCoins']}',
+        );
+        _loadCurrentSubscription();
+      } else {
+        if (mounted) setState(() => _isProcessing = false);
+        final errorMsg =
+            response['message'] ?? 'Failed to process coin payment';
+        print('❌ Coin payment failed: $errorMsg');
+        _showErrorDialog(errorMsg);
+      }
+    } catch (e) {
+      print('❌ Exception during coin payment: $e');
       if (mounted) setState(() => _isProcessing = false);
       _showErrorDialog('Error: $e');
     }
@@ -383,13 +420,150 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       _buildBenefit('100% ad-free'),
                       _buildBenefit('Payment allowed via earned coins'),
                       const SizedBox(height: 24),
+                      // Payment method selection
+                      const Text(
+                        'Payment Method',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(
+                                  () => _selectedPaymentMethod = 'razorpay',
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: _selectedPaymentMethod == 'razorpay'
+                                      ? const Color(
+                                          0xFF8B5CF6,
+                                        ).withValues(alpha: 0.1)
+                                      : Colors.grey[100],
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: _selectedPaymentMethod == 'razorpay'
+                                        ? const Color(0xFF8B5CF6)
+                                        : Colors.grey[300]!,
+                                    width: _selectedPaymentMethod == 'razorpay'
+                                        ? 2
+                                        : 1,
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.payment,
+                                      color:
+                                          _selectedPaymentMethod == 'razorpay'
+                                          ? const Color(0xFF8B5CF6)
+                                          : Colors.grey,
+                                      size: 24,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    const Text(
+                                      'Razorpay',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const Text(
+                                      '₹2,499',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(
+                                  () => _selectedPaymentMethod = 'coins',
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: _selectedPaymentMethod == 'coins'
+                                      ? const Color(
+                                          0xFF8B5CF6,
+                                        ).withValues(alpha: 0.1)
+                                      : Colors.grey[100],
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: _selectedPaymentMethod == 'coins'
+                                        ? const Color(0xFF8B5CF6)
+                                        : Colors.grey[300]!,
+                                    width: _selectedPaymentMethod == 'coins'
+                                        ? 2
+                                        : 1,
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.monetization_on,
+                                      color: _selectedPaymentMethod == 'coins'
+                                          ? const Color(0xFF8B5CF6)
+                                          : Colors.grey,
+                                      size: 24,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    const Text(
+                                      'Coins',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      '$_userCoinBalance available',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: _userCoinBalance >= 2499
+                                            ? Colors.green
+                                            : Colors.red,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
                         height: 56,
                         child: ElevatedButton(
                           onPressed: isSubscribed || _isProcessing
                               ? null
-                              : () => _initiatePayment(planId, planPrice),
+                              : () {
+                                  // Check if user has enough coins for coin payment
+                                  if (_selectedPaymentMethod == 'coins' &&
+                                      _userCoinBalance < 2499) {
+                                    _showErrorDialog(
+                                      'Insufficient coins!\n\nYou need 2,499 coins but have $_userCoinBalance coins.\n\nPlease add money or use Razorpay payment.',
+                                    );
+                                    return;
+                                  }
+                                  _initiatePayment(planId, planPrice);
+                                },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: isSubscribed
                                 ? Colors.grey
@@ -413,6 +587,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                               : Text(
                                   isSubscribed
                                       ? 'Active Subscription'
+                                      : _selectedPaymentMethod == 'coins'
+                                      ? 'Subscribe with ${2499} Coins'
                                       : 'Subscribe Now',
                                   style: const TextStyle(
                                     fontSize: 18,

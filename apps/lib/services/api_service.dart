@@ -2015,6 +2015,19 @@ class ApiService {
     return Map<String, dynamic>.from(decoded);
   }
 
+  // Subscribe to plan using coins
+  static Future<Map<String, dynamic>> subscribeWithCoins({
+    required String planId,
+  }) async {
+    final response = await _httpClient.post(
+      Uri.parse('$baseUrl/subscriptions/subscribe-with-coins'),
+      headers: await _getHeaders(),
+      body: jsonEncode({'planId': planId}),
+    );
+    final decoded = jsonDecode(response.body);
+    return Map<String, dynamic>.from(decoded);
+  }
+
   // ============ PRIVACY & SECURITY METHODS ============
 
   // Update privacy settings

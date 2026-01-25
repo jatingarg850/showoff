@@ -12,7 +12,8 @@ const {
   deletePlan,
   getAllSubscriptions,
   adminCancelSubscription,
-  verifySubscriptionPayment
+  verifySubscriptionPayment,
+  subscribeWithCoins
 } = require('../controllers/subscriptionController');
 const { protect, adminOnly } = require('../middleware/auth');
 
@@ -22,6 +23,7 @@ router.get('/plans', getPlans);
 // User routes
 router.post('/create-order', protect, createSubscriptionOrder);
 router.post('/subscribe', protect, subscribe);
+router.post('/subscribe-with-coins', protect, subscribeWithCoins);
 router.post('/verify-payment', protect, verifySubscriptionPayment);
 router.get('/my-subscription', protect, getMySubscription);
 router.put('/cancel', protect, cancelSubscription);

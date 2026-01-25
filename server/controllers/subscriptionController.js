@@ -440,6 +440,126 @@ exports.adminCancelSubscription = async (req, res) => {
   }
 };
 
+// @desc    Subscribe using coins
+// @route   POST /api/subscriptions/subscribe-with-coins
+// @access  Private
+exports.subscribeWithCoins = async (req, res) => {
+  try {
+    const { planId } = req.body;
+
+    if (!planId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Plan ID is required'
+      });
+    }
+
+    // Get the subscription plan
+    const plan = await SubscriptionPlan.findById(planId);
+    if (!plan || !plan.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subscription plan not found or inactive'
+      });
+    }
+
+    // Get user
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Convert price to coins (1 INR = 1 coin)
+    const coinsRequired = Math.round(plan.price);
+
+    // Check if user has enough coins
+    if (user.coinBalance < coinsRequired) {
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient coins. You need ${coinsRequired} coins but have ${user.coinBalance} coins.`,
+        coinsRequired,
+        coinsAvailable: user.coinBalance,
+        coinsShortfall: coinsRequired - user.coinBalance
+      });
+    }
+
+    // Check if user already has active subscription
+    const existingSubscription = await UserSubscription.findOne({
+      user: req.user.id,
+      status: 'active'
+    });
+
+    if (existingSubscription) {
+      return res.status(400).json({
+        success: false,
+        message: 'You already have an active subscription'
+      });
+    }
+
+    // Deduct coins from user
+    user.coinBalance -= coinsRequired;
+    await user.save();
+
+    // Create subscription
+    const duration = plan.duration || 30;
+    const endDate = new Date(Date.now() + duration * 24 * 60 * 60 * 1000);
+    const subscription = await UserSubscription.create({
+      user: req.user.id,
+      plan: plan._id,
+      status: 'active',
+      billingCycle: 'monthly',
+      startDate: new Date(),
+      endDate,
+      nextBillingDate: endDate,
+      amountPaid: plan.price,
+      currency: plan.currency,
+      paymentMethod: 'coins',
+      transactionId: `coins_${Date.now()}`,
+      autoRenew: false // Don't auto-renew for coin purchases
+    });
+
+    // Update user subscription tier and add verified badge
+    await User.findByIdAndUpdate(req.user.id, {
+      subscriptionTier: plan.tier,
+      subscriptionExpiry: endDate,
+      isVerified: true // Add verified badge
+    });
+
+    // Create transaction record
+    await Transaction.create({
+      user: req.user.id,
+      type: 'subscription',
+      amount: -coinsRequired,
+      balanceAfter: user.coinBalance,
+      description: `Subscription to ${plan.name} (paid with coins)`,
+      status: 'completed',
+      metadata: {
+        subscriptionId: subscription._id,
+        planId: plan._id,
+        paymentMethod: 'coins',
+        coinsSpent: coinsRequired
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Subscription activated successfully with coins',
+      data: subscription,
+      coinsSpent: coinsRequired,
+      remainingCoins: user.coinBalance
+    });
+  } catch (error) {
+    console.error('Error subscribing with coins:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 // @desc    Verify subscription payment via Razorpay
 // @route   POST /api/subscriptions/verify-payment
 // @access  Private
