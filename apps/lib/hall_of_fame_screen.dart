@@ -1,100 +1,54 @@
 import 'package:flutter/material.dart';
 import 'services/api_service.dart';
 
-class HallOfFameScreen
-    extends
-        StatefulWidget {
-  const HallOfFameScreen({
-    super.key,
-  });
+class HallOfFameScreen extends StatefulWidget {
+  const HallOfFameScreen({super.key});
 
   @override
-  State<
-    HallOfFameScreen
-  >
-  createState() => _HallOfFameScreenState();
+  State<HallOfFameScreen> createState() => _HallOfFameScreenState();
 }
 
-class _HallOfFameScreenState
-    extends
-        State<
-          HallOfFameScreen
-        > {
-  List<
-    Map<
-      String,
-      dynamic
-    >
-  >
-  _hallOfFameData = [];
-  bool
-  _isLoading = true;
+class _HallOfFameScreenState extends State<HallOfFameScreen> {
+  List<Map<String, dynamic>> _hallOfFameData = [];
+  bool _isLoading = true;
 
   @override
-  void
-  initState() {
+  void initState() {
     super.initState();
     _loadHallOfFame();
   }
 
-  Future<
-    void
-  >
-  _loadHallOfFame() async {
+  Future<void> _loadHallOfFame() async {
     try {
-      setState(
-        () => _isLoading = true,
-      );
+      setState(() => _isLoading = true);
 
-      // Load last week's winners
-      final response = await ApiService.getSYTLeaderboard(
-        type: 'weekly',
-      );
+      // Load last week's winners (previous competition)
+      final response = await ApiService.getHallOfFame(type: 'weekly');
 
       if (response['success']) {
-        setState(
-          () {
-            _hallOfFameData =
-                List<
-                  Map<
-                    String,
-                    dynamic
-                  >
-                >.from(
-                  response['data'] ??
-                      [],
-                );
-            _isLoading = false;
-          },
-        );
+        setState(() {
+          _hallOfFameData = List<Map<String, dynamic>>.from(
+            response['data'] ?? [],
+          );
+          _isLoading = false;
+        });
       } else {
-        setState(
-          () {
-            _hallOfFameData = [];
-            _isLoading = false;
-          },
-        );
-      }
-    } catch (
-      e
-    ) {
-      print(
-        'Error loading Hall of Fame: $e',
-      );
-      setState(
-        () {
+        setState(() {
           _hallOfFameData = [];
           _isLoading = false;
-        },
-      );
+        });
+      }
+    } catch (e) {
+      print('Error loading Hall of Fame: $e');
+      setState(() {
+        _hallOfFameData = [];
+        _isLoading = false;
+      });
     }
   }
 
   @override
-  Widget
-  build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -102,53 +56,30 @@ class _HallOfFameScreenState
           children: [
             // Header
             Padding(
-              padding: const EdgeInsets.all(
-                20,
-              ),
+              padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.pop(
-                      context,
-                    ),
+                    onTap: () => Navigator.pop(context),
                     child: const Icon(
                       Icons.arrow_back,
                       color: Colors.black,
                       size: 24,
                     ),
                   ),
-                  const SizedBox(
-                    width: 16,
-                  ),
+                  const SizedBox(width: 16),
                   const Icon(
                     Icons.emoji_events,
-                    color: Color(
-                      0xFFFFD700,
-                    ),
+                    color: Color(0xFFFFD700),
                     size: 28,
                   ),
-                  const SizedBox(
-                    width: 8,
-                  ),
+                  const SizedBox(width: 8),
                   ShaderMask(
-                    shaderCallback:
-                        (
-                          bounds,
-                        ) =>
-                            const LinearGradient(
-                              colors: [
-                                Color(
-                                  0xFF701CF5,
-                                ),
-                                Color(
-                                  0xFF3E98E4,
-                                ),
-                              ],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            ).createShader(
-                              bounds,
-                            ),
+                    shaderCallback: (bounds) => const LinearGradient(
+                      colors: [Color(0xFF701CF5), Color(0xFF3E98E4)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ).createShader(bounds),
                     child: const Text(
                       'Hall of Fame',
                       style: TextStyle(
@@ -164,9 +95,7 @@ class _HallOfFameScreenState
 
             // Subtitle
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
                   Text(
@@ -181,38 +110,24 @@ class _HallOfFameScreenState
               ),
             ),
 
-            const SizedBox(
-              height: 30,
-            ),
+            const SizedBox(height: 30),
 
             // Top 3 Winners with Crown
-            if (!_isLoading &&
-                _hallOfFameData.isNotEmpty)
+            if (!_isLoading && _hallOfFameData.isNotEmpty)
               SizedBox(
                 height: 200,
                 child: Stack(
                   children: [
                     // Golden background
                     Container(
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                      ),
+                      margin: const EdgeInsets.symmetric(horizontal: 20),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [
-                            Color(
-                              0xFFFFD700,
-                            ),
-                            Color(
-                              0xFFFFA500,
-                            ),
-                          ],
+                          colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                         ),
-                        borderRadius: BorderRadius.circular(
-                          20,
-                        ),
+                        borderRadius: BorderRadius.circular(20),
                       ),
                     ),
 
@@ -222,90 +137,54 @@ class _HallOfFameScreenState
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         // 2nd place
-                        if (_hallOfFameData.length >
-                            1)
-                          _buildHallOfFameUser(
-                            _hallOfFameData[1],
-                            2,
-                          ),
+                        if (_hallOfFameData.length > 1)
+                          _buildHallOfFameUser(_hallOfFameData[1], 2),
                         // 1st place
                         if (_hallOfFameData.isNotEmpty)
-                          _buildHallOfFameUser(
-                            _hallOfFameData[0],
-                            1,
-                          ),
+                          _buildHallOfFameUser(_hallOfFameData[0], 1),
                         // 3rd place
-                        if (_hallOfFameData.length >
-                            2)
-                          _buildHallOfFameUser(
-                            _hallOfFameData[2],
-                            3,
-                          ),
+                        if (_hallOfFameData.length > 2)
+                          _buildHallOfFameUser(_hallOfFameData[2], 3),
                       ],
                     ),
                   ],
                 ),
               ),
 
-            const SizedBox(
-              height: 30,
-            ),
+            const SizedBox(height: 30),
 
             // Hall of Fame List
             Expanded(
               child: Container(
-                margin: const EdgeInsets.fromLTRB(
-                  20,
-                  0,
-                  20,
-                  0,
-                ),
+                margin: const EdgeInsets.fromLTRB(20, 0, 20, 0),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [
-                      Color(
-                        0xFF701CF5,
-                      ),
-                      Color(
-                        0xFF3E98E4,
-                      ),
-                    ],
+                    colors: [Color(0xFF701CF5), Color(0xFF3E98E4)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(
-                    20,
-                  ),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: _isLoading
                     ? const Center(
                         child: CircularProgressIndicator(
-                          valueColor:
-                              AlwaysStoppedAnimation<
-                                Color
-                              >(
-                                Colors.white,
-                              ),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                         ),
                       )
-                    : _hallOfFameData.length <=
-                          3
+                    : _hallOfFameData.length <= 3
                     ? const Center(
                         child: Text(
                           'No additional champions',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                          ),
+                          style: TextStyle(color: Colors.white, fontSize: 16),
                         ),
                       )
                     : Column(
                         children: [
                           // Header
                           Container(
-                            padding: const EdgeInsets.all(
-                              20,
-                            ),
+                            padding: const EdgeInsets.all(20),
                             child: Row(
                               children: [
                                 const Icon(
@@ -313,9 +192,7 @@ class _HallOfFameScreenState
                                   color: Colors.white,
                                   size: 20,
                                 ),
-                                const SizedBox(
-                                  width: 8,
-                                ),
+                                const SizedBox(width: 8),
                                 const Text(
                                   'Other Champions',
                                   style: TextStyle(
@@ -333,23 +210,11 @@ class _HallOfFameScreenState
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 20,
                               ),
-                              itemCount:
-                                  _hallOfFameData.length -
-                                  3,
-                              itemBuilder:
-                                  (
-                                    context,
-                                    index,
-                                  ) {
-                                    final user =
-                                        _hallOfFameData[index +
-                                            3];
-                                    return _buildHallOfFameItem(
-                                      user,
-                                      index +
-                                          4,
-                                    );
-                                  },
+                              itemCount: _hallOfFameData.length - 3,
+                              itemBuilder: (context, index) {
+                                final user = _hallOfFameData[index + 3];
+                                return _buildHallOfFameItem(user, index + 4);
+                              },
                             ),
                           ),
                         ],
@@ -362,21 +227,9 @@ class _HallOfFameScreenState
     );
   }
 
-  Widget
-  _buildHallOfFameUser(
-    Map<
-      String,
-      dynamic
-    >
-    user,
-    int position,
-  ) {
-    final isWinner =
-        position ==
-        1;
-    final avatarSize = isWinner
-        ? 70.0
-        : 60.0;
+  Widget _buildHallOfFameUser(Map<String, dynamic> user, int position) {
+    final isWinner = position == 1;
+    final avatarSize = isWinner ? 70.0 : 60.0;
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
@@ -387,14 +240,10 @@ class _HallOfFameScreenState
             children: [
               const Icon(
                 Icons.emoji_events,
-                color: Color(
-                  0xFFFFD700,
-                ),
+                color: Color(0xFFFFD700),
                 size: 32,
               ),
-              const SizedBox(
-                height: 8,
-              ),
+              const SizedBox(height: 8),
             ],
           ),
 
@@ -405,57 +254,35 @@ class _HallOfFameScreenState
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color:
-                  position ==
-                      1
-                  ? const Color(
-                      0xFFFFD700,
-                    )
-                  : position ==
-                        2
-                  ? const Color(
-                      0xFFC0C0C0,
-                    )
-                  : const Color(
-                      0xFFCD7F32,
-                    ),
+              color: position == 1
+                  ? const Color(0xFFFFD700)
+                  : position == 2
+                  ? const Color(0xFFC0C0C0)
+                  : const Color(0xFFCD7F32),
               width: 4,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(
-                  0.2,
-                ),
+                color: Colors.black.withOpacity(0.2),
                 blurRadius: 8,
-                offset: const Offset(
-                  0,
-                  4,
-                ),
+                offset: const Offset(0, 4),
               ),
             ],
           ),
           child: ClipOval(
             child:
-                user['user']?['profilePicture'] !=
-                        null &&
+                user['user']?['profilePicture'] != null &&
                     user['user']['profilePicture'].isNotEmpty
                 ? Image.network(
-                    ApiService.getImageUrl(
-                      user['user']['profilePicture'],
-                    ),
+                    ApiService.getImageUrl(user['user']['profilePicture']),
                     fit: BoxFit.cover,
-                    errorBuilder:
-                        (
-                          context,
-                          error,
-                          stackTrace,
-                        ) {
-                          return const Icon(
-                            Icons.person,
-                            color: Colors.white,
-                            size: 35,
-                          );
-                        },
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 35,
+                      );
+                    },
                   )
                 : Container(
                     color: Colors.grey[300],
@@ -468,9 +295,7 @@ class _HallOfFameScreenState
           ),
         ),
 
-        const SizedBox(
-          height: 12,
-        ),
+        const SizedBox(height: 12),
 
         // Name
         Text(
@@ -487,67 +312,34 @@ class _HallOfFameScreenState
 
         // Score
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 4,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(
-              0.2,
-            ),
-            borderRadius: BorderRadius.circular(
-              12,
-            ),
+            color: Colors.white.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
-            user['votesCount']?.toString() ??
-                '0',
+            user['votesCount']?.toString() ?? '0',
             style: TextStyle(
-              fontSize: isWinner
-                  ? 16
-                  : 14,
+              fontSize: isWinner ? 16 : 14,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           ),
         ),
 
-        const SizedBox(
-          height: 20,
-        ),
+        const SizedBox(height: 20),
       ],
     );
   }
 
-  Widget
-  _buildHallOfFameItem(
-    Map<
-      String,
-      dynamic
-    >
-    user,
-    int position,
-  ) {
+  Widget _buildHallOfFameItem(Map<String, dynamic> user, int position) {
     return Container(
-      margin: const EdgeInsets.only(
-        bottom: 16,
-      ),
-      padding: const EdgeInsets.all(
-        16,
-      ),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(
-          0.1,
-        ),
-        borderRadius: BorderRadius.circular(
-          12,
-        ),
-        border: Border.all(
-          color: Colors.white.withOpacity(
-            0.2,
-          ),
-          width: 1,
-        ),
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
       ),
       child: Row(
         children: [
@@ -560,14 +352,9 @@ class _HallOfFameScreenState
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(
-                    0.1,
-                  ),
+                  color: Colors.black.withOpacity(0.1),
                   blurRadius: 4,
-                  offset: const Offset(
-                    0,
-                    2,
-                  ),
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -575,9 +362,7 @@ class _HallOfFameScreenState
               child: Text(
                 position.toString(),
                 style: const TextStyle(
-                  color: Color(
-                    0xFF701CF5,
-                  ),
+                  color: Color(0xFF701CF5),
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
@@ -585,9 +370,7 @@ class _HallOfFameScreenState
             ),
           ),
 
-          const SizedBox(
-            width: 16,
-          ),
+          const SizedBox(width: 16),
 
           // Avatar
           Container(
@@ -599,38 +382,24 @@ class _HallOfFameScreenState
             ),
             child: ClipOval(
               child:
-                  user['user']?['profilePicture'] !=
-                          null &&
+                  user['user']?['profilePicture'] != null &&
                       user['user']['profilePicture'].isNotEmpty
                   ? Image.network(
-                      ApiService.getImageUrl(
-                        user['user']['profilePicture'],
-                      ),
+                      ApiService.getImageUrl(user['user']['profilePicture']),
                       fit: BoxFit.cover,
-                      errorBuilder:
-                          (
-                            context,
-                            error,
-                            stackTrace,
-                          ) {
-                            return const Icon(
-                              Icons.person,
-                              color: Colors.white,
-                              size: 22,
-                            );
-                          },
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 22,
+                        );
+                      },
                     )
-                  : const Icon(
-                      Icons.person,
-                      color: Colors.white,
-                      size: 22,
-                    ),
+                  : const Icon(Icons.person, color: Colors.white, size: 22),
             ),
           ),
 
-          const SizedBox(
-            width: 16,
-          ),
+          const SizedBox(width: 16),
 
           // Name and details
           Expanded(
@@ -650,9 +419,7 @@ class _HallOfFameScreenState
                 Text(
                   '@${user['user']?['username'] ?? 'champion'}',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(
-                      0.7,
-                    ),
+                    color: Colors.white.withOpacity(0.7),
                     fontSize: 12,
                   ),
                 ),
@@ -665,17 +432,12 @@ class _HallOfFameScreenState
             children: [
               const Icon(
                 Icons.emoji_events,
-                color: Color(
-                  0xFFFFD700,
-                ),
+                color: Color(0xFFFFD700),
                 size: 16,
               ),
-              const SizedBox(
-                width: 4,
-              ),
+              const SizedBox(width: 4),
               Text(
-                user['votesCount']?.toString() ??
-                    '0',
+                user['votesCount']?.toString() ?? '0',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,

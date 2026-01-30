@@ -17,6 +17,44 @@
             <%- include('partials/admin-header', { pageTitle: 'Talent Management' }) %>
 
             <div class="content-area">
+                <!-- Current Competition Info -->
+                <% if (currentCompetition) { %>
+                    <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 1.5rem; border-radius: 1rem; margin-bottom: 2rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;"><%= currentCompetition.title %></h3>
+                                <p style="opacity: 0.9; margin-bottom: 1rem;">Type: <strong><%= currentCompetition.type.toUpperCase() %></strong></p>
+                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; font-size: 0.875rem;">
+                                    <div>
+                                        <span style="opacity: 0.8;">Start Date:</span>
+                                        <strong><%= new Date(currentCompetition.startDate).toLocaleString() %></strong>
+                                    </div>
+                                    <div>
+                                        <span style="opacity: 0.8;">End Date:</span>
+                                        <strong><%= new Date(currentCompetition.endDate).toLocaleString() %></strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 3rem; margin-bottom: 0.5rem;">🏆</div>
+                                <span style="background: rgba(255, 255, 255, 0.2); padding: 0.5rem 1rem; border-radius: 0.5rem; display: inline-block;">
+                                    ACTIVE COMPETITION
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                <% } else { %>
+                    <div style="background: #fef3c7; color: #92400e; padding: 1.5rem; border-radius: 1rem; margin-bottom: 2rem; border: 1px solid #fcd34d;">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <i class="fas fa-info-circle" style="font-size: 1.5rem;"></i>
+                            <div>
+                                <h3 style="font-weight: 600; margin-bottom: 0.25rem;">No Active Competition</h3>
+                                <p style="opacity: 0.8;">There is currently no active competition. Create one to start accepting entries.</p>
+                            </div>
+                        </div>
+                    </div>
+                <% } %>
+
                 <!-- Stats Overview -->
                 <div class="stats-grid">
                     <div class="stat-card">

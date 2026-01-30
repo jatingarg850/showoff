@@ -245,10 +245,13 @@ exports.getEntries = async (req, res) => {
         query.competitionType = filter;
         query.competitionPeriod = competition.periodId;
       } else {
-        // No active competition - return entries from any recent period for this type
-        // This allows viewing entries even if competition isn't active
-        query.competitionType = filter;
-        // Don't filter by period - show all entries for this type
+        // No active competition - return empty results
+        // Only show entries from current active competition
+        return res.status(200).json({
+          success: true,
+          data: [],
+          message: `No active ${filter} competition at this time`,
+        });
       }
     }
 
@@ -421,6 +424,57 @@ exports.getLeaderboard = async (req, res) => {
       },
     });
   } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Get Hall of Fame (previous competition winners)
+// @route   GET /api/syt/hall-of-fame
+// @access  Public
+exports.getHallOfFame = async (req, res) => {
+  try {
+    const { type } = req.query; // weekly, monthly, quarterly
+    const competitionType = type || 'weekly';
+    
+    // Get previous/last completed competition
+    const CompetitionSettings = require('../models/CompetitionSettings');
+    const previousCompetition = await CompetitionSettings.getPreviousCompetition(competitionType);
+    
+    if (!previousCompetition) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        message: `No previous ${competitionType} competition found`,
+      });
+    }
+
+    // Get top 10 entries from previous competition
+    const entries = await SYTEntry.find({
+      competitionType,
+      competitionPeriod: previousCompetition.periodId,
+      isActive: true,
+      isApproved: true,
+    })
+      .sort({ votesCount: -1 })
+      .limit(10)
+      .populate('user', 'username displayName profilePicture isVerified')
+      .populate('backgroundMusic', 'title artist audioUrl duration genre mood');
+
+    res.status(200).json({
+      success: true,
+      data: entries,
+      period: previousCompetition.periodId,
+      competition: {
+        title: previousCompetition.title,
+        startDate: previousCompetition.startDate,
+        endDate: previousCompetition.endDate,
+      },
+    });
+  } catch (error) {
+    console.error('❌ Hall of Fame Error:', error);
     res.status(500).json({
       success: false,
       message: error.message,

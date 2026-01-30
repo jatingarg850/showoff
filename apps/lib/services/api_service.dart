@@ -846,6 +846,18 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
+  static Future<Map<String, dynamic>> shareSYTEntry(
+    String entryId, {
+    String shareType = 'link',
+  }) async {
+    final response = await _httpClient.post(
+      Uri.parse('$baseUrl/syt/$entryId/share'),
+      headers: await _getHeaders(),
+      body: jsonEncode({'shareType': shareType}),
+    );
+    return jsonDecode(response.body);
+  }
+
   static Future<Map<String, dynamic>> getSYTLeaderboard({
     String type = 'weekly',
   }) async {
@@ -868,6 +880,33 @@ class ApiService {
       }
     } catch (e) {
       print('SYT Leaderboard API Error: $e');
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
+  // Get Hall of Fame (previous competition winners)
+  static Future<Map<String, dynamic>> getHallOfFame({
+    String type = 'weekly',
+  }) async {
+    try {
+      final response = await _httpClient.get(
+        Uri.parse('$baseUrl/syt/hall-of-fame?type=$type'),
+        headers: await _getHeaders(),
+      );
+
+      print('Hall of Fame API Response: ${response.statusCode}');
+      print('Hall of Fame API Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {
+          'success': false,
+          'message': 'Server error: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      print('Hall of Fame API Error: $e');
       return {'success': false, 'message': 'Network error: $e'};
     }
   }

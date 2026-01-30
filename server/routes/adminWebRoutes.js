@@ -749,34 +749,61 @@ router.post('/withdrawals/:id/reject', checkAdminWeb, async (req, res) => {
 router.get('/talent', checkAdminWeb, async (req, res) => {
   try {
     const SYTEntry = require('../models/SYTEntry');
+    const CompetitionSettings = require('../models/CompetitionSettings');
     
     const { type, category } = req.query;
     
-    let query = {};
-    if (type && type !== 'all') {
-      query.competitionType = type;
+    // Get current active competition
+    const competitionType = type && type !== 'all' ? type : 'weekly';
+    const currentCompetition = await CompetitionSettings.findOne({
+      type: competitionType,
+      isActive: true,
+      startDate: { $lte: new Date() },
+      endDate: { $gte: new Date() }
+    });
+
+    let query = {
+      isActive: true,
+      isApproved: true
+    };
+
+    // Only show entries from current active competition
+    if (currentCompetition) {
+      query.competitionType = competitionType;
+      query.competitionPeriod = currentCompetition.periodId;
+    } else {
+      // If no active competition, show no entries
+      query.competitionPeriod = 'no-active-competition';
     }
+
     if (category && category !== 'all') {
       query.category = category;
     }
 
-    // Get all entries
+    // Get entries from current competition only
     const entries = await SYTEntry.find(query)
       .populate('user', 'username displayName profilePicture isVerified')
-      .sort({ createdAt: -1 })
+      .sort({ votesCount: -1 })
       .limit(50);
 
-    // Get leaderboard (top entries by votes)
-    const leaderboard = await SYTEntry.find({ isActive: true })
+    // Get leaderboard (top entries from current competition by votes)
+    const leaderboard = await SYTEntry.find(query)
       .populate('user', 'username displayName profilePicture isVerified')
       .sort({ votesCount: -1 })
       .limit(10);
 
-    // Get stats
-    const totalEntries = await SYTEntry.countDocuments();
-    const weeklyEntries = await SYTEntry.countDocuments({ competitionType: 'weekly' });
-    const winners = await SYTEntry.countDocuments({ isWinner: true });
+    // Get stats - only for current competition
+    const totalEntries = await SYTEntry.countDocuments(query);
+    const weeklyEntries = await SYTEntry.countDocuments({ 
+      ...query,
+      competitionType: 'weekly'
+    });
+    const winners = await SYTEntry.countDocuments({ 
+      ...query,
+      isWinner: true 
+    });
     const totalCoinsAwarded = await SYTEntry.aggregate([
+      { $match: { ...query, isWinner: true } },
       { $group: { _id: null, total: { $sum: '$prizeCoins' } } }
     ]);
 
@@ -785,6 +812,13 @@ router.get('/talent', checkAdminWeb, async (req, res) => {
       pageTitle: 'Talent Management',
       entries,
       leaderboard,
+      currentCompetition: currentCompetition ? {
+        title: currentCompetition.title,
+        type: currentCompetition.type,
+        startDate: currentCompetition.startDate,
+        endDate: currentCompetition.endDate,
+        periodId: currentCompetition.periodId
+      } : null,
       stats: {
         totalEntries,
         weeklyEntries,

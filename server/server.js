@@ -205,6 +205,13 @@ io.on('connection', (socket) => {
 // Make io available globally for other modules to access
 global.io = io;
 
+// Maintenance mode middleware
+const { checkMaintenanceMode } = require('./controllers/maintenanceController');
+app.use(checkMaintenanceMode);
+
+// Secret maintenance mode routes (MUST BE BEFORE OTHER ROUTES)
+app.use('/', require('./routes/maintenanceRoutes'));
+
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
@@ -439,24 +446,9 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Root route
+// Root route - Serve landing page
 app.get('/', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'ShowOff.life API Server',
-    version: '1.0.0',
-    endpoints: {
-      auth: '/api/auth',
-      posts: '/api/posts',
-      profile: '/api/profile',
-      follow: '/api/follow',
-      syt: '/api/syt',
-      dailyselfie: '/api/dailyselfie',
-      achievements: '/api/achievements',
-      coins: '/api/coins',
-      withdrawal: '/api/withdrawal',
-    },
-  });
+  res.render('landing');
 });
 
 // Error handler

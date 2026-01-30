@@ -1,0 +1,824 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="google-site-verification" content="6cPTeia8TlZVUna3xMV537ECqKYF3pvY8ZaTZ0N8B7M" />
+  <title>ShowOff.life – Talent Dikhao, Coin Kamao! , टैलेंट दिखाओ, कॉइन कमाओ!</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+  <style>
+    :root {
+      --primary: #e91e63;
+      --secondary: #3f51b5;
+      --accent: #ff5722;
+      --light: #f5f7fa;
+      --dark: #111;
+    }
+    
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, var(--light) 0%, #c3cfe2 100%);
+      color: var(--dark);
+      background-attachment: fixed;
+      overflow-x: hidden;
+    }
+    
+    header {
+      background: linear-gradient(90deg, var(--primary), var(--secondary), #00bcd4);
+      background-size: 200% 200%;
+      color: white;
+      padding: 30px 40px;
+      text-align: center;
+      animation: gradient 8s ease infinite;
+      box-shadow: 0 4px 30px rgba(0,0,0,0.2);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 100%;
+      background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none"><path fill="rgba(255,255,255,0.05)" d="M0,0 L100,0 L100,100 Q50,80 0,100 Z"></path></svg>');
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+      background-position: bottom;
+    }
+    
+    @keyframes gradient {
+      0% {background-position: 0% 50%;}
+      50% {background-position: 100% 50%;}
+      100% {background-position: 0% 50%;}
+    }
+    
+    header h1 {
+      margin: 0;
+      font-size: 3rem;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+      position: relative;
+      animation: fadeInDown 1s both;
+    }
+    
+    header p {
+      font-size: 1.3rem;
+      margin: 15px 0 0;
+      position: relative;
+      animation: fadeInUp 1s both 0.3s;
+    }
+    
+    section {
+      padding: 80px 20px;
+      max-width: 1200px;
+      margin: auto;
+      position: relative;
+    }
+    
+    .features, .tiers, .events, .token, .rewards, .contact {
+      margin-bottom: 80px;
+    }
+    
+    h2 {
+      color: var(--primary);
+      text-align: center;
+      margin-bottom: 40px;
+      position: relative;
+      display: inline-block;
+      padding-bottom: 15px;
+      font-size: 2.2rem;
+    }
+    
+    h2::after {
+      content: '';
+      position: absolute;
+      width: 70%;
+      height: 4px;
+      bottom: 0;
+      left: 15%;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      border-radius: 4px;
+      transform: scaleX(0);
+      transform-origin: center;
+      animation: scaleIn 0.8s forwards 0.5s;
+    }
+    
+    @keyframes scaleIn {
+      from {transform: scaleX(0);}
+      to {transform: scaleX(1);}
+    }
+    
+    .grid {
+      display: grid;
+      gap: 30px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+    
+    /* Oval-shaped cards */
+    .oval-card {
+      background: rgba(255,255,255,0.95);
+      border-radius: 50% / 20%;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      padding: 40px 30px;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      border: 1px solid rgba(255,255,255,0.4);
+      backdrop-filter: blur(8px);
+      transform: translateY(20px);
+      opacity: 0;
+      animation: fadeInUp 0.8s forwards;
+      border-top: 3px solid var(--primary);
+      text-align: center;
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    
+    .oval-card:nth-child(1) {animation-delay: 0.2s;}
+    .oval-card:nth-child(2) {animation-delay: 0.4s;}
+    .oval-card:nth-child(3) {animation-delay: 0.6s;}
+    .oval-card:nth-child(4) {animation-delay: 0.8s;}
+    
+    .oval-card:hover {
+      transform: translateY(-10px) !important;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+    }
+    
+    .oval-card h3 {
+      color: var(--secondary);
+      margin: 0 0 15px 0;
+      font-size: 1.5rem;
+      line-height: 1.3;
+    }
+    
+    .oval-card p {
+      color: #555;
+      line-height: 1.6;
+      margin: 0;
+    }
+    
+    /* Founder Quote Section */
+    .founder-quote {
+      background: linear-gradient(135deg, rgba(233,30,99,0.1) 0%, rgba(63,81,181,0.1) 100%);
+      border-radius: 20px;
+      padding: 40px;
+      margin: 60px auto;
+      max-width: 900px;
+      position: relative;
+      overflow: hidden;
+      text-align: center;
+    }
+    
+    .founder-quote::before {
+      content: '👏';
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      font-size: 2rem;
+      opacity: 0.2;
+    }
+    
+    .founder-quote::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+    }
+    
+    .founder-quote h3 {
+      font-size: 1.8rem;
+      margin: 0 0 20px 0;
+      color: var(--primary);
+    }
+    
+    .founder-quote p {
+      font-size: 1.2rem;
+      line-height: 1.6;
+      margin: 0;
+      font-style: italic;
+    }
+    
+    .founder-quote .author {
+      margin-top: 20px;
+      font-weight: 600;
+      color: var(--secondary);
+    }
+    
+    /* New Funded By Section */
+    .funded-section {
+      background: linear-gradient(135deg, rgba(255,215,0,0.1) 0%, rgba(0,128,0,0.1) 100%);
+      border-radius: 20px;
+      padding: 50px 40px;
+      margin: 60px auto;
+      max-width: 1000px;
+      position: relative;
+      overflow: hidden;
+      text-align: center;
+      border: 2px solid rgba(255,215,0,0.3);
+    }
+    
+    .funded-section::before {
+      content: '🏛️';
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      font-size: 2rem;
+      opacity: 0.2;
+    }
+    
+    .funded-section::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: linear-gradient(90deg, gold, green);
+    }
+    
+    .funded-section h3 {
+      font-size: 1.8rem;
+      margin: 0 0 30px 0;
+      color: #006400;
+      position: relative;
+      display: inline-block;
+    }
+    
+    .funded-section h3::after {
+      content: '';
+      position: absolute;
+      width: 50%;
+      height: 3px;
+      bottom: -10px;
+      left: 25%;
+      background: linear-gradient(90deg, gold, green);
+      border-radius: 3px;
+    }
+    
+    .funded-by-content {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      align-items: center;
+    }
+    
+    .funded-by-logo {
+      font-size: 3rem;
+      margin-bottom: 15px;
+      color: #006400;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .funded-by-text {
+      font-size: 1.3rem;
+      line-height: 1.6;
+      margin: 0;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    .funded-by-subtext {
+      font-size: 1.1rem;
+      line-height: 1.5;
+      margin: 10px 0 0;
+      color: #555;
+      max-width: 800px;
+    }
+    
+    footer {
+      background: linear-gradient(135deg, var(--dark), #222);
+      color: #fff;
+      text-align: center;
+      padding: 50px 30px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    footer::before {
+      content: '';
+      position: absolute;
+      top: -60px;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none"><path fill="%23111" d="M0,0 L100,0 L0,100 Z"></path></svg>');
+      background-size: 100% 100%;
+    }
+    
+    .footer-content {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .social-links {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin: 30px 0;
+    }
+    
+    .social-link {
+      color: white;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s;
+      font-size: 1rem;
+    }
+    
+    .social-link:hover {
+      transform: translateY(-3px);
+      text-shadow: 0 0 10px rgba(255,255,255,0.3);
+    }
+    
+    .social-link i {
+      font-size: 1.2rem;
+    }
+    
+    .social-link.linkedin {color: #0a66c2;}
+    .social-link.instagram {color: #e1306c;}
+    .social-link.youtube {color: #ff0000;}
+    .social-link.twitter {color: #1da1f2;}
+    .social-link.facebook {color: #1877f2;}
+    
+    footer p {
+      margin: 20px 0 0;
+      font-size: 1rem;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .btn {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 14px 30px;
+      background: linear-gradient(45deg, var(--primary), var(--accent));
+      color: white;
+      text-decoration: none;
+      border-radius: 50px;
+      font-weight: 600;
+      box-shadow: 0 8px 20px rgba(233, 30, 99, 0.3);
+      transition: all 0.3s;
+      border: none;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      z-index: 1;
+    }
+    
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(45deg, var(--accent), var(--primary));
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: -1;
+    }
+    
+    .btn:hover {
+      box-shadow: 0 10px 25px rgba(233, 30, 99, 0.5);
+      transform: translateY(-3px);
+    }
+    
+    .btn:hover::before {
+      opacity: 1;
+    }
+    
+    .download-section {
+      background: linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%);
+      color: white;
+      padding: 100px 20px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .download-section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 8px;
+      background: linear-gradient(90deg, #ffeb3b, #ff5722, #e91e63, #9c27b0, #3f51b5);
+      animation: rainbow 5s linear infinite;
+      background-size: 500% 100%;
+    }
+    
+    .download-section::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 100px;
+      background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none"><path fill="rgba(255,255,255,0.03)" d="M0,100 L100,0 L100,100 Z"></path></svg>');
+      background-size: 100% 100%;
+    }
+    
+    .download-section h2 {
+      color: white;
+      font-size: 2.8rem;
+      margin-bottom: 25px;
+      text-shadow: 2px 2px 8px rgba(0,0,0,0.2);
+    }
+    
+    .download-section p {
+      font-size: 1.3rem;
+      max-width: 800px;
+      margin: 0 auto 40px;
+      line-height: 1.6;
+    }
+    
+    .app-badges {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-top: 40px;
+    }
+    
+    .app-badges a {
+      transition: all 0.3s;
+      display: inline-block;
+    }
+    
+    .app-badges a:hover {
+      transform: scale(1.1) translateY(-5px);
+      filter: drop-shadow(0 10px 15px rgba(0,0,0,0.2));
+    }
+    
+    .app-badges img {
+      height: 70px;
+    }
+    
+    .floating-icons {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    
+    .floating-icon {
+      position: absolute;
+      opacity: 0.15;
+      animation: float 15s infinite linear;
+      font-size: 2rem;
+      filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.2));
+    }
+    
+    @keyframes float {
+      0% {transform: translateY(0) rotate(0deg);}
+      50% {transform: translateY(-40px) rotate(180deg);}
+      100% {transform: translateY(0) rotate(360deg);}
+    }
+    
+    .particles {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    
+    .particle {
+      position: absolute;
+      background: rgba(255,255,255,0.6);
+      border-radius: 50%;
+      animation: float-particle 15s infinite linear;
+    }
+    
+    @keyframes float-particle {
+      0% {transform: translateY(0) translateX(0); opacity: 0;}
+      50% {transform: translateY(-100px) translateX(50px); opacity: 0.6;}
+      100% {transform: translateY(0) translateX(100px); opacity: 0;}
+    }
+    
+    .highlight-text {
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      font-weight: 800;
+    }
+    
+    @keyframes fadeInUp {
+      from {opacity: 0; transform: translateY(20px);}
+      to {opacity: 1; transform: translateY(0);}
+    }
+    
+    @keyframes fadeInDown {
+      from {opacity: 0; transform: translateY(-20px);}
+      to {opacity: 1; transform: translateY(0);}
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      header h1 {font-size: 2.2rem;}
+      header p {font-size: 1.1rem;}
+      .download-section h2 {font-size: 2rem;}
+      .download-section p {font-size: 1.1rem;}
+      .app-badges img {height: 50px;}
+      h2 {font-size: 1.8rem;}
+      .social-links {flex-direction: column; align-items: center; gap: 15px;}
+      .oval-card {padding: 30px 20px; min-height: auto;}
+      .founder-quote {padding: 30px 20px;}
+      .founder-quote h3 {font-size: 1.5rem;}
+      .founder-quote p {font-size: 1.1rem;}
+      .funded-section {padding: 30px 20px;}
+      .funded-section h3 {font-size: 1.5rem;}
+      .funded-by-text {font-size: 1.1rem;}
+      .funded-by-subtext {font-size: 1rem;}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="particles">
+    <div class="particle" style="width: 5px; height: 5px; top: 20%; left: 10%; animation-delay: 0s;"></div>
+    <div class="particle" style="width: 8px; height: 8px; top: 60%; left: 80%; animation-delay: 2s;"></div>
+    <div class="particle" style="width: 6px; height: 6px; top: 30%; left: 50%; animation-delay: 4s;"></div>
+    <div class="particle" style="width: 4px; height: 4px; top: 70%; left: 30%; animation-delay: 6s;"></div>
+  </div>
+  <h1>ShowOff<span class="highlight-text">.life</span></h1>
+  <p>Talent Dikhao, Coin Kamao!</p>
+  <p>टैलेंट दिखाओ, कॉइन कमाओ!</p>
+</header>
+
+<div class="floating-icons">
+  <div class="floating-icon" style="top: 10%; left: 5%; animation-delay: 0s;">🎭</div>
+  <div class="floating-icon" style="top: 20%; right: 10%; animation-delay: 2s; font-size: 3rem;">🎤</div>
+  <div class="floating-icon" style="bottom: 30%; left: 15%; animation-delay: 4s;">💃</div>
+  <div class="floating-icon" style="bottom: 20%; right: 5%; animation-delay: 6s; font-size: 3.5rem;">🎸</div>
+  <div class="floating-icon" style="top: 50%; left: 50%; animation-delay: 8s;">🎨</div>
+  <div class="floating-icon" style="top: 70%; left: 70%; animation-delay: 3s;">🎬</div>
+  <div class="floating-icon" style="top: 40%; left: 80%; animation-delay: 5s;">📸</div>
+</div>
+
+<section class="download-section">
+  <div class="particles">
+    <div class="particle" style="width: 5px; height: 5px; top: 20%; left: 10%; animation-delay: 1s;"></div>
+    <div class="particle" style="width: 8px; height: 8px; top: 60%; left: 80%; animation-delay: 3s;"></div>
+    <div class="particle" style="width: 6px; height: 6px; top: 30%; left: 50%; animation-delay: 5s;"></div>
+  </div>
+  <h2 class="animate__animated animate__fadeIn">Show Your Talent. Earn Real Rewards!</h2>
+  <p class="animate__animated animate__fadeIn animate__delay-1s">
+    ShowOff.life is the world's first <span class="highlight-text">gamified talent monetization platform</span>. 
+    Earn coins, get featured, win prizes, and grow your fame — all from your phone.
+  </p>
+  <p class="animate__animated animate__fadeIn animate__delay-1s">Available on Android and iOS. Download now and start showing off!</p>
+  <div class="app-badges animate__animated animate__fadeIn animate__delay-2s">
+    <a href="https://play.google.com/store/apps/details?id=com.showoff.life&hl=en" target="_blank">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Get it on Google Play">
+    </a>
+    <a href="https://apps.apple.com/in/app/sofft-pay/id6749316551" target="_blank">
+      <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download on the App Store">
+    </a>
+  </div>
+</section>
+
+<!-- Media Coverage Section -->
+<section class="media">
+  <h2 class="animate__animated animate__fadeIn">ShowOff.life – Media Coverage</h2>
+  
+  <div class="grid">
+    <div class="oval-card">
+      <h3>CXO Words Magazine</h3>
+      <p>
+        <a href="https://www.cxowords.com/cxowords-magazine/january-2026/" target="_blank" style="color: var(--secondary); font-weight:600;">
+          Read Article →
+        </a>
+      </p>
+    </div>
+
+    <div class="oval-card">
+      <h3>Unstoppable India</h3>
+      <p>
+        <a href="https://www.unstoppableindia.net/post/saanvi-gautam-the-creative-force-shaping-india-s-next-generation-creator-ecosystem" target="_blank" style="color: var(--secondary); font-weight:600;">
+          Read Article →
+        </a>
+      </p>
+    </div>
+
+        <div class="oval-card">
+      <h3>Daily Hunt</h3>
+      <p>
+        <a href="https://dhunt.in/12IPpk" target="_blank" style="color: var(--secondary); font-weight:600;">
+          Read Article →
+        </a>
+      </p>
+    </div>
+
+    
+  </div>
+</section>
+
+<section id="press-coverage" style="padding:40px 20px; background:#f9f9f9;">
+  <div style="max-width:1100px; margin:auto;">
+    
+    <h2 style="text-align:center; font-size:32px; margin-bottom:10px;">
+      ShowOff.life in the News
+    </h2>
+    
+    <p style="text-align:center; color:#666; font-size:16px; margin-bottom:30px;">
+      Recognized by leading digital media platforms for building India’s most inclusive creator-first ecosystem.
+    </p>
+
+    <ul style="list-style:none; padding:0; display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:20px;">
+      
+      <li><a href="https://newsonline.co.in/how-showoff-life-is-creating-a-creator-first-digital-movement-led-by-saanvi-gautam/" target="_blank">How ShowOff.life is Creating a Creator-First Digital Movement</a></li>
+
+      <li><a href="https://newspress.co.in/showoff-lifes-vision-for-india-democratizing-creativity-for-tier-2-and-tier-3-youth/" target="_blank">ShowOff.life’s Vision for India’s Tier-2 & Tier-3 Youth</a></li>
+
+      <li><a href="https://bharatdarpannews.com/the-rise-of-showoff-life-indias-future-ready-platform-for-talent-discovery-monetization/" target="_blank">The Rise of ShowOff.life: India’s Future-Ready Platform</a></li>
+
+      <li><a href="https://hindnewsnetwork.in/showoff-life-bridging-indias-digital-divide-with-ai-mentorship-creator-opportunities/" target="_blank">Bridging India’s Digital Divide with AI Mentorship</a></li>
+
+      <li><a href="https://livenewstoday.in/inside-showoff-life-a-women-led-creator-ecosystem-uplifting-indias-youth-talent/" target="_blank">Inside ShowOff.life: A Women-Led Creator Ecosystem</a></li>
+
+      <li><a href="https://indiannewsportal.com/showoff-life-and-saanvi-gautam-redefining-digital-creativity-and-leadership-in-india/" target="_blank">Redefining Digital Creativity & Leadership in India</a></li>
+
+      <li><a href="https://indiaonlinenews.com/why-showoff-life-is-emerging-as-indias-most-inclusive-platform-for-youth-creators/" target="_blank">India’s Most Inclusive Platform for Youth Creators</a></li>
+
+      <li><a href="https://indianmedianews.com/showoff-life-the-new-digital-revolution-transforming-indias-creator-economy/" target="_blank">The Digital Revolution Transforming Creator Economy</a></li>
+
+      <li><a href="https://biztalkindia.com/how-showoff-life-is-empowering-indias-next-gen-creators-through-ai-and-community-building/" target="_blank">Empowering Next-Gen Creators Through AI & Community</a></li>
+
+      <li><a href="https://eindianews.com/showoff-life-app-indias-fastest-growing-creator-leadership-ecosystem-for-young-innovators/" target="_blank">India’s Fastest Growing Creator Leadership Ecosystem</a></li>
+
+    </ul>
+
+  </div>
+</section>
+
+<style>
+  #press-coverage a {
+    display:block;
+    padding:16px;
+    background:#ffffff;
+    border-radius:8px;
+    text-decoration:none;
+    color:#111;
+    font-weight:500;
+    box-shadow:0 4px 12px rgba(0,0,0,0.06);
+    transition:all 0.3s ease;
+  }
+
+  #press-coverage a:hover {
+    transform:translateY(-4px);
+    box-shadow:0 6px 20px rgba(0,0,0,0.12);
+    color:#6a1b9a;
+  }
+</style>
+
+
+<!-- Founder Quote Section -->
+<section class="founder-quote animate__animated animate__fadeIn">
+  <h3>👏 A Platform That Puts Creators First</h3>
+  <p>"We are building an ecosystem where creators don't have to wait for algorithms to recognize them. On ShowOff.life, your talent is your currency. You grow, earn, and shine on your terms."</p>
+  <div class="author">Saanvi Gautam, Creative Head of ShowOff.life<br>Creative Head of Showoff Ventures Pvt. Ltd.</div>
+</section>
+
+<!-- NEW: Funded By Section -->
+<section class="funded-section animate__animated animate__fadeIn">
+  <div class="funded-by-content">
+    <div class="funded-by-logo">🏛️</div>
+    <h3>Proudly Funded & Supported By</h3>
+    <p class="funded-by-text">Food Craft Institute Khajuraho</p>
+    <p class="funded-by-subtext">Under Ministry of Tourism, Govt of Madhya Pradesh and Affiliated by National Council for Hotel Management, Noida</p>
+  </div>
+</section>
+
+<!-- Features Section -->
+<section class="features">
+  <h2 class="animate__animated animate__fadeIn">Platform Highlights</h2>
+  <div class="grid">
+    <div class="oval-card">
+      <h3>Monetize Your Talent</h3>
+      <p>Earn SOFFT coins for your content and convert them into real value.</p>
+    </div>
+    <div class="oval-card">
+      <h3>Gamified Experience</h3>
+      <p>Unlock levels, rewards, and climb the leaderboard.</p>
+    </div>
+    <div class="oval-card">
+      <h3>Ads & Rewards</h3>
+      <p>Watch ads and earn up to 100,000 coins every month.</p>
+    </div>
+    <div class="oval-card">
+      <h3>Collaborate & Grow</h3>
+      <p>Connect with creators and communities worldwide.</p>
+    </div>
+    <div class="oval-card">
+      <h3>Live Streaming</h3>
+      <p>Go live, engage with fans, and earn in real-time.</p>
+    </div>
+    <div class="oval-card">
+      <h3>Quarterly Mega Events</h3>
+      <p>Compete and win lakhs of coins with seasonal contests.</p>
+    </div>
+    <div class="oval-card">
+      <h3>Merchandise Store</h3>
+      <p>Use your coins or cash to buy exclusive merchandise.</p>
+    </div>
+    <div class="oval-card">
+      <h3>Global Accessibility</h3>
+      <p>Multi-language and currency support with local pricing.</p>
+    </div>
+    <div class="oval-card">
+      <h3>Show Your Talent (SYT)</h3>
+      <p>Upload 3-minute reels to creatively showcase your skills.</p>
+    </div>
+  </div>
+</section>
+
+
+
+<!-- How To Earn Rewards Section -->
+<section class="rewards">
+  <h2 class="animate__animated animate__fadeIn">How To Earn Rewards</h2>
+  <div class="grid">
+    <div class="oval-card">
+      <h3>Sign Up Bonus</h3>
+      <p>Get 50 coins instantly when you join the platform.</p>
+    </div>
+    <div class="oval-card">
+      <h3>Content Upload & Share</h3>
+      <p>Earn 5 coins per post with a limit of 10 uploads per day. Earn 5 coins for every post share (up to 50 coins daily)</p>
+    </div>
+    <div class="oval-card">
+      <h3>Watch & Earn</h3>
+      <p>Watch 5–50 ads daily and earn rewards based on your tier.</p>
+    </div>
+    <div class="oval-card">
+      <h3>Referral Program</h3>
+      <p>Invite friends and earn 20 Coins for each referral.</p>
+    </div>
+    <div class="oval-card">
+      <h3>Fortune Wheel</h3>
+      <p>Spin daily to win between 5 to 50 coins instantly.</p>
+    </div>
+    <div class="oval-card">
+      <h3>Vote </h3>
+      <p>1 Vote = 1 Coin.</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- Contact Section -->
+<section class="contact">
+  <h2 class="animate__animated animate__fadeIn">Contact Us</h2>
+  <div class="oval-card">
+    <p><strong>Company:</strong> Showoff Ventures Pvt Ltd</p>
+    <p><strong>Website:</strong> <a href="https://www.showoffventures.com" target="_blank">www.showoffventures.com</a></p>
+    <p><strong>Email:</strong> <a href="mailto:support.india@showoffventures.com">support.india@showoffventures.com</a></p>
+    <p><strong>Phone:</strong> <a href="tel:+919425617664">+91-9425617664</a></p>
+  </div>
+</section>
+<footer>
+  <div class="footer-content">
+    <div class="social-links">
+      <a href="https://linkedin.com/company/107290737" class="social-link linkedin" target="_blank">
+        <i class="fab fa-linkedin"></i> LinkedIn
+      </a>
+      <a href="https://instagram.com/showoff.life" class="social-link instagram" target="_blank">
+        <i class="fab fa-instagram"></i> Instagram
+      </a>
+      <a href="https://youtube.com/@showofflife" class="social-link youtube" target="_blank">
+        <i class="fab fa-youtube"></i> YouTube
+      </a>
+      <a href="https://twitter.com/showoff_life" class="social-link twitter" target="_blank">
+        <i class="fab fa-twitter"></i> Twitter (X)
+      </a>
+      <a href="https://www.facebook.com/showoff.life/" class="social-link facebook" target="_blank">
+        <i class="fab fa-facebook"></i> Facebook
+      </a>
+    </div>
+    <p>© 2025 ShowOff.life | Showoff Ventures Private Limited | Showoff Ventures Inc | Made with ❤️ in India</p>
+  </div>
+</footer>
+
+</body>
+</html>

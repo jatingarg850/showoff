@@ -5,6 +5,7 @@ const {
   getEntries,
   voteEntry,
   getLeaderboard,
+  getHallOfFame,
   toggleLike,
   getEntryStats,
   toggleBookmark,
@@ -23,6 +24,7 @@ const upload = require('../middleware/upload');
 // Public routes
 router.get('/entries', getEntries);
 router.get('/leaderboard', getLeaderboard);
+router.get('/hall-of-fame', getHallOfFame);
 router.get('/current-competition', getCurrentCompetitionInfo);
 router.get('/competitions/all', getCompetitions); // Get all competitions (for debugging)
 

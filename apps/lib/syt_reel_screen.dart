@@ -588,10 +588,30 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
         subject: 'Vote for $username on ShowOff.life SYT',
       );
 
-      // Track share on backend
-      final response = await ApiService.sharePost(entryId);
+      // Track share on backend and grant coins
+      final response = await ApiService.shareSYTEntry(entryId);
       if (response['success'] && mounted) {
+        // Show coin reward notification
+        final coinsEarned = response['coinsEarned'] ?? 5;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Shared! +$coinsEarned coins earned'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
         await _reloadEntryStats(index);
+      } else {
+        // Show error if share limit reached or other error
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response['message'] ?? 'Share failed'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       }
     } catch (e) {
       print('Error sharing: $e');

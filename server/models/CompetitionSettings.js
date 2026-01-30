@@ -81,4 +81,13 @@ competitionSettingsSchema.statics.getCurrentCompetition = async function(type) {
   });
 };
 
+// Static method to get previous/last completed competition
+competitionSettingsSchema.statics.getPreviousCompetition = async function(type) {
+  const now = new Date();
+  return await this.findOne({
+    type,
+    endDate: { $lt: now }, // Competition has ended
+  }).sort({ endDate: -1 }); // Get the most recent one
+};
+
 module.exports = mongoose.model('CompetitionSettings', competitionSettingsSchema);
