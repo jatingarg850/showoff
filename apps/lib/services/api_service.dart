@@ -1089,9 +1089,11 @@ class ApiService {
 
   // Create Razorpay order for subscription payment
   static Future<Map<String, dynamic>> createRazorpayOrderForSubscription({
+    required String planId,
     required double amount,
   }) async {
     final requestBody = {
+      'planId': planId,
       'amount': amount, // Send amount in rupees, backend will convert to paise
     };
 

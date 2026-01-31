@@ -120,6 +120,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     try {
       print('🔄 Creating subscription order for amount: ₹$amount');
       final orderResponse = await ApiService.createRazorpayOrderForSubscription(
+        planId: planId,
         amount: amount,
       );
 
@@ -272,7 +273,15 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
 
     final planId = proPlan['_id'] ?? 'pro';
-    final planPrice = (proPlan['price']?['monthly'] ?? 2499).toDouble();
+
+    // Handle price - it could be a Map or a direct number
+    double planPrice = 2499.0;
+    final priceData = proPlan['price'];
+    if (priceData is Map) {
+      planPrice = (priceData['monthly'] ?? 2499).toDouble();
+    } else if (priceData is num) {
+      planPrice = priceData.toDouble();
+    }
 
     return Scaffold(
       body: Container(

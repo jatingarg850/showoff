@@ -1,8 +1,8 @@
 class ApiConfig {
   // Local Development Server - Android Emulator
   // Use 10.0.2.2 instead of localhost for Android emulator https://showoff.life/api
-  static const String baseUrlHttp = 'http://10.0.2.2:3000/api';
-  static const String wsUrlHttp = 'http://10.0.2.2:3000/';
+  static const String baseUrlHttp = 'https://showoff.life/api';
+  static const String wsUrlHttp = 'https://showoff.life/';
   // For physical device, use your machine IP (e.g., 192.168.x.x)
   // static const String baseUrlHttp = 'http://192.168.x.x:3000/api';
   // static const String wsUrlHttp = 'http://192.168.x.x:3000/';

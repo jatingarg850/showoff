@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const { SubscriptionPlan } = require('../models/Subscription');
 require('dotenv').config();
 
-const seedPlans = async () => {
+const resetAndSeed = async () => {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGODB_URI);
@@ -10,9 +10,9 @@ const seedPlans = async () => {
 
     // Clear existing plans
     await SubscriptionPlan.deleteMany({});
-    console.log('🗑️  Cleared existing plans');
+    console.log('🗑️  Cleared existing subscription plans');
 
-    // Create subscription plans
+    // Create subscription plans with correct schema
     const plans = [
       {
         name: 'Free',
@@ -150,15 +150,15 @@ const seedPlans = async () => {
     console.log(`✅ Created ${createdPlans.length} subscription plans`);
 
     createdPlans.forEach((plan) => {
-      console.log(`  - ${plan.name} (${plan.tier}): ₹${plan.price.monthly}/month`);
+      console.log(`  - ${plan.name} (${plan.tier}): ₹${plan.price}/month`);
     });
 
-    console.log('\n✅ Subscription plans seeded successfully!');
+    console.log('\n✅ Subscription plans reset and seeded successfully!');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error seeding plans:', error.message);
+    console.error('❌ Error resetting and seeding plans:', error.message);
     process.exit(1);
   }
 };
 
-seedPlans();
+resetAndSeed();
