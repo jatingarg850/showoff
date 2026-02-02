@@ -1773,7 +1773,7 @@ exports.getAdsForApp = async (req, res) => {
       color: ad.color,
       adLink: ad.adLink,
       adProvider: ad.adProvider,
-      rewardCoins: ad.rewardCoins,
+      rewardCoins: Math.min(ad.rewardCoins, 5), // Cap at 5 coins maximum
       isActive: ad.isActive,
       adType: ad.adType,
       // Include provider-specific configuration

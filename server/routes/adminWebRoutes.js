@@ -624,12 +624,45 @@ router.get('/withdrawals', checkAdminWeb, async (req, res) => {
   }
 });
 
+// Get single withdrawal details (API endpoint)
+router.get('/withdrawals/:id', checkAdminWeb, async (req, res) => {
+  try {
+    const Withdrawal = require('../models/Withdrawal');
+    
+    const withdrawal = await Withdrawal.findById(req.params.id)
+      .populate('user', 'username displayName email profilePicture coinBalance');
+    
+    if (!withdrawal) {
+      return res.status(404).json({
+        success: false,
+        message: 'Withdrawal request not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: withdrawal
+    });
+  } catch (error) {
+    console.error('❌ Error fetching withdrawal:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
 // Approve withdrawal
 router.post('/withdrawals/:id/approve', checkAdminWeb, async (req, res) => {
   try {
-    const { adminNotes, transactionId } = req.body;
+    const { adminNotes, transactionId, approvedAmount } = req.body;
     const Withdrawal = require('../models/Withdrawal');
     const Transaction = require('../models/Transaction');
+    
+    console.log('📝 Approve Withdrawal Request (Web):');
+    console.log('  - approvedAmount from request:', approvedAmount);
+    console.log('  - adminNotes:', adminNotes);
+    console.log('  - transactionId:', transactionId);
     
     const withdrawal = await Withdrawal.findById(req.params.id);
     if (!withdrawal) {
@@ -646,13 +679,32 @@ router.post('/withdrawals/:id/approve', checkAdminWeb, async (req, res) => {
       });
     }
 
+    // Validate approved amount if provided
+    let finalAmount = withdrawal.localAmount;
+    if (approvedAmount !== undefined && approvedAmount !== null && approvedAmount !== '') {
+      finalAmount = parseFloat(approvedAmount);
+      console.log('  - Parsed approvedAmount:', finalAmount);
+      
+      if (isNaN(finalAmount) || finalAmount <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid approved amount'
+        });
+      }
+    }
+
+    console.log('  - Final amount to save:', finalAmount);
+
     withdrawal.status = 'completed';
-    withdrawal.adminNotes = adminNotes;
+    withdrawal.adminNotes = adminNotes || `Approved for ₹${finalAmount}`;
     withdrawal.transactionId = transactionId || `TXN${Date.now()}`;
+    withdrawal.approvedAmount = finalAmount;
     withdrawal.processedBy = req.user.id;
     withdrawal.processedAt = new Date();
 
     await withdrawal.save();
+
+    console.log('  - Withdrawal saved with approvedAmount:', withdrawal.approvedAmount);
 
     // Update transaction status
     await Transaction.updateOne(
@@ -664,13 +716,13 @@ router.post('/withdrawals/:id/approve', checkAdminWeb, async (req, res) => {
       },
       { 
         status: 'completed',
-        description: `Withdrawal completed - ${withdrawal.method}`
+        description: `Withdrawal completed - ₹${finalAmount} - ${withdrawal.method}`
       }
     );
 
     res.json({
       success: true,
-      message: 'Withdrawal approved successfully',
+      message: `Withdrawal approved successfully for ₹${finalAmount}`,
       data: withdrawal
     });
   } catch (error) {

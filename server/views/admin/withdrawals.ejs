@@ -216,10 +216,11 @@
         }
 
         function viewWithdrawal(withdrawalId) {
+            console.log('👁️ Viewing withdrawal:', withdrawalId);
             document.getElementById('withdrawalModalContent').innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div>';
-            document.getElementById('withdrawalModal').style.display = 'flex';
+            document.getElementById('withdrawalModal').classList.add('active');
             
-            fetch(`/api/admin/withdrawals/${withdrawalId}`, {
+            fetch(`/admin/withdrawals/${withdrawalId}`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
                 }
@@ -234,6 +235,7 @@
                 }
             })
             .catch(error => {
+                console.error('Error:', error);
                 alert('Error: ' + error.message);
                 closeModal();
             });
@@ -341,8 +343,9 @@
         }
 
         function approveWithdrawal(withdrawalId) {
+            console.log('✅ Approving withdrawal:', withdrawalId);
             // Fetch withdrawal details to show amount
-            fetch(`/api/admin/withdrawals/${withdrawalId}`, {
+            fetch(`/admin/withdrawals/${withdrawalId}`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
                 }
@@ -369,6 +372,7 @@
                         );
                         
                         if (withdrawAmount === null) {
+                            console.log('Approval cancelled by user');
                             return; // User cancelled
                         }
                         
@@ -385,9 +389,9 @@
                         const transactionId = prompt('Enter transaction ID (optional):');
                         
                         if (confirm(`Approve withdrawal of ₹${finalAmount.toFixed(2)}?`)) {
-                            console.log('Sending approvedAmount:', finalAmount, 'Type:', typeof finalAmount);
-                            fetch(`/api/admin/withdrawals/${withdrawalId}/approve`, {
-                                method: 'PUT',
+                            console.log('Sending approval request:', { finalAmount, notes, transactionId });
+                            fetch(`/admin/withdrawals/${withdrawalId}/approve`, {
+                                method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json',
                                     'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
@@ -397,7 +401,6 @@
                                     transactionId: transactionId || '',
                                     approvedAmount: parseFloat(finalAmount)
                                 })
-                            })
                             })
                             .then(response => response.json())
                             .then(data => {
@@ -410,6 +413,7 @@
                                 }
                             })
                             .catch(error => {
+                                console.error('Error:', error);
                                 alert('Error: ' + error.message);
                             });
                         }
@@ -419,17 +423,22 @@
                 }
             })
             .catch(error => {
+                console.error('Error:', error);
                 alert('Error: ' + error.message);
             });
         }
 
         function rejectWithdrawal(withdrawalId) {
+            console.log('❌ Rejecting withdrawal:', withdrawalId);
             const reason = prompt('Enter rejection reason:');
-            if (!reason) return;
+            if (!reason) {
+                console.log('Rejection cancelled - no reason provided');
+                return;
+            }
             
             if (confirm('Are you sure you want to reject this withdrawal? The coins will be refunded to the user.')) {
-                fetch(`/api/admin/withdrawals/${withdrawalId}/reject`, {
-                    method: 'PUT',
+                fetch(`/admin/withdrawals/${withdrawalId}/reject`, {
+                    method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
@@ -447,14 +456,28 @@
                     }
                 })
                 .catch(error => {
+                    console.error('Error:', error);
                     alert('Error: ' + error.message);
                 });
             }
         }
 
         function closeModal() {
-            document.getElementById('withdrawalModal').style.display = 'none';
+            document.getElementById('withdrawalModal').classList.remove('active');
         }
+
+        // Initialize modal close on outside click
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('withdrawalModal');
+            if (modal) {
+                modal.addEventListener('click', function(event) {
+                    if (event.target === modal) {
+                        closeModal();
+                    }
+                });
+            }
+            console.log('✅ Withdrawal admin panel initialized');
+        });
     </script>
 </body>
 </html>

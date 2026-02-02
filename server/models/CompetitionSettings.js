@@ -6,7 +6,6 @@ const competitionSettingsSchema = new mongoose.Schema({
     type: String,
     enum: ['weekly', 'monthly', 'quarterly', 'custom'],
     required: true,
-    unique: true,
   },
   
   // Custom Date Range

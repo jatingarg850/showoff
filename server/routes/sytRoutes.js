@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   submitEntry,
   getEntries,
+  getSingleEntry,
   voteEntry,
   getLeaderboard,
   getHallOfFame,
@@ -23,6 +24,7 @@ const upload = require('../middleware/upload');
 
 // Public routes
 router.get('/entries', getEntries);
+router.get('/entry/:id', getSingleEntry); // Get single entry by ID (for deep linking)
 router.get('/leaderboard', getLeaderboard);
 router.get('/hall-of-fame', getHallOfFame);
 router.get('/current-competition', getCurrentCompetitionInfo);

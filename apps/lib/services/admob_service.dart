@@ -68,17 +68,20 @@ class AdMobService {
   }
 
   /// Show rewarded ad with proper callback handling for a specific ad number
+  /// Returns true only if ad was actually watched/completed
   static Future<bool> showRewardedAd({int adNumber = 1}) async {
     try {
       debugPrint('🎬 Attempting to show ad $adNumber');
 
+      bool adWatched = false;
+
       // If no preloaded ad, load one now
       if (_rewardedAds[adNumber] == null) {
         debugPrint('📺 No preloaded ad $adNumber, loading now...');
-        await _loadAndShowRewardedAd(adNumber);
+        adWatched = await _loadAndShowRewardedAd(adNumber);
       } else {
         debugPrint('📺 Showing preloaded ad $adNumber...');
-        await _showAd(_rewardedAds[adNumber]!, adNumber);
+        adWatched = await _showAd(_rewardedAds[adNumber]!, adNumber);
       }
 
       // Preload next ad for future use
@@ -86,7 +89,7 @@ class AdMobService {
         preloadRewardedAd(adNumber: adNumber);
       });
 
-      return true;
+      return adWatched;
     } catch (e) {
       debugPrint('❌ Error showing rewarded ad $adNumber: $e');
       return false;
@@ -94,7 +97,8 @@ class AdMobService {
   }
 
   /// Load and show rewarded ad for a specific ad number
-  static Future<void> _loadAndShowRewardedAd(int adNumber) async {
+  /// Returns true only if ad was actually watched/completed
+  static Future<bool> _loadAndShowRewardedAd(int adNumber) async {
     try {
       RewardedAd? rewardedAd;
       bool adLoaded = false;
@@ -127,19 +131,23 @@ class AdMobService {
 
       if (rewardedAd != null) {
         debugPrint('📺 Showing loaded ad $adNumber');
-        await _showAd(rewardedAd!, adNumber);
+        return await _showAd(rewardedAd!, adNumber);
       } else {
         debugPrint('⚠️ Ad $adNumber failed to load within timeout');
+        return false;
       }
     } catch (e) {
       debugPrint('❌ Error in _loadAndShowRewardedAd for ad $adNumber: $e');
+      return false;
     }
   }
 
   /// Show ad with proper callbacks for a specific ad number
-  static Future<void> _showAd(RewardedAd ad, int adNumber) async {
+  /// Returns true only if ad was actually watched/completed
+  static Future<bool> _showAd(RewardedAd ad, int adNumber) async {
     try {
       bool adCompleted = false;
+      bool adWatched = false;
 
       ad.fullScreenContentCallback = FullScreenContentCallback(
         onAdShowedFullScreenContent: (ad) {
@@ -150,6 +158,8 @@ class AdMobService {
           ad.dispose();
           _rewardedAds[adNumber] = null;
           adCompleted = true;
+          // Only mark as watched if user didn't skip immediately
+          // (we check this via the reward callback)
         },
         onAdFailedToShowFullScreenContent: (ad, error) {
           debugPrint('❌ Ad $adNumber failed to show: $error');
@@ -167,6 +177,7 @@ class AdMobService {
           debugPrint(
             '🎁 User earned reward from ad $adNumber: ${reward.amount} ${reward.type}',
           );
+          adWatched = true; // Mark as watched only when reward is earned
         },
       );
 
@@ -182,8 +193,12 @@ class AdMobService {
         ad.dispose();
         _rewardedAds[adNumber] = null;
       }
+
+      debugPrint('✅ Ad $adNumber watched: $adWatched');
+      return adWatched;
     } catch (e) {
       debugPrint('❌ Error showing ad $adNumber: $e');
+      return false;
     }
   }
 

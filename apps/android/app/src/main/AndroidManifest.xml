@@ -80,6 +80,31 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="10.0.2.2" android:pathPrefix="/reel/" />
             </intent-filter>
+            
+            <!-- Deep linking for SYT entries -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- Handle showofflife://syt scheme -->
+                <data android:scheme="showofflife" android:host="syt" />
+            </intent-filter>
+            
+            <!-- Handle https://showoff.life/syt/* -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="showoff.life" android:pathPrefix="/syt/" />
+            </intent-filter>
+            
+            <!-- Handle https://10.0.2.2:3000/syt/* (for emulator testing) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="10.0.2.2" android:pathPrefix="/syt/" />
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

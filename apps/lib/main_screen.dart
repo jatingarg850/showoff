@@ -10,12 +10,14 @@ class MainScreen extends StatefulWidget {
   final String? initialPostId;
   final Map<String, dynamic>?
   initialPostData; // Add post data for faster loading
+  final String? sytEntryId; // Add SYT entry ID for deep linking
 
   const MainScreen({
     super.key,
     this.initialIndex = 0,
     this.initialPostId,
     this.initialPostData,
+    this.sytEntryId,
   });
 
   @override
@@ -49,7 +51,10 @@ class _MainScreenState extends State<MainScreen> {
       initialPostId: widget.initialPostId,
       initialPostData: widget.initialPostData,
     );
-    _talentScreen = TalentScreen(key: const ValueKey('talent_screen'));
+    _talentScreen = TalentScreen(
+      key: const ValueKey('talent_screen'),
+      sytEntryId: widget.sytEntryId,
+    );
     _pathScreen = PathSelectionScreen(key: const ValueKey('path_screen'));
     _walletScreen = WalletScreen(key: const ValueKey('wallet_screen'));
     _profileScreen = ProfileScreen(key: const ValueKey('profile_screen'));

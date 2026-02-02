@@ -30,7 +30,9 @@ const transactionSchema = new mongoose.Schema({
       'add_money',  // Added for Razorpay add money functionality
       'welcome_bonus',  // Welcome bonus for new users
       'admin_credit',   // Admin added coins
-      'admin_debit'     // Admin removed coins
+      'admin_debit',    // Admin removed coins
+      'share_reward',   // Reward for sharing SYT entries
+      'withdrawal_refund' // Refund when withdrawal is rejected
     ],
     required: true,
   },

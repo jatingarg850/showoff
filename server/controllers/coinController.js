@@ -65,7 +65,7 @@ exports.watchAd = async (req, res) => {
     }
 
     // Get reward from admin-configured ad or use default
-    let adCoins = parseInt(process.env.AD_WATCH_COINS);
+    let adCoins = parseInt(process.env.AD_WATCH_COINS) || 5;
     
     if (adNumber) {
       const RewardedAd = require('../models/RewardedAd');
@@ -77,6 +77,10 @@ exports.watchAd = async (req, res) => {
         console.log(`⚠️ Ad ${adNumber} not found, using default reward: ${adCoins} coins`);
       }
     }
+
+    // Cap reward at 5 coins maximum
+    adCoins = Math.min(adCoins, 5);
+    console.log(`✅ Final reward (capped at 5): ${adCoins} coins`);
 
     // Award coins
     await awardCoins(user._id, adCoins, 'ad_watch', 'Watched rewarded ad');

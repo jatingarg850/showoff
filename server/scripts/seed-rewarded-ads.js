@@ -28,7 +28,7 @@ const seedAds = async () => {
       return;
     }
 
-    // Create initial ads
+    // Create initial ads - ALL WITH 5 COINS REWARD
     const initialAds = [
       {
         adNumber: 1,
@@ -56,7 +56,7 @@ const seedAds = async () => {
         color: '#FF6B35',
         adLink: 'https://example.com/ad2',
         adProvider: 'admob',
-        rewardCoins: 10,
+        rewardCoins: 5,
         isActive: true,
         rotationOrder: 2,
         providerConfig: {
@@ -74,7 +74,7 @@ const seedAds = async () => {
         color: '#4FACFE',
         adLink: 'https://example.com/ad3',
         adProvider: 'meta',
-        rewardCoins: 15,
+        rewardCoins: 5,
         isActive: true,
         rotationOrder: 3,
         providerConfig: {
@@ -93,7 +93,7 @@ const seedAds = async () => {
         color: '#43E97B',
         adLink: 'https://example.com/ad4',
         adProvider: 'custom',
-        rewardCoins: 20,
+        rewardCoins: 5,
         isActive: true,
         rotationOrder: 4,
         providerConfig: {
@@ -112,7 +112,7 @@ const seedAds = async () => {
         color: '#FBBF24',
         adLink: 'https://example.com/ad5',
         adProvider: 'third-party',
-        rewardCoins: 25,
+        rewardCoins: 5,
         isActive: true,
         rotationOrder: 5,
         providerConfig: {

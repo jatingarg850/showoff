@@ -24,15 +24,41 @@ class MusicSelectionScreen extends StatefulWidget {
 
 class _MusicSelectionScreenState extends State<MusicSelectionScreen> {
   List<Map<String, dynamic>> _musicList = [];
+  List<Map<String, dynamic>> _filteredMusicList = [];
   bool _isLoading = true;
   String? _selectedMusicId;
   String _selectedGenre = '';
   String _selectedMood = '';
+  String _searchQuery = '';
+  late TextEditingController _searchController;
 
   @override
   void initState() {
     super.initState();
+    _searchController = TextEditingController();
+    _searchController.addListener(_filterMusic);
     _loadMusic();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _filterMusic() {
+    setState(() {
+      _searchQuery = _searchController.text.toLowerCase();
+      _filteredMusicList = _musicList.where((music) {
+        final title = (music['title'] ?? '').toString().toLowerCase();
+        final artist = (music['artist'] ?? '').toString().toLowerCase();
+        final genre = (music['genre'] ?? '').toString().toLowerCase();
+
+        return title.contains(_searchQuery) ||
+            artist.contains(_searchQuery) ||
+            genre.contains(_searchQuery);
+      }).toList();
+    });
   }
 
   Future<void> _loadMusic() async {
@@ -50,6 +76,7 @@ class _MusicSelectionScreenState extends State<MusicSelectionScreen> {
       if (response['success']) {
         setState(() {
           _musicList = List<Map<String, dynamic>>.from(response['data']);
+          _filterMusic(); // Apply search filter
           _isLoading = false;
         });
       } else {
@@ -153,9 +180,48 @@ class _MusicSelectionScreenState extends State<MusicSelectionScreen> {
       ),
       body: Column(
         children: [
-          // Filters
+          // Search Bar
           Padding(
             padding: const EdgeInsets.all(16),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search by title, artist, or genre...',
+                prefixIcon: const Icon(Icons.search, color: Color(0xFF701CF5)),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.grey),
+                        onPressed: () {
+                          _searchController.clear();
+                          _filterMusic();
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.grey),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF701CF5),
+                    width: 2,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ),
+          // Filters
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -254,6 +320,7 @@ class _MusicSelectionScreenState extends State<MusicSelectionScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 12),
           // Music List
           Expanded(
             child: _isLoading
@@ -264,7 +331,7 @@ class _MusicSelectionScreenState extends State<MusicSelectionScreen> {
                       ),
                     ),
                   )
-                : _musicList.isEmpty
+                : _filteredMusicList.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -276,22 +343,27 @@ class _MusicSelectionScreenState extends State<MusicSelectionScreen> {
                         ),
                         const SizedBox(height: 16),
                         const Text(
-                          'No music available',
+                          'No music found',
                           style: TextStyle(fontSize: 16, color: Colors.grey),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Try different filters',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        Text(
+                          _searchQuery.isNotEmpty
+                              ? 'Try a different search term'
+                              : 'Try different filters',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
                         ),
                       ],
                     ),
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.all(16),
-                    itemCount: _musicList.length,
+                    itemCount: _filteredMusicList.length,
                     itemBuilder: (context, index) {
-                      final music = _musicList[index];
+                      final music = _filteredMusicList[index];
                       final isSelected = _selectedMusicId == music['_id'];
 
                       return GestureDetector(

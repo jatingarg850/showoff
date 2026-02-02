@@ -7,7 +7,9 @@ import 'services/api_service.dart';
 import 'ai_chat_screen.dart';
 
 class TalentScreen extends StatefulWidget {
-  const TalentScreen({super.key});
+  final String? sytEntryId; // Add SYT entry ID for deep linking
+
+  const TalentScreen({super.key, this.sytEntryId});
 
   @override
   State<TalentScreen> createState() => _TalentScreenState();

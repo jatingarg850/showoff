@@ -1078,3 +1078,39 @@ exports.shareSYTEntry = async (req, res) => {
     });
   }
 };
+
+// @desc    Get single SYT entry by ID (for deep linking)
+// @route   GET /api/syt/entry/:id
+// @access  Public
+exports.getSingleEntry = async (req, res) => {
+  try {
+    const entry = await SYTEntry.findById(req.params.id)
+      .populate('user', 'username displayName profilePicture isVerified')
+      .populate('backgroundMusic', 'title artist audioUrl duration genre mood');
+
+    if (!entry) {
+      return res.status(404).json({
+        success: false,
+        message: 'SYT entry not found',
+      });
+    }
+
+    // Check if entry is active and approved
+    if (!entry.isActive || !entry.isApproved) {
+      return res.status(403).json({
+        success: false,
+        message: 'This entry is not available',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: entry,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
