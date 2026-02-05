@@ -7,11 +7,22 @@ import 'subscription_service.dart';
 class AdService {
   static String get interstitialAdUnitId {
     if (Platform.isAndroid) {
-      // Replace with your actual Android Ad Unit ID
-      return 'ca-app-pub-3940256099942544/1033173712'; // Test ID
+      // Production Android Interstitial Ad Unit ID
+      return 'ca-app-pub-3244693086681200/8765150836';
     } else if (Platform.isIOS) {
       // Replace with your actual iOS Ad Unit ID
       return 'ca-app-pub-3940256099942544/4411468910'; // Test ID
+    }
+    throw UnsupportedError('Unsupported platform');
+  }
+
+  static String get bannerAdUnitId {
+    if (Platform.isAndroid) {
+      // Production Android Banner Ad Unit ID
+      return 'ca-app-pub-3244693086681200/6601730347';
+    } else if (Platform.isIOS) {
+      // Replace with your actual iOS Banner Ad Unit ID
+      return 'ca-app-pub-3940256099942544/6300978111'; // Test ID
     }
     throw UnsupportedError('Unsupported platform');
   }
@@ -107,5 +118,49 @@ class AdService {
       ad.dispose();
       // Don't call callback - ad failed to show
     }
+  }
+
+  // Load a banner ad
+  static Future<BannerAd?> loadBannerAd() async {
+    // Check if user is ad-free
+    final shouldShow = await shouldShowAds();
+    if (!shouldShow) {
+      debugPrint('⏭️ Skipping banner ad load - user has ad-free subscription');
+      return null;
+    }
+
+    final completer = Completer<BannerAd?>();
+
+    final bannerAd = BannerAd(
+      adUnitId: bannerAdUnitId,
+      size: AdSize.banner,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (ad) {
+          debugPrint('✅ Banner ad loaded successfully');
+          if (!completer.isCompleted) {
+            completer.complete(ad as BannerAd);
+          }
+        },
+        onAdFailedToLoad: (ad, error) {
+          debugPrint('❌ Banner ad failed to load: $error');
+          ad.dispose();
+          if (!completer.isCompleted) {
+            completer.complete(null);
+          }
+        },
+      ),
+    );
+
+    bannerAd.load();
+
+    // Wait for the ad to load with a timeout
+    return completer.future.timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        debugPrint('⏱️ Banner ad load timeout after 10 seconds');
+        return null;
+      },
+    );
   }
 }

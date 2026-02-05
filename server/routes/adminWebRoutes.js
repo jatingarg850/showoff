@@ -699,7 +699,12 @@ router.post('/withdrawals/:id/approve', checkAdminWeb, async (req, res) => {
     withdrawal.adminNotes = adminNotes || `Approved for ₹${finalAmount}`;
     withdrawal.transactionId = transactionId || `TXN${Date.now()}`;
     withdrawal.approvedAmount = finalAmount;
-    withdrawal.processedBy = req.user.id;
+    
+    // Only set processedBy if it's a valid ObjectId (24 character hex string)
+    if (req.user?.id && req.user.id.length === 24) {
+      withdrawal.processedBy = req.user.id;
+    }
+    
     withdrawal.processedAt = new Date();
 
     await withdrawal.save();
@@ -759,7 +764,12 @@ router.post('/withdrawals/:id/reject', checkAdminWeb, async (req, res) => {
 
     withdrawal.status = 'rejected';
     withdrawal.adminNotes = rejectionReason;
-    withdrawal.processedBy = req.user.id;
+    
+    // Only set processedBy if it's a valid ObjectId (24 character hex string)
+    if (req.user?.id && req.user.id.length === 24) {
+      withdrawal.processedBy = req.user.id;
+    }
+    
     withdrawal.processedAt = new Date();
 
     await withdrawal.save();

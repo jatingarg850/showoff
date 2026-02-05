@@ -614,7 +614,7 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
         }
       }
     } catch (e) {
-      print('Error sharing: $e');
+      debugPrint('Error sharing: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

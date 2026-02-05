@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'dart:async';
 import 'services/admob_service.dart';
 import 'services/api_service.dart';
+import 'services/ad_service.dart';
 import 'services/rewarded_ad_service.dart';
 import 'services/storage_service.dart';
 import 'package:http/http.dart' as http;
@@ -23,6 +25,8 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
   bool _adsLoaded = false;
   VideoPlayerController? _videoController;
   bool _videoInitialized = false;
+  BannerAd? _bannerAd;
+  bool _bannerAdLoaded = false;
 
   @override
   void initState() {
@@ -30,11 +34,14 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
     _loadAds();
     // Preload ads in background
     _preloadAllAds();
+    // Load banner ad
+    _loadBannerAd();
   }
 
   @override
   void dispose() {
     _videoController?.dispose();
+    _bannerAd?.dispose();
     super.dispose();
   }
 
@@ -45,6 +52,24 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
         await Future.delayed(const Duration(milliseconds: 500));
         AdMobService.preloadRewardedAd(adNumber: i);
       }
+    }
+  }
+
+  Future<void> _loadBannerAd() async {
+    try {
+      debugPrint('⏳ Loading banner ad...');
+      final bannerAd = await AdService.loadBannerAd();
+      if (bannerAd != null && mounted) {
+        setState(() {
+          _bannerAd = bannerAd;
+          _bannerAdLoaded = true;
+        });
+        debugPrint('✅ Banner ad loaded and ready to display');
+      } else {
+        debugPrint('⚠️ Banner ad returned null');
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading banner ad: $e');
     }
   }
 
@@ -622,74 +647,95 @@ class _AdSelectionScreenState extends State<AdSelectionScreen> {
             )
           : _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header info
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF701CF5), Color(0xFF7C3AED)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+          : Stack(
+              children: [
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header info
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF701CF5), Color(0xFF7C3AED)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          children: [
+                            const Icon(
+                              Icons.monetization_on,
+                              color: Colors.white,
+                              size: 48,
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Earn Coins by Watching Ads',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Choose an ad to watch and earn coins instantly!',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 14,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
                       ),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      children: [
-                        const Icon(
-                          Icons.monetization_on,
-                          color: Colors.white,
-                          size: 48,
+                      const SizedBox(height: 30),
+
+                      const Text(
+                        'Select an Ad',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
                         ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Earn Coins by Watching Ads',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Choose an ad to watch and earn coins instantly!',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            fontSize: 14,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Ad options list
+                      ...List.generate(_adOptions.length, (index) {
+                        final ad = _adOptions[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _buildAdCard(ad),
+                        );
+                      }),
+                      // Add bottom padding for banner ad
+                      const SizedBox(height: 80),
+                    ],
+                  ),
+                ),
+                // Banner ad at bottom
+                if (_bannerAdLoaded && _bannerAd != null)
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      color: Colors.white,
+                      child: SizedBox(
+                        width: _bannerAd!.size.width.toDouble(),
+                        height: _bannerAd!.size.height.toDouble(),
+                        child: AdWidget(ad: _bannerAd!),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 30),
-
-                  const Text(
-                    'Select an Ad',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Ad options list
-                  ...List.generate(_adOptions.length, (index) {
-                    final ad = _adOptions[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _buildAdCard(ad),
-                    );
-                  }),
-                ],
-              ),
+              ],
             ),
     );
   }

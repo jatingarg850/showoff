@@ -31,9 +31,9 @@ class _AIChatScreenState extends State<AIChatScreen> {
   Future<void> _initializeAI() async {
     try {
       await AIService.initialize();
-      print('✅ AI Service initialized successfully');
+      debugPrint('✅ AI Service initialized successfully');
     } catch (e) {
-      print('❌ Failed to initialize AI Service: $e');
+      debugPrint('❌ Failed to initialize AI Service: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -109,6 +109,14 @@ class _AIChatScreenState extends State<AIChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 360;
+    final isMediumScreen = screenSize.width < 600;
+
+    // Responsive padding
+    final horizontalPadding = isSmallScreen ? 12.0 : 16.0;
+    final verticalPadding = isSmallScreen ? 12.0 : 16.0;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -121,8 +129,8 @@ class _AIChatScreenState extends State<AIChatScreen> {
         title: Row(
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: isSmallScreen ? 36 : 40,
+              height: isSmallScreen ? 36 : 40,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(width: 2, color: const Color(0xFF701CF5)),
@@ -134,33 +142,41 @@ class _AIChatScreenState extends State<AIChatScreen> {
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
                       color: const Color(0xFF701CF5),
-                      child: const Icon(
+                      child: Icon(
                         Icons.smart_toy,
                         color: Colors.white,
-                        size: 24,
+                        size: isSmallScreen ? 20 : 24,
                       ),
                     );
                   },
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'SHOWIE',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+            SizedBox(width: isSmallScreen ? 8 : 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'SHOWIE',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: isSmallScreen ? 16 : 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                Text(
-                  'AI Assistant',
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ],
+                  Text(
+                    'AI Assistant',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: isSmallScreen ? 10 : 12,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -170,27 +186,33 @@ class _AIChatScreenState extends State<AIChatScreen> {
           // Quick action buttons
           if (_messages.length <= 1)
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(horizontalPadding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Quick Questions:',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: isSmallScreen ? 12 : 14,
                       fontWeight: FontWeight.w600,
                       color: Colors.grey,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: verticalPadding),
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    spacing: isSmallScreen ? 6 : 8,
+                    runSpacing: isSmallScreen ? 6 : 8,
                     children: [
-                      _buildQuickButton('How do I join SYT?'),
-                      _buildQuickButton('How to earn coins?'),
-                      _buildQuickButton('How to withdraw money?'),
-                      _buildQuickButton('What is the leaderboard?'),
+                      _buildQuickButton('How do I join SYT?', isSmallScreen),
+                      _buildQuickButton('How to earn coins?', isSmallScreen),
+                      _buildQuickButton(
+                        'How to withdraw money?',
+                        isSmallScreen,
+                      ),
+                      _buildQuickButton(
+                        'What is the leaderboard?',
+                        isSmallScreen,
+                      ),
                     ],
                   ),
                 ],
@@ -201,29 +223,34 @@ class _AIChatScreenState extends State<AIChatScreen> {
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(horizontalPadding),
               itemCount: _messages.length + (_isTyping ? 1 : 0),
               itemBuilder: (context, index) {
                 if (index == _messages.length && _isTyping) {
-                  return _buildTypingIndicator();
+                  return _buildTypingIndicator(isSmallScreen);
                 }
 
                 final message = _messages[index];
                 final isAI = message['role'] == 'ai';
 
-                return _buildMessageBubble(message['message']!, isAI);
+                return _buildMessageBubble(
+                  message['message']!,
+                  isAI,
+                  isSmallScreen,
+                  isMediumScreen,
+                );
               },
             ),
           ),
 
           // Input area
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(horizontalPadding),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -2),
                 ),
@@ -233,25 +260,40 @@ class _AIChatScreenState extends State<AIChatScreen> {
               children: [
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isSmallScreen ? 12 : 16,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.grey[100],
                       borderRadius: BorderRadius.circular(25),
                     ),
                     child: TextField(
                       controller: _messageController,
-                      decoration: const InputDecoration(
-                        hintText: 'Ask SHOWIE anything...',
+                      decoration: InputDecoration(
+                        hintText: 'Ask SHOWIE...',
                         border: InputBorder.none,
-                        hintStyle: TextStyle(color: Colors.grey),
+                        hintStyle: const TextStyle(color: Colors.grey),
+                        contentPadding: EdgeInsets.symmetric(
+                          vertical: isSmallScreen ? 10 : 12,
+                        ),
                       ),
                       maxLines: null,
+                      minLines: 1,
+                      maxLength: 500,
+                      buildCounter:
+                          (
+                            context, {
+                            required currentLength,
+                            required isFocused,
+                            maxLength,
+                          }) => null,
                       textCapitalization: TextCapitalization.sentences,
+                      style: TextStyle(fontSize: isSmallScreen ? 14 : 15),
                       onSubmitted: (_) => _sendMessage(),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: isSmallScreen ? 8 : 12),
                 Container(
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
@@ -260,8 +302,14 @@ class _AIChatScreenState extends State<AIChatScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white),
+                    icon: Icon(
+                      Icons.send,
+                      color: Colors.white,
+                      size: isSmallScreen ? 20 : 24,
+                    ),
+                    iconSize: isSmallScreen ? 20 : 24,
                     onPressed: _isTyping ? null : _sendMessage,
+                    padding: EdgeInsets.all(isSmallScreen ? 8 : 12),
                   ),
                 ),
               ],
@@ -272,11 +320,14 @@ class _AIChatScreenState extends State<AIChatScreen> {
     );
   }
 
-  Widget _buildQuickButton(String text) {
+  Widget _buildQuickButton(String text, bool isSmallScreen) {
     return InkWell(
       onTap: () => _sendQuickMessage(text),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: EdgeInsets.symmetric(
+          horizontal: isSmallScreen ? 12 : 16,
+          vertical: isSmallScreen ? 8 : 10,
+        ),
         decoration: BoxDecoration(
           color: Colors.grey[100],
           borderRadius: BorderRadius.circular(20),
@@ -284,15 +335,31 @@ class _AIChatScreenState extends State<AIChatScreen> {
         ),
         child: Text(
           text,
-          style: const TextStyle(fontSize: 13, color: Colors.black87),
+          style: TextStyle(
+            fontSize: isSmallScreen ? 11 : 13,
+            color: Colors.black87,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
     );
   }
 
-  Widget _buildMessageBubble(String message, bool isAI) {
+  Widget _buildMessageBubble(
+    String message,
+    bool isAI,
+    bool isSmallScreen,
+    bool isMediumScreen,
+  ) {
+    final maxWidth = isSmallScreen
+        ? MediaQuery.of(context).size.width * 0.85
+        : isMediumScreen
+        ? MediaQuery.of(context).size.width * 0.80
+        : MediaQuery.of(context).size.width * 0.70;
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: EdgeInsets.only(bottom: isSmallScreen ? 12 : 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: isAI
@@ -301,8 +368,8 @@ class _AIChatScreenState extends State<AIChatScreen> {
         children: [
           if (isAI) ...[
             Container(
-              width: 32,
-              height: 32,
+              width: isSmallScreen ? 28 : 32,
+              height: isSmallScreen ? 28 : 32,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(width: 2, color: const Color(0xFF701CF5)),
@@ -314,69 +381,72 @@ class _AIChatScreenState extends State<AIChatScreen> {
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
                       color: const Color(0xFF701CF5),
-                      child: const Icon(
+                      child: Icon(
                         Icons.smart_toy,
                         color: Colors.white,
-                        size: 16,
+                        size: isSmallScreen ? 14 : 16,
                       ),
                     );
                   },
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: isSmallScreen ? 6 : 8),
           ],
           Flexible(
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: isAI
-                    ? null
-                    : const LinearGradient(
-                        colors: [Color(0xFF701CF5), Color(0xFF3E98E4)],
-                      ),
-                color: isAI ? Colors.grey[100] : null,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: isAI
-                  ? MarkdownBody(
-                      data: message,
-                      styleSheet: MarkdownStyleSheet(
-                        p: const TextStyle(
-                          color: Colors.black87,
-                          fontSize: 15,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxWidth),
+              child: Container(
+                padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
+                decoration: BoxDecoration(
+                  gradient: isAI
+                      ? null
+                      : const LinearGradient(
+                          colors: [Color(0xFF701CF5), Color(0xFF3E98E4)],
+                        ),
+                  color: isAI ? Colors.grey[100] : null,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: isAI
+                    ? MarkdownBody(
+                        data: message,
+                        styleSheet: MarkdownStyleSheet(
+                          p: TextStyle(
+                            color: Colors.black87,
+                            fontSize: isSmallScreen ? 13 : 15,
+                            height: 1.4,
+                          ),
+                          strong: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                            fontSize: isSmallScreen ? 13 : 15,
+                          ),
+                          em: TextStyle(
+                            color: Colors.black87,
+                            fontStyle: FontStyle.italic,
+                            fontSize: isSmallScreen ? 13 : 15,
+                          ),
+                          listBullet: TextStyle(
+                            color: Colors.black87,
+                            fontSize: isSmallScreen ? 13 : 15,
+                          ),
+                          code: TextStyle(
+                            backgroundColor: Colors.grey[200],
+                            color: const Color(0xFF701CF5),
+                            fontFamily: 'monospace',
+                            fontSize: isSmallScreen ? 12 : 14,
+                          ),
+                        ),
+                      )
+                    : Text(
+                        message,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: isSmallScreen ? 13 : 15,
                           height: 1.4,
                         ),
-                        strong: const TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                        em: const TextStyle(
-                          color: Colors.black87,
-                          fontStyle: FontStyle.italic,
-                          fontSize: 15,
-                        ),
-                        listBullet: const TextStyle(
-                          color: Colors.black87,
-                          fontSize: 15,
-                        ),
-                        code: TextStyle(
-                          backgroundColor: Colors.grey[200],
-                          color: const Color(0xFF701CF5),
-                          fontFamily: 'monospace',
-                          fontSize: 14,
-                        ),
                       ),
-                    )
-                  : Text(
-                      message,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        height: 1.4,
-                      ),
-                    ),
+              ),
             ),
           ),
         ],
@@ -384,15 +454,15 @@ class _AIChatScreenState extends State<AIChatScreen> {
     );
   }
 
-  Widget _buildTypingIndicator() {
+  Widget _buildTypingIndicator(bool isSmallScreen) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: EdgeInsets.only(bottom: isSmallScreen ? 12 : 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: isSmallScreen ? 28 : 32,
+            height: isSmallScreen ? 28 : 32,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(width: 2, color: const Color(0xFF701CF5)),
@@ -404,19 +474,19 @@ class _AIChatScreenState extends State<AIChatScreen> {
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
                     color: const Color(0xFF701CF5),
-                    child: const Icon(
+                    child: Icon(
                       Icons.smart_toy,
                       color: Colors.white,
-                      size: 16,
+                      size: isSmallScreen ? 14 : 16,
                     ),
                   );
                 },
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: isSmallScreen ? 6 : 8),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
             decoration: BoxDecoration(
               color: Colors.grey[100],
               borderRadius: BorderRadius.circular(16),
@@ -424,11 +494,11 @@ class _AIChatScreenState extends State<AIChatScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildDot(0),
-                const SizedBox(width: 4),
-                _buildDot(1),
-                const SizedBox(width: 4),
-                _buildDot(2),
+                _buildDot(0, isSmallScreen),
+                SizedBox(width: isSmallScreen ? 3 : 4),
+                _buildDot(1, isSmallScreen),
+                SizedBox(width: isSmallScreen ? 3 : 4),
+                _buildDot(2, isSmallScreen),
               ],
             ),
           ),
@@ -437,7 +507,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
     );
   }
 
-  Widget _buildDot(int index) {
+  Widget _buildDot(int index, bool isSmallScreen) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 600),
@@ -445,8 +515,8 @@ class _AIChatScreenState extends State<AIChatScreen> {
         return Opacity(
           opacity: (value + index * 0.3) % 1.0,
           child: Container(
-            width: 8,
-            height: 8,
+            width: isSmallScreen ? 6 : 8,
+            height: isSmallScreen ? 6 : 8,
             decoration: const BoxDecoration(
               color: Color(0xFF701CF5),
               shape: BoxShape.circle,

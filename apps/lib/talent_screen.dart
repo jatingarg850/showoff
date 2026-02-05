@@ -32,6 +32,50 @@ class _TalentScreenState extends State<TalentScreen> {
     _loadCompetitionInfo();
     _loadEntries();
     _checkUserWeeklySubmission();
+
+    // If sytEntryId is provided (from deep link), navigate to it after entries load
+    if (widget.sytEntryId != null) {
+      _navigateToSYTEntry();
+    }
+  }
+
+  Future<void> _navigateToSYTEntry() async {
+    // Wait for entries to load
+    int attempts = 0;
+    while (_entries.isEmpty && attempts < 20) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      attempts++;
+    }
+
+    if (!mounted) return;
+
+    // Find the index of the entry with matching ID
+    final entryIndex = _entries.indexWhere(
+      (entry) =>
+          entry['_id'] == widget.sytEntryId || entry['id'] == widget.sytEntryId,
+    );
+
+    if (entryIndex != -1) {
+      debugPrint('🎭 Found SYT entry at index: $entryIndex');
+
+      // Navigate to SYT reel screen with the found entry
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) =>
+              SYTReelScreen(competitions: _entries, initialIndex: entryIndex),
+        ),
+      );
+    } else {
+      debugPrint('⚠️ SYT entry not found: ${widget.sytEntryId}');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Entry not found'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _loadEntries() async {
@@ -45,7 +89,7 @@ class _TalentScreenState extends State<TalentScreen> {
         });
       }
     } catch (e) {
-      print('Error loading SYT entries: $e');
+      debugPrint('Error loading SYT entries: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -67,7 +111,7 @@ class _TalentScreenState extends State<TalentScreen> {
         });
       }
     } catch (e) {
-      print('Error loading competition info: $e');
+      debugPrint('Error loading competition info: $e');
       setState(() {
         _currentCompetition = null;
         _competitionEndTime = 'Error loading';
@@ -108,7 +152,7 @@ class _TalentScreenState extends State<TalentScreen> {
         });
       }
     } catch (e) {
-      print('Error calculating end time: $e');
+      debugPrint('Error calculating end time: $e');
       setState(() {
         _competitionEndTime = 'Error';
       });
@@ -124,7 +168,7 @@ class _TalentScreenState extends State<TalentScreen> {
         });
       }
     } catch (e) {
-      print('Error checking weekly submission: $e');
+      debugPrint('Error checking weekly submission: $e');
       // Default to false if there's an error
       setState(() {
         _hasSubmittedThisWeek = false;

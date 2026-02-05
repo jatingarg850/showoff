@@ -26,9 +26,9 @@ class PushNotificationService {
       await _initializePlugin();
 
       _isInitialized = true;
-      print('✅ Push notification service initialized');
+      debugPrint('✅ Push notification service initialized');
     } catch (e) {
-      print('❌ Error initializing push notifications: $e');
+      debugPrint('❌ Error initializing push notifications: $e');
     }
   }
 
@@ -37,7 +37,7 @@ class PushNotificationService {
       // Request notification permission for Android 13+
       final status = await Permission.notification.request();
       if (status.isDenied) {
-        print('⚠️ Notification permission denied');
+        debugPrint('⚠️ Notification permission denied');
       }
     } else if (defaultTargetPlatform == TargetPlatform.iOS) {
       // Request iOS permissions
@@ -51,9 +51,9 @@ class PushNotificationService {
 
   Future<void> _initializePlugin() async {
     try {
-      // Android initialization settings - use app icon if custom icon not available
+      // Android initialization settings - use app logo
       const AndroidInitializationSettings initializationSettingsAndroid =
-          AndroidInitializationSettings('@mipmap/ic_launcher');
+          AndroidInitializationSettings('@mipmap/launcher_icon');
 
       // iOS initialization settings
       const DarwinInitializationSettings initializationSettingsIOS =
@@ -76,7 +76,7 @@ class PushNotificationService {
         onDidReceiveNotificationResponse: _onNotificationTapped,
       );
     } catch (e) {
-      print('❌ Error initializing notification plugin: $e');
+      debugPrint('❌ Error initializing notification plugin: $e');
       rethrow;
     }
   }
@@ -84,7 +84,7 @@ class PushNotificationService {
   void _onNotificationTapped(NotificationResponse notificationResponse) {
     final payload = notificationResponse.payload;
     if (payload != null) {
-      print('Notification tapped with payload: $payload');
+      debugPrint('Notification tapped with payload: $payload');
       // Handle notification tap - navigate to specific screen
       _handleNotificationTap(payload);
     }
@@ -103,23 +103,23 @@ class PushNotificationService {
           case 'like':
           case 'comment':
             // Navigate to post
-            print('Navigate to post: $id');
+            debugPrint('Navigate to post: $id');
             // NavigationService.navigateToPost(id);
             break;
           case 'follow':
             // Navigate to user profile
-            print('Navigate to user profile: $id');
+            debugPrint('Navigate to user profile: $id');
             // NavigationService.navigateToProfile(id);
             break;
           case 'achievement':
             // Navigate to achievements
-            print('Navigate to achievements');
+            debugPrint('Navigate to achievements');
             // NavigationService.navigateToAchievements();
             break;
         }
       }
     } catch (e) {
-      print('Error handling notification tap: $e');
+      debugPrint('Error handling notification tap: $e');
     }
   }
 
@@ -134,20 +134,30 @@ class PushNotificationService {
     }
 
     try {
-      final AndroidNotificationDetails androidPlatformChannelSpecifics =
-          AndroidNotificationDetails(
-            'showoff_notifications',
-            'ShowOff.life Notifications',
-            channelDescription:
-                'Notifications for likes, comments, and follows',
-            importance: Importance.high,
-            priority: Priority.high,
-            showWhen: true,
-            enableVibration: true,
-            playSound: true,
-            icon: '@mipmap/ic_launcher',
-            color: const Color(0xFF9C27B0),
-          );
+      final AndroidNotificationDetails
+      androidPlatformChannelSpecifics = AndroidNotificationDetails(
+        'showoff_notifications',
+        'ShowOff.life Notifications',
+        channelDescription: 'Notifications for likes, comments, and follows',
+        importance: Importance.high,
+        priority: Priority.high,
+        showWhen: true,
+        enableVibration: true,
+        playSound: true,
+        icon: '@mipmap/launcher_icon',
+        largeIcon: const DrawableResourceAndroidBitmap('@mipmap/launcher_icon'),
+        color: const Color(0xFF9C27B0),
+        styleInformation: imageUrl != null
+            ? BigPictureStyleInformation(
+                FilePathAndroidBitmap(imageUrl),
+                contentTitle: title,
+                summaryText: body,
+                largeIcon: const DrawableResourceAndroidBitmap(
+                  '@mipmap/launcher_icon',
+                ),
+              )
+            : null,
+      );
 
       const DarwinNotificationDetails iOSPlatformChannelSpecifics =
           DarwinNotificationDetails(
@@ -169,9 +179,9 @@ class PushNotificationService {
         payload: payload,
       );
 
-      print('✅ Push notification sent: $title');
+      debugPrint('✅ Push notification sent: $title');
     } catch (e) {
-      print('❌ Error showing notification: $e');
+      debugPrint('❌ Error showing notification: $e');
     }
   }
 
@@ -179,11 +189,13 @@ class PushNotificationService {
   Future<void> showLikeNotification({
     required String username,
     required String postId,
+    String? imageUrl,
   }) async {
     await showNotification(
       title: '❤️ New Like',
       body: '$username liked your Show',
       payload: 'like:$postId',
+      imageUrl: imageUrl,
     );
   }
 
@@ -191,6 +203,7 @@ class PushNotificationService {
     required String username,
     required String comment,
     required String postId,
+    String? imageUrl,
   }) async {
     final truncatedComment = comment.length > 50
         ? '${comment.substring(0, 50)}...'
@@ -200,28 +213,33 @@ class PushNotificationService {
       title: '💬 New Comment',
       body: '$username: "$truncatedComment"',
       payload: 'comment:$postId',
+      imageUrl: imageUrl,
     );
   }
 
   Future<void> showFollowNotification({
     required String username,
     required String userId,
+    String? imageUrl,
   }) async {
     await showNotification(
       title: '👤 New Follower',
       body: '$username started following you',
       payload: 'follow:$userId',
+      imageUrl: imageUrl,
     );
   }
 
   Future<void> showAchievementNotification({
     required String title,
     required String description,
+    String? imageUrl,
   }) async {
     await showNotification(
       title: '🏆 Achievement Unlocked!',
       body: '$title: $description',
       payload: 'achievement:unlocked',
+      imageUrl: imageUrl,
     );
   }
 
@@ -229,33 +247,39 @@ class PushNotificationService {
     required String username,
     required int amount,
     required String giftType,
+    String? imageUrl,
   }) async {
     await showNotification(
       title: '🎁 Gift Received',
       body: '$username sent you $amount $giftType',
       payload: 'gift:received',
+      imageUrl: imageUrl,
     );
   }
 
   Future<void> showVoteNotification({
     required String username,
     required String entryId,
+    String? imageUrl,
   }) async {
     await showNotification(
       title: '🗳️ New Vote',
       body: '$username voted for your SYT entry',
       payload: 'vote:$entryId',
+      imageUrl: imageUrl,
     );
   }
 
   Future<void> showSystemNotification({
     required String title,
     required String message,
+    String? imageUrl,
   }) async {
     await showNotification(
       title: '📢 $title',
       body: message,
       payload: 'system:info',
+      imageUrl: imageUrl,
     );
   }
 
