@@ -7,31 +7,31 @@ import 'subscription_service.dart';
 class AdService {
   static String get interstitialAdUnitId {
     if (Platform.isAndroid) {
-      // Production Android Interstitial Ad Unit ID
-      return 'ca-app-pub-3244693086681200/8765150836';
+      // Google's Test Interstitial Ad Unit ID
+      return 'ca-app-pub-3940256099942544/1033173712';
     } else if (Platform.isIOS) {
-      // Replace with your actual iOS Ad Unit ID
-      return 'ca-app-pub-3940256099942544/4411468910'; // Test ID
+      // Google's Test Interstitial Ad Unit ID
+      return 'ca-app-pub-3940256099942544/4411468910';
     }
     throw UnsupportedError('Unsupported platform');
   }
 
   static String get bannerAdUnitId {
     if (Platform.isAndroid) {
-      // Production Android Banner Ad Unit ID
-      return 'ca-app-pub-3244693086681200/6601730347';
+      // Google's Test Banner Ad Unit ID
+      return 'ca-app-pub-3244693086681200/8464470760';
     } else if (Platform.isIOS) {
-      // Replace with your actual iOS Banner Ad Unit ID
-      return 'ca-app-pub-3940256099942544/6300978111'; // Test ID
+      // Google's Test Banner Ad Unit ID
+      return 'ca-app-pub-3940256099942544/2934735716';
     }
     throw UnsupportedError('Unsupported platform');
   }
 
   static String get rewardedAdUnitId {
     if (Platform.isAndroid) {
-      return 'ca-app-pub-3940256099942544/5224354917'; // Test ID
+      return 'ca-app-pub-3940256099942544/5224354917'; // Test Rewarded
     } else if (Platform.isIOS) {
-      return 'ca-app-pub-3940256099942544/1712485313'; // Test ID
+      return 'ca-app-pub-3940256099942544/1712485313'; // Test Rewarded
     }
     throw UnsupportedError('Unsupported platform');
   }

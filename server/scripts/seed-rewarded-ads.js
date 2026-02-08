@@ -43,8 +43,8 @@ const seedAds = async () => {
         rotationOrder: 1,
         providerConfig: {
           admob: {
-            adUnitId: 'ca-app-pub-3940256099942544/5224354917',
-            appId: 'ca-app-pub-3940256099942544~3347511713'
+            adUnitId: 'ca-app-pub-3244693086681200/6601730347',
+            appId: 'ca-app-pub-3244693086681200~5375559724'
           }
         }
       },
@@ -61,8 +61,8 @@ const seedAds = async () => {
         rotationOrder: 2,
         providerConfig: {
           admob: {
-            adUnitId: 'ca-app-pub-3940256099942544/5224354917',
-            appId: 'ca-app-pub-3940256099942544~3347511713'
+            adUnitId: 'ca-app-pub-3244693086681200/6601730347',
+            appId: 'ca-app-pub-3244693086681200~5375559724'
           }
         }
       },

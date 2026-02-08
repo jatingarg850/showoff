@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'leaderboard_screen.dart';
 import 'notification_screen.dart';
 import 'syt_reel_screen.dart';
@@ -25,6 +26,7 @@ class _TalentScreenState extends State<TalentScreen> {
   bool _hasSubmittedThisWeek = false;
   Map<String, dynamic>? _currentCompetition;
   String _competitionEndTime = 'Loading...';
+  late Timer _countdownTimer;
 
   @override
   void initState() {
@@ -33,10 +35,32 @@ class _TalentScreenState extends State<TalentScreen> {
     _loadEntries();
     _checkUserWeeklySubmission();
 
+    // Start countdown timer that updates every 10 seconds
+    _countdownTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted && _currentCompetition != null) {
+        _updateCompetitionEndTime();
+      }
+    });
+
+    // Also refresh competition info every 30 seconds to catch when it ends
+    Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) {
+        _loadCompetitionInfo();
+      } else {
+        timer.cancel();
+      }
+    });
+
     // If sytEntryId is provided (from deep link), navigate to it after entries load
     if (widget.sytEntryId != null) {
       _navigateToSYTEntry();
     }
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer.cancel();
+    super.dispose();
   }
 
   Future<void> _navigateToSYTEntry() async {
@@ -136,6 +160,8 @@ class _TalentScreenState extends State<TalentScreen> {
         setState(() {
           _competitionEndTime = 'Competition ended';
         });
+        // Refresh competition info when it ends to show new competition if available
+        _loadCompetitionInfo();
       } else {
         final days = difference.inDays;
         final hours = difference.inHours % 24;

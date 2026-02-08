@@ -21,7 +21,7 @@ static String get bannerAdUnitId {
     // Production Android Banner Ad Unit ID
     return 'ca-app-pub-3244693086681200/6601730347';
   } else if (Platform.isIOS) {
-    return 'ca-app-pub-3940256099942544/6300978111'; // Test ID
+    return 'ca-app-pub-3244693086681200/8464470760'; // Test ID
   }
   throw UnsupportedError('Unsupported platform');
 }
@@ -187,7 +187,7 @@ Stack(
 
 ### Test Ads (Before Going Live)
 To test with Google's test ads, temporarily use these test IDs:
-- **Android Banner**: `ca-app-pub-3940256099942544/6300978111`
+- **Android Banner**: `ca-app-pub-3244693086681200/8464470760`
 
 ### Production Ads (Current)
 Your production ad unit ID is now active:

@@ -760,9 +760,35 @@ exports.createCompetition = async (req, res) => {
       });
     }
 
-    // Validate dates
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    // Parse dates - handle both ISO strings and datetime-local format
+    let start = new Date(startDate);
+    let end = new Date(endDate);
+
+    // If the date string doesn't include timezone info (from datetime-local input),
+    // it's interpreted as UTC by JavaScript. We need to adjust for this.
+    // The datetime-local input sends format like "2024-01-15T14:30" without timezone
+    if (typeof startDate === 'string' && !startDate.includes('Z') && !startDate.includes('+') && !startDate.includes('-', 10)) {
+      // This is a datetime-local format, parse it correctly
+      const [datePart, timePart] = startDate.split('T');
+      const [year, month, day] = datePart.split('-');
+      const [hours, minutes] = timePart.split(':');
+      start = new Date(year, month - 1, day, hours, minutes);
+    }
+
+    if (typeof endDate === 'string' && !endDate.includes('Z') && !endDate.includes('+') && !endDate.includes('-', 10)) {
+      const [datePart, timePart] = endDate.split('T');
+      const [year, month, day] = datePart.split('-');
+      const [hours, minutes] = timePart.split(':');
+      end = new Date(year, month - 1, day, hours, minutes);
+    }
+
+    console.log('📅 Competition dates:', {
+      startDate: startDate,
+      endDate: endDate,
+      parsedStart: start.toISOString(),
+      parsedEnd: end.toISOString(),
+      now: new Date().toISOString(),
+    });
 
     if (start >= end) {
       return res.status(400).json({
@@ -804,12 +830,20 @@ exports.createCompetition = async (req, res) => {
       ],
     });
 
+    console.log('✅ Competition created:', {
+      id: competition._id,
+      title: competition.title,
+      startDate: competition.startDate.toISOString(),
+      endDate: competition.endDate.toISOString(),
+    });
+
     res.status(201).json({
       success: true,
       message: 'Competition created successfully',
       data: competition,
     });
   } catch (error) {
+    console.error('❌ Error creating competition:', error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -836,8 +870,30 @@ exports.updateCompetition = async (req, res) => {
     // Update fields
     if (title) competition.title = title;
     if (description !== undefined) competition.description = description;
-    if (startDate) competition.startDate = new Date(startDate);
-    if (endDate) competition.endDate = new Date(endDate);
+    
+    // Handle date updates with timezone awareness
+    if (startDate) {
+      let start = new Date(startDate);
+      if (typeof startDate === 'string' && !startDate.includes('Z') && !startDate.includes('+') && !startDate.includes('-', 10)) {
+        const [datePart, timePart] = startDate.split('T');
+        const [year, month, day] = datePart.split('-');
+        const [hours, minutes] = timePart.split(':');
+        start = new Date(year, month - 1, day, hours, minutes);
+      }
+      competition.startDate = start;
+    }
+    
+    if (endDate) {
+      let end = new Date(endDate);
+      if (typeof endDate === 'string' && !endDate.includes('Z') && !endDate.includes('+') && !endDate.includes('-', 10)) {
+        const [datePart, timePart] = endDate.split('T');
+        const [year, month, day] = datePart.split('-');
+        const [hours, minutes] = timePart.split(':');
+        end = new Date(year, month - 1, day, hours, minutes);
+      }
+      competition.endDate = end;
+    }
+    
     if (prizes) competition.prizes = prizes;
     if (isActive !== undefined) competition.isActive = isActive;
 
@@ -851,12 +907,20 @@ exports.updateCompetition = async (req, res) => {
 
     await competition.save();
 
+    console.log('✅ Competition updated:', {
+      id: competition._id,
+      title: competition.title,
+      startDate: competition.startDate.toISOString(),
+      endDate: competition.endDate.toISOString(),
+    });
+
     res.status(200).json({
       success: true,
       message: 'Competition updated successfully',
       data: competition,
     });
   } catch (error) {
+    console.error('❌ Error updating competition:', error);
     res.status(500).json({
       success: false,
       message: error.message,

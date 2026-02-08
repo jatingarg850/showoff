@@ -107,6 +107,12 @@ class RewardedAdService {
         'adProvider': 'admob',
         'adType': 'rewarded',
         'isActive': true,
+        'providerConfig': {
+          'admob': {
+            'adUnitId': 'ca-app-pub-3940256099942544/5224354917',
+            'appId': 'ca-app-pub-3940256099942544~3347511713',
+          },
+        },
       },
       {
         'id': '2',
@@ -119,6 +125,12 @@ class RewardedAdService {
         'adProvider': 'admob',
         'adType': 'rewarded',
         'isActive': true,
+        'providerConfig': {
+          'admob': {
+            'adUnitId': 'ca-app-pub-3940256099942544/5224354917',
+            'appId': 'ca-app-pub-3940256099942544~3347511713',
+          },
+        },
       },
       {
         'id': '3',
@@ -128,9 +140,15 @@ class RewardedAdService {
         'rewardCoins': 5,
         'icon': 'hand-pointer',
         'color': '#4FACFE',
-        'adProvider': 'meta',
+        'adProvider': 'admob',
         'adType': 'rewarded',
         'isActive': true,
+        'providerConfig': {
+          'admob': {
+            'adUnitId': 'ca-app-pub-3940256099942544/5224354917',
+            'appId': 'ca-app-pub-3940256099942544~3347511713',
+          },
+        },
       },
       {
         'id': '4',
@@ -140,9 +158,15 @@ class RewardedAdService {
         'rewardCoins': 5,
         'icon': 'clipboard',
         'color': '#43E97B',
-        'adProvider': 'custom',
+        'adProvider': 'admob',
         'adType': 'rewarded',
         'isActive': true,
+        'providerConfig': {
+          'admob': {
+            'adUnitId': 'ca-app-pub-3940256099942544/5224354917',
+            'appId': 'ca-app-pub-3940256099942544~3347511713',
+          },
+        },
       },
       {
         'id': '5',
@@ -152,9 +176,15 @@ class RewardedAdService {
         'rewardCoins': 5,
         'icon': 'star',
         'color': '#FBBF24',
-        'adProvider': 'third-party',
+        'adProvider': 'admob',
         'adType': 'rewarded',
         'isActive': true,
+        'providerConfig': {
+          'admob': {
+            'adUnitId': 'ca-app-pub-3244693086681200/6601730347',
+            'appId': 'ca-app-pub-3244693086681200~5375559724',
+          },
+        },
       },
     ];
   }

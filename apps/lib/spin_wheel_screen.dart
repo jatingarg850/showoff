@@ -15,8 +15,9 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
   late AnimationController _controller;
   late Animation<double> _animation;
   bool _isSpinning = false;
-  int _spinsLeft = 1; // Changed to 1 since API allows once per day
-  final int _totalSpins = 1;
+  int _spinsLeft = 0;
+  int _totalSpins = 1; // Will be updated from API
+  int _bonusSpins = 0; // Track bonus spins separately
 
   final List<int> _wheelValues = [50, 5, 50, 5, 10, 5, 20, 10];
 
@@ -37,10 +38,13 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
       if (response['success']) {
         setState(() {
           _spinsLeft = response['data']['spinsRemaining'] ?? 0;
+          _bonusSpins = response['data']['bonusSpins'] ?? 0;
+          // Total spins = 1 daily spin + bonus spins
+          _totalSpins = 1 + _bonusSpins;
         });
       }
     } catch (e) {
-      print('Error checking spin status: $e');
+      debugPrint('Error checking spin status: $e');
     }
   }
 
@@ -71,19 +75,27 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
           _isSpinning = false;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response['message'] ?? 'Failed to spin wheel'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response['message'] ?? 'Failed to spin wheel'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
         return;
       }
 
       final int coinsWon = response['data']['coinsWon'];
 
+      // Decrement spins properly
       setState(() {
-        _spinsLeft = 0; // Used the daily spin
+        _spinsLeft = max(0, _spinsLeft - 1);
+        // Update total spins if we used a bonus spin
+        if (_bonusSpins > 0) {
+          _bonusSpins = max(0, _bonusSpins - 1);
+          _totalSpins = 1 + _bonusSpins;
+        }
       });
 
       // Random rotation between 5-10 full rotations plus random angle
@@ -103,7 +115,9 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
 
         // Show result modal after a short delay
         Future.delayed(const Duration(milliseconds: 500), () {
-          _showResultModal(coinsWon);
+          if (mounted) {
+            _showResultModal(coinsWon);
+          }
         });
       });
     } catch (e) {
@@ -111,9 +125,11 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
         _isSpinning = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -286,18 +302,16 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
                       );
                       // If user watched ads successfully, refresh spins
                       if (result == true && mounted) {
-                        // Refresh spin status from backend instead of just incrementing
+                        // Refresh spin status from backend
                         final statusResponse =
                             await ApiService.getSpinWheelStatus();
                         if (statusResponse['success']) {
                           setState(() {
                             _spinsLeft =
-                                statusResponse['data']['spinsRemaining'] ?? 1;
-                          });
-                        } else {
-                          // Fallback: add 1 spin locally
-                          setState(() {
-                            _spinsLeft += 1;
+                                statusResponse['data']['spinsRemaining'] ?? 0;
+                            _bonusSpins =
+                                statusResponse['data']['bonusSpins'] ?? 0;
+                            _totalSpins = 1 + _bonusSpins;
                           });
                         }
                       }

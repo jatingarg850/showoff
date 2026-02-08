@@ -6,11 +6,12 @@ class AdMobService {
   static final Map<int, RewardedAd?> _rewardedAds = {};
   static final Map<int, bool> _isAdLoading = {};
 
-  // Test Ad Unit IDs (Google's official test ads)
+  // Google's Official Test Ad Unit IDs (for development/testing)
+  // Replace with your production ad unit IDs once created in AdMob console
   static const String _androidTestAdUnitId =
-      'ca-app-pub-3940256099942544/5224354917';
+      'ca-app-pub-3940256099942544/5224354917'; // Test Rewarded Ad
   static const String _iosTestAdUnitId =
-      'ca-app-pub-3940256099942544/1712485313';
+      'ca-app-pub-3940256099942544/1712485313'; // Test Rewarded Ad
 
   /// Get ad unit ID for a specific ad number
   static String getRewardedAdUnitId(int adNumber) {
