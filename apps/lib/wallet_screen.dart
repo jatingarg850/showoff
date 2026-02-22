@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'spin_wheel_screen.dart';
-import 'enhanced_add_money_screen.dart';
+import 'add_money_screen.dart';
 import 'withdrawal_screen.dart';
 import 'transaction_history_screen.dart';
 import 'ad_selection_screen.dart';
@@ -338,8 +338,7 @@ class _WalletScreenState extends State<WalletScreen>
                             final result = await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) =>
-                                    const EnhancedAddMoneyScreen(),
+                                builder: (context) => const AddMoneyScreen(),
                               ),
                             );
                             // Refresh balance if money was added

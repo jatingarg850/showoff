@@ -800,10 +800,9 @@ exports.createCompetition = async (req, res) => {
     // Generate period ID
     const periodId = `${type}-${start.getFullYear()}-${start.getMonth() + 1}-${start.getDate()}`;
 
-    // Check for overlapping competitions of same type
+    // Check for overlapping competitions of same type (regardless of isActive status)
     const overlapping = await CompetitionSettings.findOne({
       type,
-      isActive: true,
       $or: [
         { startDate: { $lte: end }, endDate: { $gte: start } },
       ],
@@ -812,7 +811,13 @@ exports.createCompetition = async (req, res) => {
     if (overlapping) {
       return res.status(400).json({
         success: false,
-        message: 'There is already an active competition overlapping with these dates',
+        message: 'There is already a competition overlapping with these dates for this type',
+        existingCompetition: {
+          title: overlapping.title,
+          startDate: overlapping.startDate,
+          endDate: overlapping.endDate,
+          isActive: overlapping.isActive,
+        },
       });
     }
 
@@ -903,6 +908,29 @@ exports.updateCompetition = async (req, res) => {
         success: false,
         message: 'End date must be after start date',
       });
+    }
+
+    // Check for overlapping competitions when updating dates
+    if (startDate || endDate) {
+      const overlapping = await CompetitionSettings.findOne({
+        _id: { $ne: competition._id }, // Exclude current competition
+        type: competition.type,
+        $or: [
+          { startDate: { $lte: competition.endDate }, endDate: { $gte: competition.startDate } },
+        ],
+      });
+
+      if (overlapping) {
+        return res.status(400).json({
+          success: false,
+          message: 'Updated dates overlap with another competition of the same type',
+          existingCompetition: {
+            title: overlapping.title,
+            startDate: overlapping.startDate,
+            endDate: overlapping.endDate,
+          },
+        });
+      }
     }
 
     await competition.save();

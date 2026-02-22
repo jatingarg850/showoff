@@ -22,7 +22,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.showofflife.app"
+    namespace = "com.showoff.life"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -38,7 +38,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.showofflife.app"
+        applicationId = "com.showoff.life"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion  // Google Sign-In requires minSdk 21
@@ -50,7 +50,7 @@ android {
 
     signingConfigs {
         create("release") {
-            if (keystorePropertiesFile.exists()) {
+            if (keystorePropertiesFile.exists() && keystoreProperties["storeFile"].toString().isNotEmpty()) {
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
                 storeFile = file(keystoreProperties["storeFile"] as String)
@@ -61,7 +61,9 @@ android {
 
     buildTypes {
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
+            if (keystoreProperties["storeFile"].toString().isNotEmpty()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = false
             isShrinkResources = false
         }

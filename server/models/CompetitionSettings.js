@@ -58,10 +58,11 @@ const competitionSettingsSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-// Index for faster queries
+// Index for faster queries (removed unique constraint on type+isActive to allow multiple competitions)
 competitionSettingsSchema.index({ type: 1, isActive: 1 });
 competitionSettingsSchema.index({ startDate: 1, endDate: 1 });
 competitionSettingsSchema.index({ periodId: 1 });
+competitionSettingsSchema.index({ type: 1, startDate: 1, endDate: 1 });
 
 // Method to check if competition is currently active
 competitionSettingsSchema.methods.isCurrentlyActive = function() {

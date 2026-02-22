@@ -1,73 +1,102 @@
 import 'package:flutter/material.dart';
-import 'add_card_screen.dart';
 
-class AddMoneyScreen
-    extends
-        StatefulWidget {
-  const AddMoneyScreen({
-    super.key,
-  });
+class AddMoneyScreen extends StatefulWidget {
+  const AddMoneyScreen({super.key});
 
   @override
-  State<
-    AddMoneyScreen
-  >
-  createState() => _AddMoneyScreenState();
+  State<AddMoneyScreen> createState() => _AddMoneyScreenState();
 }
 
-class _AddMoneyScreenState
-    extends
-        State<
-          AddMoneyScreen
-        > {
-  final TextEditingController
-  _amountController = TextEditingController();
-  String
-  _selectedAmount = '';
+class _AddMoneyScreenState extends State<AddMoneyScreen> {
+  final TextEditingController _amountController = TextEditingController();
+  String _selectedAmount = '';
 
-  final List<
-    String
-  >
-  _quickAmounts = [
-    '\$20',
-    '\$50',
-    '\$100',
-    '\$200',
+  // Static coin packages
+  final List<Map<String, dynamic>> _coinPackages = [
+    {'amount': '10', 'coins': '10', 'display': '₹10'},
+    {'amount': '20', 'coins': '20', 'display': '₹20'},
+    {'amount': '50', 'coins': '50', 'display': '₹50'},
+    {'amount': '100', 'coins': '100', 'display': '₹100'},
+    {'amount': '200', 'coins': '200', 'display': '₹200'},
+    {'amount': '500', 'coins': '500', 'display': '₹500'},
   ];
 
   @override
-  void
-  dispose() {
+  void dispose() {
     _amountController.dispose();
     super.dispose();
   }
 
-  void
-  _selectAmount(
-    String amount,
-  ) {
-    setState(
-      () {
-        _selectedAmount = amount;
-        _amountController.text = amount.substring(
-          1,
-        ); // Remove $ sign
-      },
+  void _selectAmount(String amount) {
+    setState(() {
+      _selectedAmount = amount;
+      _amountController.text = amount;
+    });
+  }
+
+  void _handleGooglePlayPurchase() {
+    final amount = _amountController.text.trim();
+    if (amount.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter or select an amount'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Show success dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Purchase Successful'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.account_balance_wallet,
+              size: 64,
+              color: Color(0xFF8B5CF6),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'You have successfully purchased ₹$amount coins!',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pop(context);
+            },
+            child: const Text(
+              'Continue',
+              style: TextStyle(color: Color(0xFF8B5CF6)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   @override
-  Widget
-  build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(
-            20,
-          ),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -75,24 +104,18 @@ class _AddMoneyScreenState
               Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.pop(
-                      context,
-                    ),
+                    onTap: () => Navigator.pop(context),
                     child: const Icon(
                       Icons.arrow_back,
                       color: Colors.black,
                       size: 24,
                     ),
                   ),
-                  const SizedBox(
-                    width: 16,
-                  ),
+                  const SizedBox(width: 16),
                   const Text(
-                    'Add money',
+                    'Add Money',
                     style: TextStyle(
-                      color: Color(
-                        0xFF8B5CF6,
-                      ),
+                      color: Color(0xFF8B5CF6),
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
                     ),
@@ -100,93 +123,19 @@ class _AddMoneyScreenState
                 ],
               ),
 
-              const SizedBox(
-                height: 30,
-              ),
-
-              // Add Card section
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (
-                            context,
-                          ) => const AddCardScreen(),
-                    ),
-                  );
-                },
-                child: Container(
-                  width: double.infinity,
-                  height: 180,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(
-                      20,
-                    ),
-                  ),
-                  child: Stack(
-                    children: [
-                      // Background card image
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(
-                          20,
-                        ),
-                        child: Image.asset(
-                          'assets/addmoney/card.png',
-                          width: double.infinity,
-                          height: 180,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      // Overlay with + icon and text
-                      Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.add,
-                              color: Colors.white,
-                              size: 32,
-                            ),
-                            SizedBox(
-                              height: 8,
-                            ),
-                            Text(
-                              'Add Card',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(
-                height: 30,
-              ),
+              const SizedBox(height: 30),
 
               // Amount label
               const Text(
-                'Amount',
+                'Amount (INR)',
                 style: TextStyle(
-                  color: Color(
-                    0xFF8B5CF6,
-                  ),
+                  color: Color(0xFF8B5CF6),
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
               ),
 
-              const SizedBox(
-                height: 16,
-              ),
+              const SizedBox(height: 16),
 
               // Amount input field
               TextField(
@@ -194,14 +143,9 @@ class _AddMoneyScreenState
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   hintText: 'Enter Amount',
-                  hintStyle: TextStyle(
-                    color: Colors.grey[400],
-                    fontSize: 16,
-                  ),
+                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 16),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(
-                      12,
-                    ),
+                    borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
@@ -211,132 +155,231 @@ class _AddMoneyScreenState
                     vertical: 16,
                   ),
                 ),
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.black,
-                ),
+                style: const TextStyle(fontSize: 16, color: Colors.black),
               ),
 
-              const SizedBox(
-                height: 20,
-              ),
+              const SizedBox(height: 20),
 
-              // Quick amount buttons
+              // Quick amount buttons - First row (5 buttons)
               Row(
-                children: _quickAmounts.map(
-                  (
-                    amount,
-                  ) {
-                    final isSelected =
-                        _selectedAmount ==
-                        amount;
-                    return Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                        ),
-                        child: GestureDetector(
-                          onTap: () => _selectAmount(
-                            amount,
+                children: _coinPackages.sublist(0, 5).map((package) {
+                  final isSelected = _selectedAmount == package['amount'];
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: GestureDetector(
+                        onTap: () => _selectAmount(package['amount']),
+                        child: Container(
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFF8B5CF6).withValues(alpha: 0.1)
+                                : Colors.grey[100],
+                            borderRadius: BorderRadius.circular(12),
+                            border: isSelected
+                                ? Border.all(
+                                    color: const Color(0xFF8B5CF6),
+                                    width: 2,
+                                  )
+                                : null,
                           ),
-                          child: Container(
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? const Color(
-                                      0xFF8B5CF6,
-                                      // ignore: deprecated_member_use
-                                    ).withOpacity(
-                                      0.1,
-                                    )
-                                  : Colors.grey[100],
-                              borderRadius: BorderRadius.circular(
-                                12,
-                              ),
-                              border: isSelected
-                                  ? Border.all(
-                                      color: const Color(
-                                        0xFF8B5CF6,
-                                      ),
-                                      width: 2,
-                                    )
-                                  : null,
-                            ),
-                            child: Center(
-                              child: Text(
-                                amount,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                package['display'],
                                 style: TextStyle(
                                   color: isSelected
-                                      ? const Color(
-                                          0xFF8B5CF6,
-                                        )
+                                      ? const Color(0xFF8B5CF6)
                                       : Colors.black,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            ),
+                              Text(
+                                package['display'],
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? const Color(0xFF8B5CF6)
+                                      : Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    );
-                  },
-                ).toList(),
+                    ),
+                  );
+                }).toList(),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Quick amount buttons - Second row (2 larger buttons)
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _selectAmount('200'),
+                      child: Container(
+                        height: 70,
+                        decoration: BoxDecoration(
+                          color: _selectedAmount == '200'
+                              ? const Color(0xFF8B5CF6).withValues(alpha: 0.1)
+                              : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                          border: _selectedAmount == '200'
+                              ? Border.all(
+                                  color: const Color(0xFF8B5CF6),
+                                  width: 2,
+                                )
+                              : null,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '₹200 Coins',
+                              style: TextStyle(
+                                color: _selectedAmount == '200'
+                                    ? const Color(0xFF8B5CF6)
+                                    : Colors.black,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              '₹200',
+                              style: TextStyle(
+                                color: _selectedAmount == '200'
+                                    ? const Color(0xFF8B5CF6)
+                                    : Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _selectAmount('500'),
+                      child: Container(
+                        height: 70,
+                        decoration: BoxDecoration(
+                          color: _selectedAmount == '500'
+                              ? const Color(0xFF8B5CF6).withValues(alpha: 0.1)
+                              : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                          border: _selectedAmount == '500'
+                              ? Border.all(
+                                  color: const Color(0xFF8B5CF6),
+                                  width: 2,
+                                )
+                              : null,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '₹500 Coins',
+                              style: TextStyle(
+                                color: _selectedAmount == '500'
+                                    ? const Color(0xFF8B5CF6)
+                                    : Colors.black,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              '₹500',
+                              style: TextStyle(
+                                color: _selectedAmount == '500'
+                                    ? const Color(0xFF8B5CF6)
+                                    : Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // Conversion info
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue[600], size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '1 INR = 1 Coin',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
               const Spacer(),
 
-              // Top Up button
+              // Google Play button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Handle top up
-                    final amount = _amountController.text;
-                    if (amount.isNotEmpty) {
-                      // Process payment
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Processing payment of \$$amount',
-                          ),
-                          backgroundColor: const Color(
-                            0xFF8B5CF6,
-                          ),
-                        ),
-                      );
-                    }
-                  },
+                  onPressed: _handleGooglePlayPurchase,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(
-                      0xFF8B5CF6,
-                    ),
+                    backgroundColor: const Color(0xFF1F2937),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 18,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        30,
-                      ),
+                      borderRadius: BorderRadius.circular(30),
                     ),
-                    elevation: 0,
+                    elevation: 2,
                   ),
-                  child: const Text(
-                    'Top Up',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/google_play_logo.png',
+                        width: 24,
+                        height: 24,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(Icons.shopping_cart, size: 24);
+                        },
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Buy with Google Play',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
 
-              const SizedBox(
-                height: 20,
-              ),
+              const SizedBox(height: 20),
             ],
           ),
         ),

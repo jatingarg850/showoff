@@ -55,274 +55,276 @@ class _SignInPhoneScreenState extends State<SignInPhoneScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title
-            const Text(
-              'Sign In with Phone',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title
+              const Text(
+                'Sign In with Phone',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
               ),
-            ),
 
-            // Underline
-            Container(
-              margin: const EdgeInsets.only(top: 8, bottom: 32),
-              height: 3,
-              width: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFF701CF5),
-                borderRadius: BorderRadius.circular(2),
+              // Underline
+              Container(
+                margin: const EdgeInsets.only(top: 8, bottom: 32),
+                height: 3,
+                width: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF701CF5),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
 
-            // Enter phone label
-            const Text(
-              'Phone Number',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
+              // Enter phone label
+              const Text(
+                'Phone Number',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
               ),
-            ),
 
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-            // Phone input row
-            Row(
-              children: [
-                // Country code container
-                GestureDetector(
-                  onTap: _showCountryPicker,
-                  child: Container(
-                    height: 56,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF701CF5), Color(0xFF3E98E4)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+              // Phone input row
+              Row(
+                children: [
+                  // Country code container
+                  GestureDetector(
+                    onTap: _showCountryPicker,
+                    child: Container(
+                      height: 56,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF701CF5), Color(0xFF3E98E4)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: Container(
+                        margin: const EdgeInsets.all(2),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _selectedCountryFlag,
+                              style: const TextStyle(fontSize: 20),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _selectedCountryCode,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.keyboard_arrow_down,
+                              color: Color(0xFF701CF5),
+                              size: 20,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  // Phone number input
+                  Expanded(
                     child: Container(
-                      margin: const EdgeInsets.all(2),
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      height: 56,
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF701CF5), Color(0xFF3E98E4)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _selectedCountryFlag,
-                            style: const TextStyle(fontSize: 20),
+                      child: Container(
+                        margin: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: TextField(
+                          controller: _phoneController,
+                          keyboardType: TextInputType.phone,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.black,
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _selectedCountryCode,
-                            style: const TextStyle(
+                          decoration: const InputDecoration(
+                            hintText: 'Enter phone number',
+                            hintStyle: TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.black,
+                              color: Color(0xFF999999),
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 16,
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.keyboard_arrow_down,
-                            color: Color(0xFF701CF5),
-                            size: 20,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                // Phone number input
-                Expanded(
-                  child: Container(
-                    height: 56,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF701CF5), Color(0xFF3E98E4)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: Container(
-                      margin: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: TextField(
-                        controller: _phoneController,
-                        keyboardType: TextInputType.phone,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.black,
                         ),
-                        decoration: const InputDecoration(
-                          hintText: 'Enter phone number',
-                          hintStyle: TextStyle(
-                            fontSize: 16,
-                            color: Color(0xFF999999),
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Info text
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF701CF5).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    color: const Color(0xFF701CF5),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'We\'ll send you a verification code to confirm your phone number.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: const Color(0xFF701CF5),
                       ),
                     ),
                   ),
                 ],
               ),
-            ),
 
-            const Spacer(),
+              const SizedBox(height: 24),
 
-            // Continue button
-            Container(
-              width: double.infinity,
-              height: 56,
-              margin: const EdgeInsets.only(bottom: 40),
-              decoration: BoxDecoration(
-                color: const Color(0xFF701CF5),
-                borderRadius: BorderRadius.circular(28),
-              ),
-              child: ElevatedButton(
-                onPressed: () async {
-                  if (_phoneController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please enter your phone number'),
-                        backgroundColor: Colors.red,
+              // Info text
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF701CF5).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: const Color(0xFF701CF5),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'We\'ll send you a verification code to confirm your phone number.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: const Color(0xFF701CF5),
+                        ),
                       ),
-                    );
-                    return;
-                  }
+                    ),
+                  ],
+                ),
+              ),
 
-                  // Show loading
-                  showDialog(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (context) =>
-                        const Center(child: CircularProgressIndicator()),
-                  );
+              const SizedBox(height: 40),
 
-                  try {
-                    // Send OTP first
-                    final response = await ApiService.sendOTP(
-                      phone: _phoneController.text.trim(),
-                      countryCode: _selectedCountryCode,
-                    );
-
-                    // Close loading
-                    if (context.mounted) {
-                      Navigator.pop(context);
+              // Continue button
+              Container(
+                width: double.infinity,
+                height: 56,
+                margin: const EdgeInsets.only(bottom: 40),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF701CF5),
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                child: ElevatedButton(
+                  onPressed: () async {
+                    if (_phoneController.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please enter your phone number'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
                     }
 
-                    if (response['success']) {
-                      // Navigate to OTP verification
+                    // Show loading
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (context) =>
+                          const Center(child: CircularProgressIndicator()),
+                    );
+
+                    try {
+                      // Send OTP first
+                      final response = await ApiService.sendOTP(
+                        phone: _phoneController.text.trim(),
+                        countryCode: _selectedCountryCode,
+                      );
+
+                      // Close loading
                       if (context.mounted) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => OTPScreen(
-                              phoneNumber:
-                                  '$_selectedCountryCode${_phoneController.text}',
-                              isSignIn: true,
-                            ),
-                          ),
-                        );
+                        Navigator.pop(context);
                       }
-                    } else {
+
+                      if (response['success']) {
+                        // Navigate to OTP verification
+                        if (context.mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => OTPScreen(
+                                phoneNumber:
+                                    '$_selectedCountryCode${_phoneController.text}',
+                                isSignIn: true,
+                              ),
+                            ),
+                          );
+                        }
+                      } else {
+                        // Show error
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                response['message'] ?? 'Failed to send OTP',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    } catch (e) {
+                      // Close loading
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
+
                       // Show error
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(
-                              response['message'] ?? 'Failed to send OTP',
-                            ),
+                            content: Text('Error: ${e.toString()}'),
                             backgroundColor: Colors.red,
                           ),
                         );
                       }
                     }
-                  } catch (e) {
-                    // Close loading
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                    }
-
-                    // Show error
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error: ${e.toString()}'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shadowColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28),
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shadowColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                  ),
+                  child: const Text(
+                    'Send Code',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                   ),
                 ),
-                child: const Text(
-                  'Send Code',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
