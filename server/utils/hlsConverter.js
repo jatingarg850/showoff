@@ -4,6 +4,17 @@ const fs = require('fs').promises;
 const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
 
+// Check if FFmpeg is available
+let ffmpegAvailable = false;
+try {
+  ffmpeg.setFfmpegPath(require('ffmpeg-static'));
+  ffmpegAvailable = true;
+  console.log('✅ FFmpeg is available');
+} catch (e) {
+  console.warn('⚠️ FFmpeg not found - HLS conversion will be skipped');
+  console.warn('   Install FFmpeg: apt-get install ffmpeg (Linux) or brew install ffmpeg (Mac)');
+}
+
 // Configure Wasabi S3
 const s3 = new AWS.S3({
   accessKeyId: process.env.WASABI_ACCESS_KEY_ID,
@@ -114,9 +125,19 @@ async function uploadHLSToS3(hlsDir, s3Prefix) {
  * Convert video file to HLS and upload to S3
  * @param {string} videoPath - Path to video file (local or S3 URL)
  * @param {string} videoId - Unique ID for the video
- * @returns {Promise<string>} - URL to HLS m3u8 file
+ * @returns {Promise<string>} - URL to HLS m3u8 file or original video URL if conversion fails
  */
 async function convertVideoToHLS(videoPath, videoId) {
+  // If FFmpeg is not available, return original video URL
+  if (!ffmpegAvailable) {
+    console.warn('⚠️ FFmpeg not available - returning original video URL');
+    console.warn('   To enable HLS conversion, install FFmpeg:');
+    console.warn('   Linux: apt-get install ffmpeg');
+    console.warn('   Mac: brew install ffmpeg');
+    console.warn('   Windows: choco install ffmpeg');
+    return videoPath; // Return original video URL
+  }
+
   let localVideoPath = videoPath;
   let tempDir = null;
 
@@ -131,9 +152,25 @@ async function convertVideoToHLS(videoPath, videoId) {
       const tempFile = path.join('/tmp', `video_${videoId}.mp4`);
       
       // Download from S3
-      const s3Url = new URL(videoPath);
       const bucketName = process.env.WASABI_BUCKET_NAME;
-      const key = s3Url.pathname.replace(`/${bucketName}/`, '');
+      let key;
+      
+      // Extract key from Wasabi URL format: https://s3.region.wasabisys.com/bucket/key
+      if (videoPath.includes('wasabisys.com')) {
+        const urlParts = videoPath.split('.com/');
+        if (urlParts.length > 1) {
+          const pathParts = urlParts[1].split('/');
+          // Remove bucket name and get the rest
+          key = pathParts.slice(1).join('/');
+        }
+      } else {
+        // Fallback for other S3 formats
+        const s3Url = new URL(videoPath);
+        key = s3Url.pathname.replace(`/${bucketName}/`, '').replace(/^\//, '');
+      }
+
+      console.log(`  - Bucket: ${bucketName}`);
+      console.log(`  - Key: ${key}`);
 
       const params = {
         Bucket: bucketName,
@@ -162,8 +199,9 @@ async function convertVideoToHLS(videoPath, videoId) {
 
     return hlsUrl;
   } catch (error) {
-    console.error('❌ Error in HLS conversion:', error);
-    throw error;
+    console.error('❌ Error in HLS conversion:', error.message);
+    console.warn('⚠️ Falling back to original video URL');
+    return videoPath; // Return original video URL as fallback
   } finally {
     // Cleanup temporary files
     if (tempDir) {
@@ -191,4 +229,32 @@ module.exports = {
   convertToHLS,
   uploadHLSToS3,
   convertVideoToHLS,
+  convertVideoToHLSAsync,
 };
+
+/**
+ * Async background HLS conversion (non-blocking)
+ * Converts video to HLS in the background and updates the entry when done
+ * @param {string} videoUrl - URL of the video
+ * @param {string} videoId - Unique ID for the video
+ * @param {string} entryId - SYT Entry ID to update
+ */
+async function convertVideoToHLSAsync(videoUrl, videoId, entryId) {
+  // Run conversion in background without blocking
+  setImmediate(async () => {
+    try {
+      console.log(`🎬 Starting async HLS conversion for entry ${entryId}...`);
+      const hlsUrl = await convertVideoToHLS(videoUrl, videoId);
+      
+      if (hlsUrl !== videoUrl) {
+        // HLS conversion was successful, update the entry
+        const SYTEntry = require('../models/SYTEntry');
+        await SYTEntry.findByIdAndUpdate(entryId, { videoUrl: hlsUrl });
+        console.log(`✅ Entry ${entryId} updated with HLS URL: ${hlsUrl}`);
+      }
+    } catch (error) {
+      console.error(`❌ Async HLS conversion failed for entry ${entryId}:`, error.message);
+      // Entry already has original video URL, so it's not critical
+    }
+  });
+}

@@ -7,12 +7,14 @@ class OTPVerificationScreen extends StatefulWidget {
   final String? phoneNumber;
   final String? countryCode;
   final String? email;
+  final String? referralCode;
 
   const OTPVerificationScreen({
     super.key,
     this.phoneNumber,
     this.countryCode = '',
     this.email,
+    this.referralCode,
   });
 
   @override
@@ -190,6 +192,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen>
                   email: widget.email,
                   phone: widget.phoneNumber,
                   countryCode: widget.countryCode,
+                  referralCode: widget.referralCode,
                 ),
               ),
             );

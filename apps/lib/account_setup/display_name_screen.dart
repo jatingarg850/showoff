@@ -5,7 +5,9 @@ import 'interests_screen.dart';
 import '../services/api_service.dart';
 
 class DisplayNameScreen extends StatefulWidget {
-  const DisplayNameScreen({super.key});
+  final String? referralCode;
+
+  const DisplayNameScreen({super.key, this.referralCode});
 
   @override
   State<DisplayNameScreen> createState() => _DisplayNameScreenState();
@@ -377,6 +379,7 @@ class _DisplayNameScreenState extends State<DisplayNameScreen> {
                                   username: _usernameController.text.trim(),
                                   displayName: _displayNameController.text
                                       .trim(),
+                                  referralCode: widget.referralCode,
                                 ),
                               ),
                             );

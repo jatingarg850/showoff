@@ -112,17 +112,32 @@ exports.submitEntry = async (req, res) => {
     }
 
     // Convert video to HLS format for better streaming
+    // Use original video URL initially, then convert to HLS in background
+    let videoUrlToStore = videoUrl;
+    const videoId = `syt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Try immediate HLS conversion (with timeout)
     let hlsUrl = null;
     try {
-      console.log('🎬 Converting SYT video to HLS format...');
+      console.log('🎬 Attempting HLS conversion for SYT video...');
       const { convertVideoToHLS } = require('../utils/hlsConverter');
-      const videoId = `syt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      hlsUrl = await convertVideoToHLS(videoUrl, videoId);
-      console.log('✅ HLS conversion completed:', hlsUrl);
+      
+      // Set a timeout for HLS conversion (30 seconds max)
+      const conversionPromise = convertVideoToHLS(videoUrl, videoId);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('HLS conversion timeout')), 30000)
+      );
+      
+      hlsUrl = await Promise.race([conversionPromise, timeoutPromise]);
+      
+      if (hlsUrl && hlsUrl !== videoUrl) {
+        videoUrlToStore = hlsUrl;
+        console.log('✅ HLS conversion completed:', hlsUrl);
+      }
     } catch (hlsError) {
-      console.warn('⚠️ HLS conversion failed, using original video:', hlsError.message);
+      console.warn('⚠️ HLS conversion failed or timed out:', hlsError.message);
+      console.log('   Using original MP4 video URL');
       // Continue with original video if HLS conversion fails
-      hlsUrl = null;
     }
 
     // Handle thumbnail URL if provided
@@ -152,7 +167,7 @@ exports.submitEntry = async (req, res) => {
 
     const entry = await SYTEntry.create({
       user: req.user.id,
-      videoUrl: hlsUrl || videoUrl,  // Use HLS URL if available, otherwise original
+      videoUrl: videoUrlToStore,  // Use HLS URL if available, otherwise original MP4
       thumbnailUrl: thumbnailUrl,
       title,
       description,

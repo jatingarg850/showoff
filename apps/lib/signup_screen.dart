@@ -8,7 +8,9 @@ import 'main_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SignUpScreen extends StatelessWidget {
-  const SignUpScreen({super.key});
+  final String? referralCode;
+
+  const SignUpScreen({super.key, this.referralCode});
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +71,8 @@ class SignUpScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const EmailSignUpScreen(),
+                        builder: (context) =>
+                            EmailSignUpScreen(referralCode: referralCode),
                       ),
                     );
                   },
@@ -105,7 +108,8 @@ class SignUpScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const PhoneSignUpScreen(),
+                        builder: (context) =>
+                            PhoneSignUpScreen(referralCode: referralCode),
                       ),
                     );
                   },

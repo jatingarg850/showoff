@@ -6,36 +6,20 @@ import 'dart:io';
 import 'display_name_screen.dart';
 import '../providers/profile_provider.dart';
 
-class ProfilePictureScreen
-    extends
-        StatefulWidget {
-  const ProfilePictureScreen({
-    super.key,
-  });
+class ProfilePictureScreen extends StatefulWidget {
+  final String? referralCode;
+
+  const ProfilePictureScreen({super.key, this.referralCode});
 
   @override
-  State<
-    ProfilePictureScreen
-  >
-  createState() => _ProfilePictureScreenState();
+  State<ProfilePictureScreen> createState() => _ProfilePictureScreenState();
 }
 
-class _ProfilePictureScreenState
-    extends
-        State<
-          ProfilePictureScreen
-        > {
-  File?
-  _selectedImage;
-  final ImagePicker
-  _picker = ImagePicker();
+class _ProfilePictureScreenState extends State<ProfilePictureScreen> {
+  File? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
 
-  Future<
-    bool
-  >
-  _requestPermissions(
-    Permission permission,
-  ) async {
+  Future<bool> _requestPermissions(Permission permission) async {
     final status = await permission.status;
     if (status.isGranted) {
       return true;
@@ -45,10 +29,7 @@ class _ProfilePictureScreenState
     return result.isGranted;
   }
 
-  Future<
-    void
-  >
-  _pickImageFromGallery() async {
+  Future<void> _pickImageFromGallery() async {
     try {
       // Request storage permission
       bool hasPermission;
@@ -56,25 +37,17 @@ class _ProfilePictureScreenState
         if (await Permission.photos.status.isGranted) {
           hasPermission = true;
         } else {
-          hasPermission = await _requestPermissions(
-            Permission.photos,
-          );
+          hasPermission = await _requestPermissions(Permission.photos);
         }
       } else {
-        hasPermission = await _requestPermissions(
-          Permission.photos,
-        );
+        hasPermission = await _requestPermissions(Permission.photos);
       }
 
       if (!hasPermission) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(
-                'Photo library permission is required',
-              ),
+              content: Text('Photo library permission is required'),
               backgroundColor: Colors.red,
             ),
           );
@@ -89,30 +62,17 @@ class _ProfilePictureScreenState
         imageQuality: 85,
       );
 
-      if (image !=
-          null) {
-        setState(
-          () {
-            _selectedImage = File(
-              image.path,
-            );
-          },
-        );
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+        });
       }
-    } catch (
-      e
-    ) {
-      debugPrint(
-        'Error picking image from gallery: $e',
-      );
+    } catch (e) {
+      debugPrint('Error picking image from gallery: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Failed to pick image: ${e.toString()}',
-            ),
+            content: Text('Failed to pick image: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -120,25 +80,16 @@ class _ProfilePictureScreenState
     }
   }
 
-  Future<
-    void
-  >
-  _takePhoto() async {
+  Future<void> _takePhoto() async {
     try {
       // Request camera permission
-      final hasPermission = await _requestPermissions(
-        Permission.camera,
-      );
+      final hasPermission = await _requestPermissions(Permission.camera);
 
       if (!hasPermission) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(
-                'Camera permission is required',
-              ),
+              content: Text('Camera permission is required'),
               backgroundColor: Colors.red,
             ),
           );
@@ -153,30 +104,17 @@ class _ProfilePictureScreenState
         imageQuality: 85,
       );
 
-      if (image !=
-          null) {
-        setState(
-          () {
-            _selectedImage = File(
-              image.path,
-            );
-          },
-        );
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+        });
       }
-    } catch (
-      e
-    ) {
-      debugPrint(
-        'Error taking photo: $e',
-      );
+    } catch (e) {
+      debugPrint('Error taking photo: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Failed to take photo: ${e.toString()}',
-            ),
+            content: Text('Failed to take photo: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -184,108 +122,66 @@ class _ProfilePictureScreenState
     }
   }
 
-  void
-  _showImageSourceDialog() {
+  void _showImageSourceDialog() {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(
-            20,
-          ),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder:
-          (
-            BuildContext context,
-          ) {
-            return Container(
-              padding: const EdgeInsets.all(
-                20,
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Select Image Source',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Select Image Source',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(
-                    height: 20,
-                  ),
-                  ListTile(
-                    leading: const Icon(
-                      Icons.camera_alt,
-                      color: Color(
-                        0xFF701CF5,
-                      ),
-                    ),
-                    title: const Text(
-                      'Camera',
-                    ),
-                    onTap: () {
-                      Navigator.pop(
-                        context,
-                      );
-                      _takePhoto();
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(
-                      Icons.photo_library,
-                      color: Color(
-                        0xFF3E98E4,
-                      ),
-                    ),
-                    title: const Text(
-                      'Gallery',
-                    ),
-                    onTap: () {
-                      Navigator.pop(
-                        context,
-                      );
-                      _pickImageFromGallery();
-                    },
-                  ),
-                  const SizedBox(
-                    height: 10,
-                  ),
-                ],
+              const SizedBox(height: 20),
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: Color(0xFF701CF5)),
+                title: const Text('Camera'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _takePhoto();
+                },
               ),
-            );
-          },
+              ListTile(
+                leading: const Icon(
+                  Icons.photo_library,
+                  color: Color(0xFF3E98E4),
+                ),
+                title: const Text('Gallery'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImageFromGallery();
+                },
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
     );
   }
 
   @override
-  Widget
-  build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back,
-            color: Colors.black,
-          ),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
-            Navigator.pop(
-              context,
-            );
+            Navigator.pop(context);
           },
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 24,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -295,29 +191,21 @@ class _ProfilePictureScreenState
               width: double.infinity,
               decoration: BoxDecoration(
                 color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(
-                  4,
-                ),
+                borderRadius: BorderRadius.circular(4),
               ),
               child: FractionallySizedBox(
                 alignment: Alignment.centerLeft,
                 widthFactor: 0.0, // 0% progress (1 of 4 steps)
                 child: Container(
                   decoration: BoxDecoration(
-                    color: const Color(
-                      0xFF701CF5,
-                    ),
-                    borderRadius: BorderRadius.circular(
-                      4,
-                    ),
+                    color: const Color(0xFF701CF5),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                 ),
               ),
             ),
 
-            const SizedBox(
-              height: 32,
-            ),
+            const SizedBox(height: 32),
 
             // Title
             const Text(
@@ -331,34 +219,22 @@ class _ProfilePictureScreenState
 
             // Underline
             Container(
-              margin: const EdgeInsets.only(
-                top: 8,
-                bottom: 16,
-              ),
+              margin: const EdgeInsets.only(top: 8, bottom: 16),
               height: 3,
               width: 140,
               decoration: BoxDecoration(
-                color: const Color(
-                  0xFF701CF5,
-                ),
-                borderRadius: BorderRadius.circular(
-                  2,
-                ),
+                color: const Color(0xFF701CF5),
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
 
             // Subtitle
             const Text(
               'Upload a picture of yourself',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.grey),
             ),
 
-            const SizedBox(
-              height: 60,
-            ),
+            const SizedBox(height: 60),
 
             // Profile picture placeholder/preview
             Center(
@@ -371,36 +247,24 @@ class _ProfilePictureScreenState
                       height: 200,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient:
-                            _selectedImage ==
-                                null
+                        gradient: _selectedImage == null
                             ? const LinearGradient(
                                 colors: [
-                                  Color(
-                                    0xFF701CF5,
-                                  ), // Purple
-                                  Color(
-                                    0xFF3E98E4,
-                                  ), // Blue
+                                  Color(0xFF701CF5), // Purple
+                                  Color(0xFF3E98E4), // Blue
                                 ],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               )
                             : null,
-                        border:
-                            _selectedImage !=
-                                null
+                        border: _selectedImage != null
                             ? Border.all(
-                                color: const Color(
-                                  0xFF701CF5,
-                                ),
+                                color: const Color(0xFF701CF5),
                                 width: 4,
                               )
                             : null,
                       ),
-                      child:
-                          _selectedImage ==
-                              null
+                      child: _selectedImage == null
                           ? const Center(
                               child: Icon(
                                 Icons.camera_alt,
@@ -419,18 +283,15 @@ class _ProfilePictureScreenState
                     ),
                   ),
                   // Remove photo button (only show when image is selected)
-                  if (_selectedImage !=
-                      null)
+                  if (_selectedImage != null)
                     Positioned(
                       top: 0,
                       right: 0,
                       child: GestureDetector(
                         onTap: () {
-                          setState(
-                            () {
-                              _selectedImage = null;
-                            },
-                          );
+                          setState(() {
+                            _selectedImage = null;
+                          });
                         },
                         child: Container(
                           width: 40,
@@ -438,20 +299,12 @@ class _ProfilePictureScreenState
                           decoration: BoxDecoration(
                             color: Colors.red,
                             shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white,
-                              width: 3,
-                            ),
+                            border: Border.all(color: Colors.white, width: 3),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(
-                                  0.2,
-                                ),
+                                color: Colors.black.withOpacity(0.2),
                                 blurRadius: 8,
-                                offset: const Offset(
-                                  0,
-                                  2,
-                                ),
+                                offset: const Offset(0, 2),
                               ),
                             ],
                           ),
@@ -467,55 +320,35 @@ class _ProfilePictureScreenState
               ),
             ),
 
-            const SizedBox(
-              height: 60,
-            ),
+            const SizedBox(height: 60),
 
             // Take a photo button
             Container(
               width: double.infinity,
               height: 56,
-              margin: const EdgeInsets.only(
-                bottom: 16,
-              ),
+              margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.black,
-                  width: 2,
-                ),
-                borderRadius: BorderRadius.circular(
-                  28,
-                ),
+                border: Border.all(color: Colors.black, width: 2),
+                borderRadius: BorderRadius.circular(28),
               ),
               child: ElevatedButton.icon(
                 onPressed: _takePhoto,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
-                  foregroundColor: const Color(
-                    0xFF701CF5,
-                  ),
+                  foregroundColor: const Color(0xFF701CF5),
                   elevation: 0,
                   shadowColor: Colors.transparent,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      28,
-                    ),
+                    borderRadius: BorderRadius.circular(28),
                   ),
                 ),
-                icon: const Icon(
-                  Icons.camera_alt,
-                  color: Color(
-                    0xFF701CF5,
-                  ),
-                ),
+                icon: const Icon(Icons.camera_alt, color: Color(0xFF701CF5)),
                 label: const Text(
                   'Take a photo',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Color(
-                      0xFF701CF5,
-                    ),
+                    color: Color(0xFF701CF5),
                   ),
                 ),
               ),
@@ -525,47 +358,29 @@ class _ProfilePictureScreenState
             Container(
               width: double.infinity,
               height: 56,
-              margin: const EdgeInsets.only(
-                bottom: 60,
-              ),
+              margin: const EdgeInsets.only(bottom: 60),
               decoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.black,
-                  width: 2,
-                ),
-                borderRadius: BorderRadius.circular(
-                  28,
-                ),
+                border: Border.all(color: Colors.black, width: 2),
+                borderRadius: BorderRadius.circular(28),
               ),
               child: ElevatedButton.icon(
                 onPressed: _pickImageFromGallery,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
-                  foregroundColor: const Color(
-                    0xFF3E98E4,
-                  ),
+                  foregroundColor: const Color(0xFF3E98E4),
                   elevation: 0,
                   shadowColor: Colors.transparent,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      28,
-                    ),
+                    borderRadius: BorderRadius.circular(28),
                   ),
                 ),
-                icon: const Icon(
-                  Icons.photo_library,
-                  color: Color(
-                    0xFF3E98E4,
-                  ),
-                ),
+                icon: const Icon(Icons.photo_library, color: Color(0xFF3E98E4)),
                 label: const Text(
                   'Choose from gallery',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Color(
-                      0xFF3E98E4,
-                    ),
+                    color: Color(0xFF3E98E4),
                   ),
                 ),
               ),
@@ -577,48 +392,30 @@ class _ProfilePictureScreenState
             Container(
               width: double.infinity,
               height: 56,
-              margin: const EdgeInsets.only(
-                bottom: 40,
-              ),
+              margin: const EdgeInsets.only(bottom: 40),
               decoration: BoxDecoration(
-                color: const Color(
-                  0xFF701CF5,
-                ),
-                borderRadius: BorderRadius.circular(
-                  28,
-                ),
+                color: const Color(0xFF701CF5),
+                borderRadius: BorderRadius.circular(28),
               ),
               child: ElevatedButton(
                 onPressed: () async {
                   // Upload profile picture if selected
-                  if (_selectedImage !=
-                      null) {
-                    final profileProvider =
-                        Provider.of<
-                          ProfileProvider
-                        >(
-                          context,
-                          listen: false,
-                        );
+                  if (_selectedImage != null) {
+                    final profileProvider = Provider.of<ProfileProvider>(
+                      context,
+                      listen: false,
+                    );
 
                     showDialog(
                       context: context,
                       barrierDismissible: false,
-                      builder:
-                          (
-                            context,
-                          ) => const Center(
-                            child: CircularProgressIndicator(
-                              valueColor:
-                                  AlwaysStoppedAnimation<
-                                    Color
-                                  >(
-                                    Color(
-                                      0xFF701CF5,
-                                    ),
-                                  ),
-                            ),
+                      builder: (context) => const Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Color(0xFF701CF5),
                           ),
+                        ),
+                      ),
                     );
 
                     final success = await profileProvider.uploadProfilePicture(
@@ -626,18 +423,13 @@ class _ProfilePictureScreenState
                     );
 
                     if (!mounted) return;
-                    Navigator.pop(
-                      context,
-                    ); // Close loading
+                    Navigator.pop(context); // Close loading
 
                     if (!success) {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(
+                      ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            profileProvider.error ??
-                                'Upload failed',
+                            profileProvider.error ?? 'Upload failed',
                           ),
                           backgroundColor: Colors.red,
                         ),
@@ -649,10 +441,8 @@ class _ProfilePictureScreenState
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder:
-                          (
-                            context,
-                          ) => const DisplayNameScreen(),
+                      builder: (context) =>
+                          DisplayNameScreen(referralCode: widget.referralCode),
                     ),
                   );
                 },
@@ -662,17 +452,12 @@ class _ProfilePictureScreenState
                   elevation: 0,
                   shadowColor: Colors.transparent,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      28,
-                    ),
+                    borderRadius: BorderRadius.circular(28),
                   ),
                 ),
                 child: const Text(
                   'Continue',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                 ),
               ),
             ),

@@ -2,62 +2,40 @@ import 'package:flutter/material.dart';
 import 'otp_verification_screen.dart';
 import 'services/api_service.dart';
 
-class EmailSignUpScreen
-    extends
-        StatefulWidget {
-  const EmailSignUpScreen({
-    super.key,
-  });
+class EmailSignUpScreen extends StatefulWidget {
+  final String? referralCode;
+
+  const EmailSignUpScreen({super.key, this.referralCode});
 
   @override
-  State<
-    EmailSignUpScreen
-  >
-  createState() => _EmailSignUpScreenState();
+  State<EmailSignUpScreen> createState() => _EmailSignUpScreenState();
 }
 
-class _EmailSignUpScreenState
-    extends
-        State<
-          EmailSignUpScreen
-        > {
-  final TextEditingController
-  _emailController = TextEditingController();
+class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
+  final TextEditingController _emailController = TextEditingController();
 
   @override
-  Widget
-  build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back,
-            color: Colors.black,
-          ),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
-            Navigator.pop(
-              context,
-            );
+            Navigator.pop(context);
           },
         ),
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 24,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Top spacing
-              const SizedBox(
-                height: 20,
-              ),
+              const SizedBox(height: 20),
 
               // Illustration
               Expanded(
@@ -84,19 +62,12 @@ class _EmailSignUpScreenState
 
               // Underline
               Container(
-                margin: const EdgeInsets.only(
-                  top: 8,
-                  bottom: 40,
-                ),
+                margin: const EdgeInsets.only(top: 8, bottom: 40),
                 height: 3,
                 width: 80,
                 decoration: BoxDecoration(
-                  color: const Color(
-                    0xFF701CF5,
-                  ),
-                  borderRadius: BorderRadius.circular(
-                    2,
-                  ),
+                  color: const Color(0xFF701CF5),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
 
@@ -110,54 +81,37 @@ class _EmailSignUpScreenState
                 ),
               ),
 
-              const SizedBox(
-                height: 12,
-              ),
+              const SizedBox(height: 12),
 
               // Email input field
               Container(
                 height: 56,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(
-                    12,
-                  ),
+                  borderRadius: BorderRadius.circular(12),
                   gradient: const LinearGradient(
                     colors: [
-                      Color(
-                        0xFF701CF5,
-                      ), // Purple
-                      Color(
-                        0xFF3E98E4,
-                      ), // Blue
+                      Color(0xFF701CF5), // Purple
+                      Color(0xFF3E98E4), // Blue
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                 ),
                 child: Container(
-                  margin: const EdgeInsets.all(
-                    2,
-                  ), // Border width
+                  margin: const EdgeInsets.all(2), // Border width
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(
-                      10,
-                    ),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: TextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.black,
-                    ),
+                    style: const TextStyle(fontSize: 16, color: Colors.black),
                     decoration: const InputDecoration(
                       hintText: 'Sathonpro@gmail.com',
                       hintStyle: TextStyle(
                         fontSize: 16,
-                        color: Color(
-                          0xFF999999,
-                        ),
+                        color: Color(0xFF999999),
                       ),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
@@ -171,21 +125,15 @@ class _EmailSignUpScreenState
                 ),
               ),
 
-              const SizedBox(
-                height: 40,
-              ),
+              const SizedBox(height: 40),
 
               // Continue button
               Container(
                 width: double.infinity,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: const Color(
-                    0xFF701CF5,
-                  ),
-                  borderRadius: BorderRadius.circular(
-                    28,
-                  ),
+                  color: const Color(0xFF701CF5),
+                  borderRadius: BorderRadius.circular(28),
                 ),
                 child: ElevatedButton(
                   onPressed: () async {
@@ -196,16 +144,10 @@ class _EmailSignUpScreenState
                         r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
                       );
 
-                      if (!emailRegex.hasMatch(
-                        _emailController.text.trim(),
-                      )) {
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(
+                      if (!emailRegex.hasMatch(_emailController.text.trim())) {
+                        ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text(
-                              'Please enter a valid email address',
-                            ),
+                            content: Text('Please enter a valid email address'),
                             backgroundColor: Colors.red,
                           ),
                         );
@@ -216,12 +158,8 @@ class _EmailSignUpScreenState
                       showDialog(
                         context: context,
                         barrierDismissible: false,
-                        builder:
-                            (
-                              context,
-                            ) => const Center(
-                              child: CircularProgressIndicator(),
-                            ),
+                        builder: (context) =>
+                            const Center(child: CircularProgressIndicator()),
                       );
 
                       try {
@@ -232,9 +170,7 @@ class _EmailSignUpScreenState
 
                         // Close loading
                         if (context.mounted) {
-                          Navigator.pop(
-                            context,
-                          );
+                          Navigator.pop(context);
                         }
 
                         if (response['success']) {
@@ -246,62 +182,45 @@ class _EmailSignUpScreenState
                               backgroundColor: Colors.transparent,
                               isDismissible: false,
                               enableDrag: false,
-                              builder:
-                                  (
-                                    context,
-                                  ) => OTPVerificationScreen(
-                                    email: _emailController.text.trim(),
-                                  ),
+                              builder: (context) => OTPVerificationScreen(
+                                email: _emailController.text.trim(),
+                                referralCode: widget.referralCode,
+                              ),
                             );
                           }
                         } else {
                           // Show error
                           if (context.mounted) {
-                            ScaffoldMessenger.of(
-                              context,
-                            ).showSnackBar(
+                            ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  response['message'] ??
-                                      'Failed to send OTP',
+                                  response['message'] ?? 'Failed to send OTP',
                                 ),
                                 backgroundColor: Colors.red,
                               ),
                             );
                           }
                         }
-                      } catch (
-                        e
-                      ) {
+                      } catch (e) {
                         // Close loading
                         if (context.mounted) {
-                          Navigator.pop(
-                            context,
-                          );
+                          Navigator.pop(context);
                         }
 
                         // Show error
                         if (context.mounted) {
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(
+                          ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text(
-                                'Error: ${e.toString()}',
-                              ),
+                              content: Text('Error: ${e.toString()}'),
                               backgroundColor: Colors.red,
                             ),
                           );
                         }
                       }
                     } else {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(
+                      ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text(
-                            'Please enter your email address',
-                          ),
+                          content: Text('Please enter your email address'),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -313,24 +232,17 @@ class _EmailSignUpScreenState
                     elevation: 0,
                     shadowColor: Colors.transparent,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        28,
-                      ),
+                      borderRadius: BorderRadius.circular(28),
                     ),
                   ),
                   child: const Text(
                     'Continue',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
 
-              const SizedBox(
-                height: 40,
-              ),
+              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -339,8 +251,7 @@ class _EmailSignUpScreenState
   }
 
   @override
-  void
-  dispose() {
+  void dispose() {
     _emailController.dispose();
     super.dispose();
   }

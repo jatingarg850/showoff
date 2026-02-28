@@ -6,6 +6,9 @@ import 'providers/auth_provider.dart';
 import 'providers/notification_provider.dart';
 import 'main_screen.dart';
 import 'onboarding_screen.dart';
+import 'reel_screen.dart';
+import 'syt_reel_screen.dart';
+import 'services/api_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -74,6 +77,12 @@ class _SplashScreenState extends State<SplashScreen>
         return {'type': 'reel', 'postId': postId};
       }
 
+      // Handle showofflife://referral/code
+      if (link.startsWith('showofflife://referral/')) {
+        final referralCode = link.replaceFirst('showofflife://referral/', '');
+        return {'type': 'referral', 'referralCode': referralCode};
+      }
+
       // Handle https://showoff.life/syt/entryId
       if (link.contains('/syt/')) {
         final entryId = link.split('/syt/').last.split('?').first;
@@ -84,6 +93,14 @@ class _SplashScreenState extends State<SplashScreen>
       if (link.contains('/reel/')) {
         final postId = link.split('/reel/').last.split('?').first;
         return {'type': 'reel', 'postId': postId};
+      }
+
+      // Handle https://showoff.life/ref/code or https://showoff.life/referral/code
+      if (link.contains('/ref/') || link.contains('/referral/')) {
+        final referralCode = link.contains('/ref/')
+            ? link.split('/ref/').last.split('?').first
+            : link.split('/referral/').last.split('?').first;
+        return {'type': 'referral', 'referralCode': referralCode};
       }
 
       return null;
@@ -121,26 +138,107 @@ class _SplashScreenState extends State<SplashScreen>
       // Navigate based on deep link type
       if (deepLinkData['type'] == 'syt') {
         print('🎭 Navigating to SYT entry: ${deepLinkData['entryId']}');
-        // Navigate to talent screen (index 1) which shows SYT entries
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => MainScreen(
-              initialIndex: 1, // Talent screen
-              sytEntryId: deepLinkData['entryId'],
-            ),
-          ),
-        );
+        // Fetch the SYT entry to get its data
+        try {
+          final entryResponse = await ApiService.getSingleSYTEntry(
+            deepLinkData['entryId'],
+          );
+          if (entryResponse['success'] && entryResponse['data'] != null) {
+            // Navigate directly to SYT reel screen with the entry
+            if (mounted) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => SYTReelScreen(
+                    competitions: [entryResponse['data']],
+                    initialIndex: 0,
+                  ),
+                ),
+              );
+            }
+          } else {
+            // Fallback to talent screen if entry not found
+            print('⚠️ SYT entry not found, navigating to talent screen');
+            if (mounted) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => MainScreen(
+                    initialIndex: 1,
+                    sytEntryId: deepLinkData['entryId'],
+                  ),
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          print('❌ Error fetching SYT entry: $e');
+          // Fallback to talent screen
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => MainScreen(
+                  initialIndex: 1,
+                  sytEntryId: deepLinkData['entryId'],
+                ),
+              ),
+            );
+          }
+        }
       } else if (deepLinkData['type'] == 'reel') {
         print('🎬 Navigating to reel: ${deepLinkData['postId']}');
-        // Navigate to reel screen (index 0) with post ID
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => MainScreen(
-              initialIndex: 0,
-              initialPostId: deepLinkData['postId'],
+        // Fetch the post to get its data
+        try {
+          final postResponse = await ApiService.getPost(deepLinkData['postId']);
+          if (postResponse['success'] && postResponse['data'] != null) {
+            // Navigate directly to reel screen with the post
+            if (mounted) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => ReelScreen(
+                    initialPostId: deepLinkData['postId'],
+                    initialPostData: postResponse['data'],
+                  ),
+                ),
+              );
+            }
+          } else {
+            // Fallback to main screen reel tab
+            print('⚠️ Post not found, navigating to reel screen');
+            if (mounted) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => MainScreen(
+                    initialIndex: 0,
+                    initialPostId: deepLinkData['postId'],
+                  ),
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          print('❌ Error fetching post: $e');
+          // Fallback to main screen reel tab
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => MainScreen(
+                  initialIndex: 0,
+                  initialPostId: deepLinkData['postId'],
+                ),
+              ),
+            );
+          }
+        }
+      } else if (deepLinkData['type'] == 'referral') {
+        print('🎁 Referral code received: ${deepLinkData['referralCode']}');
+        // Navigate to onboarding with referral code
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) =>
+                  OnboardingScreen(referralCode: deepLinkData['referralCode']),
             ),
-          ),
-        );
+          );
+        }
       }
     } catch (e) {
       print('❌ Error handling deep link: $e');

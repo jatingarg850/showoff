@@ -814,6 +814,14 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
+  static Future<Map<String, dynamic>> getSingleSYTEntry(String entryId) async {
+    final response = await _httpClient.get(
+      Uri.parse('$baseUrl/syt/entry/$entryId'),
+      headers: await _getHeaders(),
+    );
+    return jsonDecode(response.body);
+  }
+
   static Future<Map<String, dynamic>> voteSYTEntry(String entryId) async {
     final response = await _httpClient.post(
       Uri.parse('$baseUrl/syt/$entryId/vote'),

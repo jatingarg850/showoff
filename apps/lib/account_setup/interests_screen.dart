@@ -4,11 +4,13 @@ import 'bio_screen.dart';
 class InterestsScreen extends StatefulWidget {
   final String username;
   final String displayName;
+  final String? referralCode;
 
   const InterestsScreen({
     super.key,
     required this.username,
     required this.displayName,
+    this.referralCode,
   });
 
   @override
@@ -180,6 +182,7 @@ class _InterestsScreenState extends State<InterestsScreen> {
                               username: widget.username,
                               displayName: widget.displayName,
                               interests: _selectedInterests,
+                              referralCode: widget.referralCode,
                             ),
                           ),
                         );

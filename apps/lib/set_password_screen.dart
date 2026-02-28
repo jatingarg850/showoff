@@ -7,12 +7,14 @@ class SetPasswordScreen extends StatefulWidget {
   final String? email;
   final String? phone;
   final String? countryCode;
+  final String? referralCode;
 
   const SetPasswordScreen({
     super.key,
     this.email,
     this.phone,
     this.countryCode,
+    this.referralCode,
   });
 
   @override
@@ -348,6 +350,7 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                             phone: widget.phone != null
                                 ? '${widget.countryCode}${widget.phone}'
                                 : null,
+                            referralCode: widget.referralCode,
                             termsAccepted: _termsAccepted,
                           );
 
@@ -359,8 +362,9 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) =>
-                                    const ProfilePictureScreen(),
+                                builder: (context) => ProfilePictureScreen(
+                                  referralCode: widget.referralCode,
+                                ),
                               ),
                             );
                           } else {

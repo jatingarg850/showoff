@@ -2,56 +2,42 @@ import 'package:flutter/material.dart';
 import 'signup_screen.dart';
 import 'auth/signin_choice_screen.dart';
 
-class OnboardingScreen
-    extends
-        StatefulWidget {
-  const OnboardingScreen({
-    super.key,
-  });
+class OnboardingScreen extends StatefulWidget {
+  final String? referralCode;
+
+  const OnboardingScreen({super.key, this.referralCode});
 
   @override
-  State<
-    OnboardingScreen
-  >
-  createState() => _OnboardingScreenState();
+  State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState
-    extends
-        State<
-          OnboardingScreen
-        > {
-  final PageController
-  _pageController = PageController();
-  int
-  _currentPage = 0;
+class _OnboardingScreenState extends State<OnboardingScreen> {
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
 
-  final List<
-    OnboardingData
-  >
-  _onboardingData = [
+  final List<OnboardingData> _onboardingData = [
     OnboardingData(
       image: 'assets/onboarding/1.png',
       title: 'Earn Coins, Unlock Rewards',
-      description: 'Collect coins from votes, gifts, and views. Spin the fortune wheel, redeem in the store, or withdraw cash.',
+      description:
+          'Collect coins from votes, gifts, and views. Spin the fortune wheel, redeem in the store, or withdraw cash.',
     ),
     OnboardingData(
       image: 'assets/onboarding/2.png',
       title: 'Join SYT Competitions',
-      description: 'Battle weekly, monthly, and mega challenges. Get votes, climb leaderboards, and win badges',
+      description:
+          'Battle weekly, monthly, and mega challenges. Get votes, climb leaderboards, and win badges',
     ),
     OnboardingData(
       image: 'assets/onboarding/3.png',
       title: 'Create & Show Off Your Talent',
-      description: 'Upload short videos, photos, or join daily challenges to showcase your skills.',
+      description:
+          'Upload short videos, photos, or join daily challenges to showcase your skills.',
     ),
   ];
 
   @override
-  Widget
-  build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -61,53 +47,33 @@ class _OnboardingScreenState
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
-                onPageChanged:
-                    (
-                      index,
-                    ) {
-                      setState(
-                        () {
-                          _currentPage = index;
-                        },
-                      );
-                    },
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentPage = index;
+                  });
+                },
                 itemCount: _onboardingData.length,
-                itemBuilder:
-                    (
-                      context,
-                      index,
-                    ) {
-                      return _buildOnboardingPage(
-                        _onboardingData[index],
-                      );
-                    },
+                itemBuilder: (context, index) {
+                  return _buildOnboardingPage(_onboardingData[index]);
+                },
               ),
             ),
 
             // Page indicators
             Container(
-              padding: const EdgeInsets.symmetric(
-                vertical: 20,
-              ),
+              padding: const EdgeInsets.symmetric(vertical: 20),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
                   _onboardingData.length,
-                  (
-                    index,
-                  ) => _buildPageIndicator(
-                    index,
-                  ),
+                  (index) => _buildPageIndicator(index),
                 ),
               ),
             ),
 
             // Buttons
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 20,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
               child: Column(
                 children: [
                   // Sign In button
@@ -119,23 +85,16 @@ class _OnboardingScreenState
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder:
-                                (
-                                  context,
-                                ) => const SignInChoiceScreen(),
+                            builder: (context) => const SignInChoiceScreen(),
                           ),
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(
-                          0xFF701CF5,
-                        ),
+                        backgroundColor: const Color(0xFF701CF5),
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            28,
-                          ),
+                          borderRadius: BorderRadius.circular(28),
                         ),
                       ),
                       child: const Text(
@@ -148,9 +107,7 @@ class _OnboardingScreenState
                     ),
                   ),
 
-                  const SizedBox(
-                    height: 16,
-                  ),
+                  const SizedBox(height: 16),
 
                   // Sign Up button
                   SizedBox(
@@ -161,23 +118,17 @@ class _OnboardingScreenState
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder:
-                                (
-                                  context,
-                                ) => const SignUpScreen(),
+                            builder: (context) =>
+                                SignUpScreen(referralCode: widget.referralCode),
                           ),
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(
-                          0xFF3E98E4,
-                        ),
+                        backgroundColor: const Color(0xFF3E98E4),
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            28,
-                          ),
+                          borderRadius: BorderRadius.circular(28),
                         ),
                       ),
                       child: const Text(
@@ -198,14 +149,9 @@ class _OnboardingScreenState
     );
   }
 
-  Widget
-  _buildOnboardingPage(
-    OnboardingData data,
-  ) {
+  Widget _buildOnboardingPage(OnboardingData data) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 40,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 40),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -214,11 +160,7 @@ class _OnboardingScreenState
             flex: 3,
             child: Container(
               alignment: Alignment.center,
-              child: Image.asset(
-                data.image,
-                fit: BoxFit.contain,
-                height: 300,
-              ),
+              child: Image.asset(data.image, fit: BoxFit.contain, height: 300),
             ),
           ),
 
@@ -233,71 +175,44 @@ class _OnboardingScreenState
             textAlign: TextAlign.center,
           ),
 
-          const SizedBox(
-            height: 16,
-          ),
+          const SizedBox(height: 16),
 
           // Description
           Text(
             data.description,
             style: const TextStyle(
               fontSize: 16,
-              color: Color(
-                0xFF666666,
-              ),
+              color: Color(0xFF666666),
               height: 1.5,
             ),
             textAlign: TextAlign.center,
           ),
 
-          const SizedBox(
-            height: 40,
-          ),
+          const SizedBox(height: 40),
         ],
       ),
     );
   }
 
-  Widget
-  _buildPageIndicator(
-    int index,
-  ) {
+  Widget _buildPageIndicator(int index) {
     return GestureDetector(
       onTap: () {
         _pageController.animateToPage(
           index,
-          duration: const Duration(
-            milliseconds: 300,
-          ),
+          duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
         );
       },
       child: AnimatedContainer(
-        duration: const Duration(
-          milliseconds: 300,
-        ),
-        margin: const EdgeInsets.symmetric(
-          horizontal: 4,
-        ),
-        width:
-            index ==
-                _currentPage
-            ? 24
-            : 8,
+        duration: const Duration(milliseconds: 300),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        width: index == _currentPage ? 24 : 8,
         height: 8,
         decoration: BoxDecoration(
-          color:
-              index ==
-                  _currentPage
-              ? const Color(
-                  0xFF701CF5,
-                )
-              : const Color(
-                  0xFFDDDDDD,
-                ),
-          borderRadius: BorderRadius.circular(
-            4,
-          ),
+          color: index == _currentPage
+              ? const Color(0xFF701CF5)
+              : const Color(0xFFDDDDDD),
+          borderRadius: BorderRadius.circular(4),
         ),
       ),
     );
@@ -305,12 +220,9 @@ class _OnboardingScreenState
 }
 
 class OnboardingData {
-  final String
-  image;
-  final String
-  title;
-  final String
-  description;
+  final String image;
+  final String title;
+  final String description;
 
   OnboardingData({
     required this.image,

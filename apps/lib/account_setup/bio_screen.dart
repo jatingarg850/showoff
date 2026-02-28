@@ -9,12 +9,14 @@ class BioScreen extends StatefulWidget {
   final String username;
   final String displayName;
   final List<String> interests;
+  final String? referralCode;
 
   const BioScreen({
     super.key,
     required this.username,
     required this.displayName,
     required this.interests,
+    this.referralCode,
   });
 
   @override
@@ -25,6 +27,22 @@ class _BioScreenState extends State<BioScreen> {
   final TextEditingController _bioController = TextEditingController();
   final TextEditingController _referralCodeController = TextEditingController();
   String? _referralError;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill referral code if provided via deep link
+    if (widget.referralCode != null && widget.referralCode!.isNotEmpty) {
+      _referralCodeController.text = widget.referralCode!.toUpperCase();
+    }
+  }
+
+  @override
+  void dispose() {
+    _bioController.dispose();
+    _referralCodeController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -462,12 +480,5 @@ class _BioScreenState extends State<BioScreen> {
         );
       },
     );
-  }
-
-  @override
-  void dispose() {
-    _bioController.dispose();
-    _referralCodeController.dispose();
-    super.dispose();
   }
 }
