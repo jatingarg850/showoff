@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'comments_screen.dart';
 import 'gift_screen.dart';
@@ -237,8 +236,8 @@ class _SYTReelScreenState extends State<SYTReelScreen>
 
     if (buffered.isNotEmpty && duration.inMilliseconds > 0) {
       final bufferedEnd = buffered.last.end;
-      // Ready when 15% buffered
-      if (bufferedEnd.inMilliseconds >= duration.inMilliseconds * 0.15) {
+      // Ready when 5% buffered (faster playback start for HLS)
+      if (bufferedEnd.inMilliseconds >= duration.inMilliseconds * 0.05) {
         if (_videoReady[index] != true && mounted) {
           setState(() {
             _videoReady[index] = true;
@@ -405,8 +404,8 @@ class _SYTReelScreenState extends State<SYTReelScreen>
     final keysToRemove = <int>[];
 
     _videoControllers.forEach((index, controller) {
-      // Keep current, previous, and next 2
-      final shouldKeep = index >= currentIndex - 1 && index <= currentIndex + 2;
+      // Keep current, previous, and next 3 (for faster preloading)
+      final shouldKeep = index >= currentIndex - 1 && index <= currentIndex + 3;
 
       if (!shouldKeep && controller != null) {
         try {
@@ -555,77 +554,6 @@ class _SYTReelScreenState extends State<SYTReelScreen>
     }
   }
 
-  Future<void> _shareEntry(String entryId, int index) async {
-    try {
-      final competition = widget.competitions[index];
-      final username = competition['user']?['username'] ?? 'user';
-      final title = competition['title'] ?? 'Amazing talent';
-      final category = competition['category'] ?? 'Talent';
-
-      // Create deep link to specific SYT entry
-      final deepLink = 'https://showoff.life/syt/$entryId';
-
-      // Create share text with deep link and Play Store link
-      final shareText =
-          '''
-🎭 Check out this amazing $category performance by @$username on ShowOff.life!
-
-"$title"
-
-Vote for them in the Show Your Talent competition! 🏆
-
-🔗 Watch & Vote: $deepLink
-
-📱 Download the app:
-https://play.google.com/store/apps/details?id=com.showofflife.app
-
-#ShowOffLife #SYT #ShowYourTalent #$category
-''';
-
-      // Share using share_plus
-      await Share.share(
-        shareText,
-        subject: 'Vote for $username on ShowOff.life SYT',
-      );
-
-      // Track share on backend and grant coins
-      final response = await ApiService.shareSYTEntry(entryId);
-      if (response['success'] && mounted) {
-        // Show coin reward notification
-        final coinsEarned = response['coinsEarned'] ?? 5;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Shared! +$coinsEarned coins earned'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        await _reloadEntryStats(index);
-      } else {
-        // Show error if share limit reached or other error
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(response['message'] ?? 'Share failed'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint('Error sharing: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to share'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   Future<void> _reloadEntryStats(int index) async {
     try {
       final reel = widget.competitions[index];
@@ -763,6 +691,7 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
       'user': competition['user'],
       '_id': competition['_id'] ?? competition['entryId'],
       'userId': competition['user']?['_id'],
+      'thumbnailUrl': competition['thumbnailUrl'],
     };
   }
 
@@ -793,11 +722,15 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
             _initializeVideoForIndex(index);
           }
 
-          // Preload adjacent videos
-          if (index + 1 < widget.competitions.length &&
-              _videoControllers[index + 1] == null) {
-            _initializeVideoForIndex(index + 1);
+          // Preload next 3 videos (instead of just 1) for faster scrolling
+          for (int i = 1; i <= 3; i++) {
+            if (index + i < widget.competitions.length &&
+                _videoControllers[index + i] == null) {
+              _initializeVideoForIndex(index + i);
+            }
           }
+
+          // Preload previous video
           if (index > 0 && _videoControllers[index - 1] == null) {
             _initializeVideoForIndex(index - 1);
           }
@@ -848,10 +781,20 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
     final videoController = _videoControllers[index];
     final hasVideo =
         videoController != null && videoController.value.isInitialized;
+    var thumbnailUrl = reel['thumbnailUrl'];
+
+    // Convert relative thumbnail URLs to full URLs
+    if (thumbnailUrl != null && thumbnailUrl.isNotEmpty) {
+      if (thumbnailUrl.startsWith('/uploads')) {
+        thumbnailUrl = '${ApiConfig.baseUrl}$thumbnailUrl';
+      } else if (!thumbnailUrl.startsWith('http')) {
+        thumbnailUrl = ApiService.getImageUrl(thumbnailUrl);
+      }
+    }
 
     return Stack(
       children: [
-        // Video player or gradient background
+        // Video player or thumbnail/gradient background
         if (hasVideo)
           SizedBox.expand(
             child: FittedBox(
@@ -860,6 +803,30 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
                 width: videoController.value.size.width,
                 height: videoController.value.size.height,
                 child: VideoPlayer(videoController),
+              ),
+            ),
+          )
+        else if (thumbnailUrl != null && thumbnailUrl.isNotEmpty)
+          // Show thumbnail while buffering
+          SizedBox.expand(
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: Image.network(
+                thumbnailUrl,
+                errorBuilder: (context, error, stackTrace) {
+                  // Fallback to gradient if thumbnail fails to load
+                  return Container(
+                    width: double.infinity,
+                    height: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: reel['gradient'] as List<Color>,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           )
@@ -877,7 +844,17 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
                 colors: reel['gradient'] as List<Color>,
               ),
             ),
-            child: Center(
+          ),
+
+        // Loading indicator overlay (only show if video is not ready and no thumbnail)
+        if (!hasVideo && (thumbnailUrl == null || thumbnailUrl.isEmpty))
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.5),
+                shape: BoxShape.circle,
+              ),
               child: const CircularProgressIndicator(color: Colors.white),
             ),
           ),
@@ -1059,19 +1036,6 @@ https://play.google.com/store/apps/details?id=com.showofflife.app
                           final entryId = reel['_id'] ?? reel['entryId'];
                           if (entryId != null) {
                             await _toggleBookmark(entryId, index);
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 20),
-
-                      _buildActionButton(
-                        'assets/sidereel/share.png',
-                        reel['shares'] ?? '0',
-                        Colors.white,
-                        onTap: () async {
-                          final entryId = reel['_id'] ?? reel['entryId'];
-                          if (entryId != null) {
-                            await _shareEntry(entryId, index);
                           }
                         },
                       ),

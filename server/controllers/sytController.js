@@ -116,29 +116,12 @@ exports.submitEntry = async (req, res) => {
     let videoUrlToStore = videoUrl;
     const videoId = `syt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // Try immediate HLS conversion (with timeout)
-    let hlsUrl = null;
-    try {
-      console.log('🎬 Attempting HLS conversion for SYT video...');
-      const { convertVideoToHLS } = require('../utils/hlsConverter');
-      
-      // Set a timeout for HLS conversion (30 seconds max)
-      const conversionPromise = convertVideoToHLS(videoUrl, videoId);
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('HLS conversion timeout')), 30000)
-      );
-      
-      hlsUrl = await Promise.race([conversionPromise, timeoutPromise]);
-      
-      if (hlsUrl && hlsUrl !== videoUrl) {
-        videoUrlToStore = hlsUrl;
-        console.log('✅ HLS conversion completed:', hlsUrl);
-      }
-    } catch (hlsError) {
-      console.warn('⚠️ HLS conversion failed or timed out:', hlsError.message);
-      console.log('   Using original MP4 video URL');
-      // Continue with original video if HLS conversion fails
-    }
+    // Start async HLS conversion in background (non-blocking)
+    // This allows the upload to complete immediately while conversion happens
+    const { convertVideoToHLSAsync } = require('../utils/hlsConverter');
+    convertVideoToHLSAsync(videoUrl, videoId, null).catch(err => {
+      console.warn('⚠️ Background HLS conversion failed:', err.message);
+    });
 
     // Handle thumbnail URL if provided
     let thumbnailUrl = null;

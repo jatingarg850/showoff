@@ -79,7 +79,7 @@ Use my referral code: $referralCode
 • Win real prizes!
 
 📱 Download now:
-https://play.google.com/store/apps/details?id=com.showofflife.app
+https://play.google.com/store/apps/details?id=com.showoff.life
 
 #ShowOffLife #ReferralCode #EarnCoins
 ''';

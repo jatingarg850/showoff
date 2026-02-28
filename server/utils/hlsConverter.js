@@ -43,13 +43,14 @@ async function convertToHLS(inputPath, outputDir) {
     ffmpeg(inputPath)
       .outputOptions([
         '-c:v libx264',           // Video codec
-        '-preset medium',          // Encoding speed (fast, medium, slow)
-        '-crf 23',                 // Quality (0-51, lower is better)
+        '-preset fast',           // Faster encoding (fast, medium, slow)
+        '-crf 28',                // Quality (0-51, lower is better, 28 is good for streaming)
         '-c:a aac',               // Audio codec
-        '-b:a 128k',              // Audio bitrate
-        '-hls_time 10',           // Segment duration (10 seconds)
+        '-b:a 96k',               // Lower audio bitrate for faster streaming
+        '-hls_time 6',            // Shorter segment duration (6 seconds for faster start)
         '-hls_list_size 0',       // Keep all segments in playlist
         '-hls_segment_type mpegts', // Segment format
+        '-movflags +faststart',   // Enable fast start for MP4
       ])
       .output(m3u8Path)
       .on('start', (cmd) => {
@@ -237,23 +238,28 @@ module.exports = {
  * Converts video to HLS in the background and updates the entry when done
  * @param {string} videoUrl - URL of the video
  * @param {string} videoId - Unique ID for the video
- * @param {string} entryId - SYT Entry ID to update
+ * @param {string} entryId - SYT Entry ID to update (optional)
  */
 async function convertVideoToHLSAsync(videoUrl, videoId, entryId) {
   // Run conversion in background without blocking
   setImmediate(async () => {
     try {
-      console.log(`🎬 Starting async HLS conversion for entry ${entryId}...`);
+      console.log(`🎬 Starting async HLS conversion for video ${videoId}...`);
       const hlsUrl = await convertVideoToHLS(videoUrl, videoId);
       
-      if (hlsUrl !== videoUrl) {
-        // HLS conversion was successful, update the entry
-        const SYTEntry = require('../models/SYTEntry');
-        await SYTEntry.findByIdAndUpdate(entryId, { videoUrl: hlsUrl });
-        console.log(`✅ Entry ${entryId} updated with HLS URL: ${hlsUrl}`);
+      if (hlsUrl && hlsUrl !== videoUrl) {
+        // HLS conversion was successful
+        console.log(`✅ HLS conversion completed: ${hlsUrl}`);
+        
+        // If entryId provided, update the entry
+        if (entryId) {
+          const SYTEntry = require('../models/SYTEntry');
+          await SYTEntry.findByIdAndUpdate(entryId, { videoUrl: hlsUrl });
+          console.log(`✅ Entry ${entryId} updated with HLS URL: ${hlsUrl}`);
+        }
       }
     } catch (error) {
-      console.error(`❌ Async HLS conversion failed for entry ${entryId}:`, error.message);
+      console.error(`❌ Async HLS conversion failed for video ${videoId}:`, error.message);
       // Entry already has original video URL, so it's not critical
     }
   });

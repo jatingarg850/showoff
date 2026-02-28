@@ -53,7 +53,7 @@ android {
             if (keystorePropertiesFile.exists() && keystoreProperties["storeFile"].toString().isNotEmpty()) {
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
+                storeFile = file("../key/${keystoreProperties["storeFile"]}")
                 storePassword = keystoreProperties["storePassword"] as String
             }
         }

@@ -1076,7 +1076,7 @@ Check out this amazing reel by @$username on ShowOff.life! 🎬
 ${caption.isNotEmpty ? '$caption\n\n' : ''}🔗 Watch now: $deepLink
 
 📱 Download the app:
-https://play.google.com/store/apps/details?id=com.showofflife.app
+https://play.google.com/store/apps/details?id=com.showoff.life
 
 #ShowOffLife #Reels #Viral
 ''';
