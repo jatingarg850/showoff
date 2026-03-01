@@ -599,7 +599,7 @@ function filterWithdrawals() {
 // Subscriptions Management
 async function loadSubscriptionsData() {
     try {
-        const data = await apiCall('/admin/subscriptions');
+        const data = await apiCall('/api/admin/subscriptions');
         updateSubscriptionsStats(data.stats || {});
         updateSubscriptionsTable(data.data || []);
     } catch (error) {
@@ -609,13 +609,18 @@ async function loadSubscriptionsData() {
 }
 
 function updateSubscriptionsStats(stats) {
-    document.getElementById('active-subscriptions').textContent = stats.active || 0;
-    document.getElementById('subscription-revenue').textContent = (stats.revenue || 0).toLocaleString();
+    document.getElementById('active-subscriptions').textContent = stats.count || 0;
+    document.getElementById('subscription-revenue').textContent = '₹' + (stats.totalRevenue || 0).toLocaleString();
     document.getElementById('churn-rate').textContent = (stats.churnRate || 0) + '%';
 }
 
 function updateSubscriptionsTable(subscriptions) {
     const tbody = document.getElementById('subscriptions-table-body');
+    if (!subscriptions || subscriptions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">No subscriptions found</td></tr>';
+        return;
+    }
+    
     tbody.innerHTML = subscriptions.map(sub => `
         <tr>
             <td>
@@ -624,10 +629,10 @@ function updateSubscriptionsTable(subscriptions) {
                     <div class="user-email">@${sub.user?.username || 'N/A'}</div>
                 </div>
             </td>
-            <td>${sub.plan || 'N/A'}</td>
+            <td>${sub.plan?.name || sub.plan || 'N/A'}</td>
             <td><span class="status-badge status-${sub.status || 'active'}">${sub.status || 'active'}</span></td>
-            <td>${new Date(sub.startDate).toLocaleDateString()}</td>
-            <td>${new Date(sub.endDate).toLocaleDateString()}</td>
+            <td>${sub.startDate ? new Date(sub.startDate).toLocaleDateString() : 'N/A'}</td>
+            <td>${sub.endDate ? new Date(sub.endDate).toLocaleDateString() : 'N/A'}</td>
             <td>
                 <button class="btn btn-sm btn-primary" onclick="viewSubscription('${sub._id}')">View</button>
             </td>

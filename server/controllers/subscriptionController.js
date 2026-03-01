@@ -383,6 +383,16 @@ exports.getAllSubscriptions = async (req, res) => {
       }
     ]);
 
+    // Calculate churn rate (cancelled subscriptions in last 30 days)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const churnedCount = await UserSubscription.countDocuments({
+      status: 'cancelled',
+      updatedAt: { $gte: thirtyDaysAgo }
+    });
+
+    const totalSubscriptions = await UserSubscription.countDocuments();
+    const churnRate = totalSubscriptions > 0 ? ((churnedCount / totalSubscriptions) * 100).toFixed(2) : 0;
+
     res.status(200).json({
       success: true,
       data: subscriptions,
@@ -392,7 +402,11 @@ exports.getAllSubscriptions = async (req, res) => {
         total,
         pages: Math.ceil(total / limit)
       },
-      stats: revenueStats[0] || { totalRevenue: 0, count: 0 }
+      stats: {
+        totalRevenue: revenueStats[0]?.totalRevenue || 0,
+        count: revenueStats[0]?.count || 0,
+        churnRate: parseFloat(churnRate)
+      }
     });
   } catch (error) {
     res.status(500).json({
