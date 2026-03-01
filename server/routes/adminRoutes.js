@@ -143,6 +143,7 @@ router.post('/products/upload-images', upload.array('images', 5), require('../co
 
 // SYT/Talent Management
 router.get('/syt', require('../controllers/adminController').getSYTEntries);
+router.get('/syt/:id', require('../controllers/adminController').getSingleSYTEntry);
 router.put('/syt/:id/toggle', require('../controllers/adminController').toggleSYTEntry);
 router.put('/syt/:id/winner', require('../controllers/adminController').declareSYTWinner);
 router.delete('/syt/:id', require('../controllers/adminController').deleteSYTEntry);

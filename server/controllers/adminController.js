@@ -1414,6 +1414,36 @@ exports.uploadProductImages = async (req, res) => {
 
 // @desc    Get SYT/Talent entries for admin
 // @route   GET /api/admin/syt
+// @desc    Get single SYT entry
+// @route   GET /api/admin/syt/:id
+// @access  Private (Admin only)
+exports.getSingleSYTEntry = async (req, res) => {
+  try {
+    const entry = await SYTEntry.findById(req.params.id)
+      .populate('user', 'username displayName profilePicture email isVerified')
+      .populate('backgroundMusic', 'title artist');
+
+    if (!entry) {
+      return res.status(404).json({
+        success: false,
+        message: 'Entry not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: entry
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Get all SYT entries
+// @route   GET /api/admin/syt
 // @access  Private (Admin only)
 exports.getSYTEntries = async (req, res) => {
   try {

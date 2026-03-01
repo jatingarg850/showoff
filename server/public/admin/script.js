@@ -825,7 +825,146 @@ async function viewSubscription(subId) {
 }
 
 async function viewSYT(sytId) {
-    showNotification('SYT details view coming soon', 'info');
+    try {
+        // Show loading state
+        showNotification('Loading entry details...', 'info');
+        
+        // Fetch entry details
+        const response = await fetch(`/api/admin/syt/${sytId}`, {
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch entry details');
+        }
+        
+        const result = await response.json();
+        
+        if (!result.success || !result.data) {
+            throw new Error(result.message || 'Entry not found');
+        }
+        
+        const entry = result.data;
+        const user = entry.user || {};
+        
+        // Format dates
+        const createdDate = new Date(entry.createdAt).toLocaleDateString();
+        const createdTime = new Date(entry.createdAt).toLocaleTimeString();
+        
+        // Build modal content
+        const content = `
+            <div style="display: grid; gap: 1.5rem;">
+                <!-- Video Player -->
+                <div style="background: #000; border-radius: 0.75rem; overflow: hidden;">
+                    <video style="width: 100%; height: 400px; object-fit: contain;" controls poster="${entry.thumbnailUrl || ''}">
+                        <source src="${entry.videoUrl}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                
+                <!-- Entry Details -->
+                <div>
+                    <h4 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">${entry.title}</h4>
+                    <p style="color: #64748b; margin-bottom: 1rem;">${entry.description || 'No description provided'}</p>
+                    
+                    <!-- User Info -->
+                    <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: #f8fafc; border-radius: 0.75rem; margin-bottom: 1rem;">
+                        <img src="${user.profilePicture || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22%3E%3Crect fill=%22%23ddd%22 width=%2248%22 height=%2248%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-family=%22sans-serif%22 font-size=%2224%22%3E?%3C/text%3E%3C/svg%3E'}" 
+                             style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;">
+                        <div>
+                            <h5 style="font-weight: 600; margin-bottom: 0.25rem;">${user.displayName || 'Unknown User'}</h5>
+                            <p style="color: #64748b; font-size: 0.875rem;">@${user.username || 'unknown'}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Stats Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1rem;">
+                        <div style="background: #f8fafc; padding: 1rem; border-radius: 0.75rem; text-align: center;">
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #667eea;">${entry.votesCount || 0}</div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">Votes</div>
+                        </div>
+                        <div style="background: #f8fafc; padding: 1rem; border-radius: 0.75rem; text-align: center;">
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #ec4899;">${entry.likesCount || 0}</div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">Likes</div>
+                        </div>
+                        <div style="background: #f8fafc; padding: 1rem; border-radius: 0.75rem; text-align: center;">
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #3b82f6;">${entry.viewsCount || 0}</div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">Views</div>
+                        </div>
+                        <div style="background: #f8fafc; padding: 1rem; border-radius: 0.75rem; text-align: center;">
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #10b981;">${entry.coinsEarned || 0}</div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">Coins</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Entry Info -->
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1rem;">
+                        <div>
+                            <label style="display: block; font-size: 0.875rem; color: #64748b; margin-bottom: 0.25rem;">Category</label>
+                            <span class="status-badge" style="background: #e0e7ff; color: #3730a3;">${entry.category || 'N/A'}</span>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.875rem; color: #64748b; margin-bottom: 0.25rem;">Competition Type</label>
+                            <span class="status-badge" style="background: #dbeafe; color: #1e40af;">${entry.competitionType || 'N/A'}</span>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.875rem; color: #64748b; margin-bottom: 0.25rem;">Status</label>
+                            <span class="status-badge ${entry.isActive ? 'status-active' : 'status-suspended'}">${entry.isActive ? 'Active' : 'Inactive'}</span>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.875rem; color: #64748b; margin-bottom: 0.25rem;">Submitted</label>
+                            <span style="font-size: 0.875rem;">${createdDate} ${createdTime}</span>
+                        </div>
+                    </div>
+                    
+                    ${entry.isWinner ? `
+                        <div style="background: #fef3c7; border: 1px solid #fcd34d; padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem;">
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <i class="fas fa-trophy" style="font-size: 1.5rem; color: #fbbf24;"></i>
+                                <div>
+                                    <h5 style="font-weight: 600; color: #92400e;">Winner Position #${entry.winnerPosition}</h5>
+                                    <p style="font-size: 0.875rem; color: #92400e;">Prize: ${entry.prizeCoins} coins</p>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+        
+        // Create and show modal
+        const modal = document.createElement('div');
+        modal.id = 'sytViewModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+        `;
+        
+        modal.innerHTML = `
+            <div style="background: white; border-radius: 1rem; padding: 2rem; max-width: 800px; width: 90%; margin: 2rem auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h3>Entry Details</h3>
+                    <button onclick="document.getElementById('sytViewModal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+                </div>
+                ${content}
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+    } catch (error) {
+        console.error('Error loading entry:', error);
+        showNotification('Error loading entry details: ' + error.message, 'error');
+    }
 }
 
 async function toggleSYT(sytId) {
