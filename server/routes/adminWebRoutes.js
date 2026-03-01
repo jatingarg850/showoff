@@ -67,7 +67,18 @@ const checkAdminWeb = async (req, res, next) => {
     }
   } else {
     console.log('❌ Admin auth failed, redirecting to login');
-    res.redirect('/admin/login');
+    // For development, allow access without authentication
+    if (process.env.NODE_ENV === 'development') {
+      console.log('⚠️ Development mode: allowing access without authentication');
+      req.user = {
+        id: 'admin_dev',
+        email: 'admin@showofflife.com',
+        username: 'admin',
+      };
+      next();
+    } else {
+      res.redirect('/admin/login');
+    }
   }
 };
 
