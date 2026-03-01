@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
     sparse: true,
     lowercase: true,
     trim: true,
+    unique: true,
   },
   phone: {
     type: String,
@@ -145,6 +146,7 @@ const userSchema = new mongoose.Schema({
   referralCode: {
     type: String,
     unique: true,
+    sparse: true,
   },
   referredBy: {
     type: mongoose.Schema.Types.ObjectId,

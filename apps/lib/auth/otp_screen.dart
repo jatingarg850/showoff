@@ -65,10 +65,10 @@ class _OTPScreenState extends State<OTPScreen> {
           phone = withoutPlus.substring(3);
         } else if (withoutPlus.length > 2 &&
             (withoutPlus.startsWith('1') || withoutPlus.startsWith('7'))) {
-          countryCode = '+' + withoutPlus.substring(0, 1);
+          countryCode = '+${withoutPlus.substring(0, 1)}';
           phone = withoutPlus.substring(1);
         } else if (withoutPlus.length > 2) {
-          countryCode = '+' + withoutPlus.substring(0, 2);
+          countryCode = '+${withoutPlus.substring(0, 2)}';
           phone = withoutPlus.substring(2);
         }
       }
@@ -130,10 +130,10 @@ class _OTPScreenState extends State<OTPScreen> {
           phone = withoutPlus.substring(3);
         } else if (withoutPlus.length > 2 &&
             (withoutPlus.startsWith('1') || withoutPlus.startsWith('7'))) {
-          countryCode = '+' + withoutPlus.substring(0, 1);
+          countryCode = '+${withoutPlus.substring(0, 1)}';
           phone = withoutPlus.substring(1);
         } else if (withoutPlus.length > 2) {
-          countryCode = '+' + withoutPlus.substring(0, 2);
+          countryCode = '+${withoutPlus.substring(0, 2)}';
           phone = withoutPlus.substring(2);
         }
       }

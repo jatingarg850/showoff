@@ -283,52 +283,98 @@ exports.register = async (req, res) => {
       });
     }
 
+    // Normalize and validate email
+    let normalizedEmail = null;
+    if (email && email.trim()) {
+      normalizedEmail = email.toLowerCase().trim();
+      
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(normalizedEmail)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide a valid email address',
+          field: 'email',
+        });
+      }
+    }
+
     // Normalize phone number if provided
-    // Extract country code and phone separately
     let normalizedPhone = null;
     let countryCode = null;
     
-    if (phone) {
-      // Phone comes as: +1-9876543210 or +919876543210 or similar
-      // Extract country code (everything before the last 7-10 digits)
-      const phoneDigits = phone.replace(/\D/g, ''); // Remove all non-digits
+    if (phone && phone.trim()) {
+      const phoneDigits = phone.replace(/\D/g, '');
       
-      // Try to extract country code (usually 1-3 digits)
-      // For now, store the full phone with country code as one string
+      if (phoneDigits.length < 7 || phoneDigits.length > 15) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide a valid phone number',
+          field: 'phone',
+        });
+      }
+      
       normalizedPhone = phoneDigits;
       
-      // Extract country code from the original phone string
       const countryCodeMatch = phone.match(/^\+?(\d{1,3})/);
       if (countryCodeMatch) {
         countryCode = countryCodeMatch[1];
       }
     }
 
-    // Check if user exists
-    if (email) {
-      const emailExists = await User.findOne({ email });
+    // Validate username
+    if (!username || !username.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username is required',
+        field: 'username',
+      });
+    }
+
+    // Validate displayName
+    if (!displayName || !displayName.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Display name is required',
+        field: 'displayName',
+      });
+    }
+
+    // Validate password
+    if (!password || password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters',
+        field: 'password',
+      });
+    }
+
+    // Check if email already exists
+    if (normalizedEmail) {
+      const emailExists = await User.findOne({ email: normalizedEmail });
       if (emailExists) {
         return res.status(400).json({
           success: false,
           message: 'Email already registered',
+          field: 'email',
         });
       }
     }
 
+    // Check if phone already exists
     if (normalizedPhone) {
-      // Check if phone already exists (check both formats for backward compatibility)
       const phoneExists = await User.findOne({ 
         $or: [
           { phone: normalizedPhone },
-          { phone: phone } // Check original format too
+          { phone: phone }
         ]
       });
       
       if (phoneExists) {
-        console.log('❌ Phone already registered:', normalizedPhone);
         return res.status(400).json({
           success: false,
           message: 'Phone number already registered',
+          field: 'phone',
         });
       }
     }
@@ -339,18 +385,22 @@ exports.register = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Username already taken',
+        field: 'username',
       });
     }
 
-    // Create user - store phone as digits only for consistency
+    // Generate referral code
+    const generatedReferralCode = generateReferralCode(username);
+
+    // Create user - use undefined for empty fields (sparse indexes work better with undefined)
     const user = await User.create({
-      email,
-      phone: normalizedPhone,
-      countryCode: countryCode,
+      email: normalizedEmail || undefined,
+      phone: normalizedPhone || undefined,
+      countryCode: countryCode || undefined,
       password,
       username: username.toLowerCase(),
       displayName,
-      referralCode: generateReferralCode(username),
+      referralCode: generatedReferralCode,
       termsAndConditionsAccepted: true,
       termsAndConditionsVersion: 1,
       termsAndConditionsAcceptedAt: new Date(),
@@ -368,7 +418,8 @@ exports.register = async (req, res) => {
           ? parseInt(process.env.REFERRAL_COINS_FIRST_100)
           : parseInt(process.env.REFERRAL_COINS_AFTER);
 
-        await awardCoins(
+        // Award coins and get updated referrer
+        const { user: updatedReferrer } = await awardCoins(
           referrer._id,
           referralCoins,
           'referral',
@@ -376,9 +427,12 @@ exports.register = async (req, res) => {
           { relatedUser: user._id }
         );
 
-        referrer.referralCount += 1;
-        referrer.referralCoinsEarned += referralCoins;
-        await referrer.save();
+        // Update referral count and earned coins
+        updatedReferrer.referralCount += 1;
+        updatedReferrer.referralCoinsEarned += referralCoins;
+        await updatedReferrer.save();
+
+        console.log(`✅ Referral bonus awarded: ${referralCoins} coins to ${updatedReferrer.username}`);
       }
     }
 
@@ -401,9 +455,40 @@ exports.register = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error('❌ Registration error:', error);
+    
+    // Handle MongoDB duplicate key error (E11000)
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      const fieldMessages = {
+        email: 'Email already registered',
+        phone: 'Phone number already registered',
+        username: 'Username already taken',
+        referralCode: 'Referral code already exists',
+        googleId: 'Google account already linked',
+      };
+      
+      const message = fieldMessages[field] || `${field} already exists`;
+      
+      return res.status(400).json({
+        success: false,
+        message: message,
+        field: field,
+      });
+    }
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: messages.join(', '),
+      });
+    }
+    
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message || 'Registration failed. Please try again.',
     });
   }
 };

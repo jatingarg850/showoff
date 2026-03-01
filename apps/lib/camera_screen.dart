@@ -213,72 +213,70 @@ class _CameraScreenState extends State<CameraScreen> {
       print('✅ Video recording stopped');
 
       // If we got the video file, persist it
-      if (videoPath != null) {
-        try {
-          print('📹 Checking if video file exists: $videoPath');
-          final videoFile = File(videoPath!);
+      try {
+        print('📹 Checking if video file exists: $videoPath');
+        final videoFile = File(videoPath!);
 
-          // Wait a bit for the file to be fully written
-          await Future.delayed(const Duration(milliseconds: 500));
+        // Wait a bit for the file to be fully written
+        await Future.delayed(const Duration(milliseconds: 500));
 
-          final exists = await videoFile.exists();
+        final exists = await videoFile.exists();
 
-          if (!exists) {
-            print('❌ Video file not found at: $videoPath');
-            // Try recovery one more time
-            final recoveredPath = await _recoverVideoFromCache();
-            if (recoveredPath != null) {
-              videoPath = recoveredPath;
-              print('✅ Recovered video from cache: $videoPath');
-            } else {
-              throw Exception('Video file not found: $videoPath');
-            }
-          }
-
-          // Verify file has content
-          final fileSize = await File(videoPath).length();
-          if (fileSize == 0) {
-            throw Exception('Video file is empty (0 bytes)');
-          }
-          print(
-            '📹 Video file size: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB',
-          );
-
-          print('📹 Persisting video file...');
-          final persistedVideoPath =
-              await FilePersistenceService.persistVideoFile(videoPath);
-          print('✅ Video persisted to: $persistedVideoPath');
-
-          // Use callback if provided (new flow), otherwise navigate (old flow)
-          if (widget.onRecordingComplete != null) {
-            widget.onRecordingComplete!(persistedVideoPath, true);
-          } else if (mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => UploadContentScreen(
-                  selectedPath: widget.selectedPath,
-                  mediaPath: persistedVideoPath,
-                  isVideo: true,
-                  backgroundMusicId: widget.backgroundMusicId,
-                ),
-              ),
-            );
-          }
-        } catch (persistError) {
-          print('❌ Error persisting video: $persistError');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error saving video: $persistError'),
-                backgroundColor: Colors.red,
-                duration: const Duration(seconds: 3),
-              ),
-            );
+        if (!exists) {
+          print('❌ Video file not found at: $videoPath');
+          // Try recovery one more time
+          final recoveredPath = await _recoverVideoFromCache();
+          if (recoveredPath != null) {
+            videoPath = recoveredPath;
+            print('✅ Recovered video from cache: $videoPath');
+          } else {
+            throw Exception('Video file not found: $videoPath');
           }
         }
+
+        // Verify file has content
+        final fileSize = await File(videoPath).length();
+        if (fileSize == 0) {
+          throw Exception('Video file is empty (0 bytes)');
+        }
+        print(
+          '📹 Video file size: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB',
+        );
+
+        print('📹 Persisting video file...');
+        final persistedVideoPath =
+            await FilePersistenceService.persistVideoFile(videoPath);
+        print('✅ Video persisted to: $persistedVideoPath');
+
+        // Use callback if provided (new flow), otherwise navigate (old flow)
+        if (widget.onRecordingComplete != null) {
+          widget.onRecordingComplete!(persistedVideoPath, true);
+        } else if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => UploadContentScreen(
+                selectedPath: widget.selectedPath,
+                mediaPath: persistedVideoPath,
+                isVideo: true,
+                backgroundMusicId: widget.backgroundMusicId,
+              ),
+            ),
+          );
+        }
+      } catch (persistError) {
+        print('❌ Error persisting video: $persistError');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error saving video: $persistError'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
-    } catch (e) {
+        } catch (e) {
       print('❌ Error stopping video recording: $e');
 
       if (mounted) {

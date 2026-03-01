@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'api_service.dart';
 
 class VideoAudioMergeService {
   /// Upload video with background music metadata

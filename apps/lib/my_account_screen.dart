@@ -147,8 +147,9 @@ class _MyAccountScreenState
   >
   _uploadProfilePicture() async {
     if (_profileImage ==
-        null)
+        null) {
       return;
+    }
 
     try {
       showDialog(
@@ -1005,8 +1006,9 @@ class _MyAccountScreenState
     String? dateString,
   ) {
     if (dateString ==
-        null)
+        null) {
       return 'N/A';
+    }
     try {
       final date = DateTime.parse(
         dateString,

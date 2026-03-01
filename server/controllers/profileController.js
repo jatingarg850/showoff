@@ -265,15 +265,15 @@ exports.applyReferralCode = async (req, res) => {
     await user.save();
 
     // Award 20 coins to the referrer
-    await awardCoins(
+    const { user: updatedReferrer } = await awardCoins(
       referrer._id,
       20,
       'referral_bonus',
       `Referral Bonus - ${user.username} joined using your code`
     );
-    referrer.coinBalance += 20;
-    referrer.referralCount = (referrer.referralCount || 0) + 1;
-    await referrer.save();
+    updatedReferrer.referralCount = (updatedReferrer.referralCount || 0) + 1;
+    updatedReferrer.referralCoinsEarned = (updatedReferrer.referralCoinsEarned || 0) + 20;
+    await updatedReferrer.save();
 
     res.status(200).json({
       success: true,
@@ -281,7 +281,7 @@ exports.applyReferralCode = async (req, res) => {
       data: {
         coinsEarned: 20,
         newBalance: user.coinBalance,
-        referrerUsername: referrer.username,
+        referrerUsername: updatedReferrer.username,
       },
     });
   } catch (error) {

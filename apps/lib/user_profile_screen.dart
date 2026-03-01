@@ -3,7 +3,6 @@ import 'chat_screen.dart';
 import 'main_screen.dart';
 import 'followers_list_screen.dart';
 import 'following_list_screen.dart';
-import 'gift_screen.dart';
 import 'services/api_service.dart';
 
 class UserProfileScreen extends StatefulWidget {

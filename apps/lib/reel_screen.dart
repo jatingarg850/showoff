@@ -1412,8 +1412,9 @@ https://play.google.com/store/apps/details?id=com.showoff.life
                             builder: (context) => SearchScreen(),
                           ),
                         ).then((_) {
-                          if (mounted && _isScreenVisible)
+                          if (mounted && _isScreenVisible) {
                             _resumeCurrentVideo();
+                          }
                         });
                       },
                     ),
@@ -1431,8 +1432,9 @@ https://play.google.com/store/apps/details?id=com.showoff.life
                             builder: (context) => MessagesScreen(),
                           ),
                         ).then((_) {
-                          if (mounted && _isScreenVisible)
+                          if (mounted && _isScreenVisible) {
                             _resumeCurrentVideo();
+                          }
                         });
                       },
                     ),
@@ -1450,8 +1452,9 @@ https://play.google.com/store/apps/details?id=com.showoff.life
                             builder: (context) => NotificationScreen(),
                           ),
                         ).then((_) {
-                          if (mounted && _isScreenVisible)
+                          if (mounted && _isScreenVisible) {
                             _resumeCurrentVideo();
+                          }
                         });
                       },
                     ),

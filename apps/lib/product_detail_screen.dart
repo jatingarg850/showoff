@@ -118,7 +118,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final isLarge = screenWidth >= 600 && screenWidth < 900;
 
     // Calculate responsive values based on screen width
-    double _getResponsiveValue(
+    double getResponsiveValue(
       double xs,
       double small,
       double medium,
@@ -133,22 +133,22 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
 
     // Responsive dimensions
-    final horizontalPadding = _getResponsiveValue(8, 12, 16, 20, 24);
-    final verticalSpacing = _getResponsiveValue(6, 8, 12, 16, 20);
-    final titleFontSize = _getResponsiveValue(16, 18, 20, 22, 24);
-    final labelFontSize = _getResponsiveValue(11, 12, 13, 14, 15);
-    final descriptionFontSize = _getResponsiveValue(11, 12, 13, 14, 15);
-    final buttonHeight = _getResponsiveValue(40, 44, 48, 52, 56);
-    final buttonFontSize = _getResponsiveValue(11, 12, 13, 14, 15);
-    final navButtonSize = _getResponsiveValue(28, 32, 36, 40, 44);
-    final navIconSize = _getResponsiveValue(14, 16, 18, 20, 22);
-    final quantityButtonSize = _getResponsiveValue(24, 28, 30, 32, 36);
-    final quantityContainerHeight = _getResponsiveValue(24, 28, 30, 32, 36);
-    final colorCircleSize = _getResponsiveValue(28, 32, 34, 36, 40);
-    final ratingIconSize = _getResponsiveValue(12, 14, 16, 18, 20);
-    final sizeButtonPaddingH = _getResponsiveValue(8, 10, 12, 14, 16);
-    final sizeButtonPaddingV = _getResponsiveValue(4, 6, 8, 10, 12);
-    final borderRadius = _getResponsiveValue(6, 8, 10, 12, 14);
+    final horizontalPadding = getResponsiveValue(8, 12, 16, 20, 24);
+    final verticalSpacing = getResponsiveValue(6, 8, 12, 16, 20);
+    final titleFontSize = getResponsiveValue(16, 18, 20, 22, 24);
+    final labelFontSize = getResponsiveValue(11, 12, 13, 14, 15);
+    final descriptionFontSize = getResponsiveValue(11, 12, 13, 14, 15);
+    final buttonHeight = getResponsiveValue(40, 44, 48, 52, 56);
+    final buttonFontSize = getResponsiveValue(11, 12, 13, 14, 15);
+    final navButtonSize = getResponsiveValue(28, 32, 36, 40, 44);
+    final navIconSize = getResponsiveValue(14, 16, 18, 20, 22);
+    final quantityButtonSize = getResponsiveValue(24, 28, 30, 32, 36);
+    final quantityContainerHeight = getResponsiveValue(24, 28, 30, 32, 36);
+    final colorCircleSize = getResponsiveValue(28, 32, 34, 36, 40);
+    final ratingIconSize = getResponsiveValue(12, 14, 16, 18, 20);
+    final sizeButtonPaddingH = getResponsiveValue(8, 10, 12, 14, 16);
+    final sizeButtonPaddingV = getResponsiveValue(4, 6, 8, 10, 12);
+    final borderRadius = getResponsiveValue(6, 8, 10, 12, 14);
 
     // Image flex ratio based on orientation and screen size
     final imageFlexRatio = !isPortrait

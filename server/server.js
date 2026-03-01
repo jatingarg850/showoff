@@ -290,6 +290,16 @@ app.use('/admin/assets', express.static('public/admin'));
 // Serve public files (for phone-login-demo.html and other static assets)
 app.use('/public', express.static('public'));
 
+// Serve app-ads.txt at root level for AdMob verification
+app.use(express.static('public', {
+  setHeaders: (res, path) => {
+    if (path.endsWith('app-ads.txt')) {
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+    }
+  }
+}));
+
 // Test admin panel page
 app.get('/test-admin', (req, res) => {
   res.sendFile(__dirname + '/test-admin.html');
