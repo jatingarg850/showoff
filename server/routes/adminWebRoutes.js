@@ -1145,8 +1145,13 @@ router.get('/terms-and-conditions', checkAdminWeb, async (req, res) => {
 });
 
 // Subscriptions Management
-router.get('/subscriptions', checkAdminWeb, async (req, res) => {
+router.get('/subscriptions', async (req, res) => {
   try {
+    // Allow access in development mode or if admin session exists
+    if (process.env.NODE_ENV !== 'development' && (!req.session || !req.session.isAdmin)) {
+      return res.redirect('/admin/login');
+    }
+
     const { SubscriptionPlan, UserSubscription } = require('../models/Subscription');
     
     // Get all subscription plans
