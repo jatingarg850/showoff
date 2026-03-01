@@ -14,6 +14,9 @@ const connectDatabase = require('./config/database');
 const app = express();
 const server = http.createServer(app);
 
+// Trust proxy - needed when behind Nginx/load balancer
+app.set('trust proxy', 1);
+
 // Initialize Socket.IO
 const io = socketIo(server, {
   cors: {
