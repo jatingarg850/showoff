@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.showoff.life",
+      "sha256_cert_fingerprints": ["44:05:9B:52:C8:ED:49:D5:25:E4:A7:B8:39:D8:74:85:B3:05:A1:49"]
+    }
+  }
+]

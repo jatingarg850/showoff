@@ -343,6 +343,8 @@ server/.gradletasknamecache
 **/google-services.json
 **/GoogleService-Info.plist
 **/firebase-adminsdk-*.json
+**/firebase-service-account.json
+server/firebase-service-account.json
 
 # Android Signing
 **/key.properties
