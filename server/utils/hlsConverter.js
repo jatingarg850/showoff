@@ -7,12 +7,16 @@ const { v4: uuidv4 } = require('uuid');
 // Check if FFmpeg is available
 let ffmpegAvailable = false;
 try {
-  ffmpeg.setFfmpegPath(require('ffmpeg-static'));
-  ffmpegAvailable = true;
-  console.log('✅ FFmpeg is available');
+  const ffmpegPath = require('ffmpeg-static');
+  if (ffmpegPath) {
+    ffmpeg.setFfmpegPath(ffmpegPath);
+    ffmpegAvailable = true;
+    console.log('✅ FFmpeg is available at:', ffmpegPath);
+  }
 } catch (e) {
   console.warn('⚠️ FFmpeg not found - HLS conversion will be skipped');
-  console.warn('   Install FFmpeg: apt-get install ffmpeg (Linux) or brew install ffmpeg (Mac)');
+  console.warn('   Install ffmpeg-static: npm install ffmpeg-static');
+  console.warn('   Or install system FFmpeg: apt-get install ffmpeg (Linux) or brew install ffmpeg (Mac)');
 }
 
 // Configure Wasabi S3

@@ -118,10 +118,15 @@ exports.submitEntry = async (req, res) => {
     
     // Start async HLS conversion in background (non-blocking)
     // This allows the upload to complete immediately while conversion happens
-    const { convertVideoToHLSAsync } = require('../utils/hlsConverter');
-    convertVideoToHLSAsync(videoUrl, videoId, null).catch(err => {
-      console.warn('⚠️ Background HLS conversion failed:', err.message);
-    });
+    try {
+      const { convertVideoToHLSAsync } = require('../utils/hlsConverter');
+      convertVideoToHLSAsync(videoUrl, videoId, null).catch(err => {
+        console.warn('⚠️ Background HLS conversion failed:', err.message);
+      });
+    } catch (err) {
+      console.warn('⚠️ HLS converter module error:', err.message);
+      console.log('   Video will be stored as MP4 format');
+    }
 
     // Handle thumbnail URL if provided
     let thumbnailUrl = null;
@@ -140,8 +145,13 @@ exports.submitEntry = async (req, res) => {
       try {
         const { generateAndUploadThumbnail } = require('../utils/thumbnailGenerator');
         console.log('🎬 Auto-generating thumbnail for SYT entry:', videoUrl);
-        thumbnailUrl = await generateAndUploadThumbnail(videoUrl, `syt_${Date.now()}`);
-        console.log('✅ SYT thumbnail auto-generated:', thumbnailUrl);
+        const generatedThumbnail = await generateAndUploadThumbnail(videoUrl, `syt_${Date.now()}`);
+        if (generatedThumbnail) {
+          thumbnailUrl = generatedThumbnail;
+          console.log('✅ SYT thumbnail auto-generated:', thumbnailUrl);
+        } else {
+          console.log('⚠️ Thumbnail generation returned null - continuing without thumbnail');
+        }
       } catch (error) {
         console.warn('⚠️ Failed to auto-generate SYT thumbnail:', error.message);
         // Continue without thumbnail if generation fails

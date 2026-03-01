@@ -3,6 +3,17 @@ const path = require('path');
 const fs = require('fs').promises;
 const AWS = require('aws-sdk');
 
+// Set FFmpeg path if available
+try {
+  const ffmpegPath = require('ffmpeg-static');
+  if (ffmpegPath) {
+    ffmpeg.setFfmpegPath(ffmpegPath);
+    console.log('✅ FFmpeg path set for thumbnail generation');
+  }
+} catch (e) {
+  console.warn('⚠️ FFmpeg not available for thumbnail generation');
+}
+
 // Configure Wasabi S3
 const s3 = new AWS.S3({
   accessKeyId: process.env.WASABI_ACCESS_KEY_ID,
@@ -77,7 +88,7 @@ async function uploadThumbnailToS3(localPath, fileName) {
  * Generate and upload thumbnail for a video
  * @param {string} videoUrl - URL of the video
  * @param {string} videoId - ID of the video (for naming)
- * @returns {Promise<string>} - S3 URL of the generated thumbnail
+ * @returns {Promise<string>} - S3 URL of the generated thumbnail or null if generation fails
  */
 async function generateAndUploadThumbnail(videoUrl, videoId) {
   try {
@@ -106,8 +117,10 @@ async function generateAndUploadThumbnail(videoUrl, videoId) {
 
     return s3Url;
   } catch (error) {
-    console.error('Error in generateAndUploadThumbnail:', error);
-    throw error;
+    console.error('Error in generateAndUploadThumbnail:', error.message);
+    console.warn('⚠️ Thumbnail generation failed - video will be uploaded without thumbnail');
+    // Return null instead of throwing - allow upload to continue without thumbnail
+    return null;
   }
 }
 
