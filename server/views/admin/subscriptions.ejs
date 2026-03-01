@@ -369,21 +369,26 @@
                                         const endDate = new Date(sub.endDate);
                                         const today = new Date();
                                         const daysLeft = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+                                        const userDisplayName = sub.user ? sub.user.displayName : 'Unknown User';
+                                        const userUsername = sub.user ? sub.user.username : 'unknown';
+                                        const userProfilePicture = sub.user && sub.user.profilePicture ? (sub.user.profilePicture.startsWith('http') ? sub.user.profilePicture : 'http://localhost:3000' + sub.user.profilePicture) : 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-family=%22sans-serif%22 font-size=%2216%22%3E?%3C/text%3E%3C/svg%3E';
+                                        const planName = sub.plan ? sub.plan.name : 'Unknown Plan';
+                                        const planTier = sub.plan ? sub.plan.tier : 'basic';
                                     %>
                                     <tr>
                                         <td>
                                             <div class="user-profile">
-                                                <img src="<%= sub.user.profilePicture ? (sub.user.profilePicture.startsWith('http') ? sub.user.profilePicture : 'http://localhost:3000' + sub.user.profilePicture) : 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-family=%22sans-serif%22 font-size=%2216%22%3E?%3C/text%3E%3C/svg%3E' %>" alt="<%= sub.user.displayName %>" class="user-avatar" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-family=%22sans-serif%22 font-size=%2216%22%3E?%3C/text%3E%3C/svg%3E'">
+                                                <img src="<%= userProfilePicture %>" alt="<%= userDisplayName %>" class="user-avatar" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect fill=%22%23ddd%22 width=%2240%22 height=%2240%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-family=%22sans-serif%22 font-size=%2216%22%3E?%3C/text%3E%3C/svg%3E'">
                                                 <div class="user-info">
-                                                    <h4><%= sub.user.displayName %></h4>
-                                                    <p>@<%= sub.user.username %></p>
+                                                    <h4><%= userDisplayName %></h4>
+                                                    <p>@<%= userUsername %></p>
                                                 </div>
                                             </div>
                                         </td>
                                         <td>
-                                            <div style="font-weight: 600;"><%= sub.plan.name %></div>
-                                            <span class="badge" style="background: <%= sub.plan.tier === 'premium' ? '#f59e0b' : sub.plan.tier === 'vip' ? '#8b5cf6' : '#3b82f6' %>; color: white;">
-                                                <%= sub.plan.tier.toUpperCase() %>
+                                            <div style="font-weight: 600;"><%= planName %></div>
+                                            <span class="badge" style="background: <%= planTier === 'premium' ? '#f59e0b' : planTier === 'vip' ? '#8b5cf6' : '#3b82f6' %>; color: white;">
+                                                <%= planTier.toUpperCase() %>
                                             </span>
                                         </td>
                                         <td>
